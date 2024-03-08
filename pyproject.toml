@@ -1,0 +1,21 @@
+[tool.poetry]
+name = "llmax"
+version = "0.1.0"
+description = ""
+authors = ["Your Name <you@example.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+openai = "^1.13.3"
+tiktoken = "^0.6.0"
+
+[tool.poetry.group.dev.dependencies]
+ruff = "^0.3.1"
+pyright = "^1.1.352"
+isort = "^5.13.2"
+mypy = "^1.8.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
