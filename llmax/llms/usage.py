@@ -44,7 +44,7 @@ class ModelUsage:
     """
 
     model: Model
-    increment_usage: Callable[[float], bool]
+    increment_usage: Callable[[float, Model], bool]
     tokens_usage: CompletionUsage = field(
         default_factory=lambda: CompletionUsage(
             completion_tokens=0, prompt_tokens=0, total_tokens=0
@@ -108,4 +108,4 @@ class ModelUsage:
             f"Cost: ${self.compute_cost():.6f}"
         )
         logger.debug(f"Applying usage for model '{self.model}'. {message}")
-        _ = self.increment_usage(self.compute_cost())
+        _ = self.increment_usage(self.compute_cost(), self.model)
