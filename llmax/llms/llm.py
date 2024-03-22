@@ -2,10 +2,11 @@ import random
 import time
 from typing import Callable, Generator
 
-from llmax.llms.models import Model
 from openai import AsyncAzureOpenAI, AzureOpenAI
 from openai.types import Embedding
 from openai.types.chat import ChatCompletion, ChatCompletionChunk
+
+from llmax.llms.models import Model
 
 from .fake import fake_llm
 from .usage import ModelUsage
@@ -31,11 +32,11 @@ class LLMAzureOpenAI:
     def __init__(
         self,
         api_key: str,
-        api_version: str,
         endpoint: str,
         deployments: dict[Model, str],
+        api_version: str = "2023-05-15",
         get_usage: Callable[[], float] = lambda: 0.0,
-        increment_usage: Callable[[float], bool] = lambda _: True,
+        increment_usage: Callable[[float, Model], bool] = lambda _1, _2: True,
     ) -> None:
         """Initializes the LLMAzureOpenAI class with necessary API and usage tracking details.
 
