@@ -8,6 +8,7 @@ from openai.types.chat import ChatCompletion, ChatCompletionChunk
 
 from llmax.llms.models import Model
 
+from .clients.types import AsyncClient, Client
 from .fake import fake_llm
 from .usage import ModelUsage
 
@@ -57,6 +58,9 @@ class LLMAzureOpenAI:
         self.deployments = deployments
         self._get_usage = get_usage
         self._increment_usage = increment_usage
+
+        self._clients: dict[str, Client] = {}
+        self._aclients: dict[str, AsyncClient] = {}
 
     def _create_chat(
         self, messages: Messages, model: Model, **kwargs
