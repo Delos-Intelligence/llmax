@@ -1,2 +1,8 @@
 # llmax
-Python package to manage most external and internal LLM APIs fluently.
+
+Package python pour manipuler les LLMs.
+
+
+# Appels LLM
+
+## Un client unifié
