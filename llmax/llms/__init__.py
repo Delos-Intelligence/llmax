@@ -11,7 +11,15 @@ Public Modules:
 
 from . import prices, tokens
 from .fake import fake_llm
-from .llm import LLMAzureOpenAI, Messages
+from .llm import Deployment, LLMAzureOpenAI, Messages
 from .usage import ModelUsage
 
-__all__ = ["LLMAzureOpenAI", "ModelUsage", "prices", "tokens", "fake_llm", "Messages"]
+__all__ = [
+    "Deployment",
+    "fake_llm",
+    "LLMAzureOpenAI",
+    "Messages",
+    "ModelUsage",
+    "prices",
+    "tokens",
+]
