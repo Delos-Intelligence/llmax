@@ -6,4 +6,5 @@ Model = Literal[
     "text-embedding-3-small",
     "text-embedding-3-large",
     "ada-v2",
+    "mistral-large",
 ]

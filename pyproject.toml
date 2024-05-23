@@ -10,6 +10,7 @@ python = "^3.11"
 openai = "^1.13.3"
 tiktoken = "^0.6.0"
 loguru = "^0.7.2"
+mistralai = "^0.2.0"
 
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.3.1"

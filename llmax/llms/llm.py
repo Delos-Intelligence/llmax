@@ -1,7 +1,9 @@
 import random
 import time
-from typing import Callable, Generator
+from dataclasses import dataclass
+from typing import Any, Callable, Generator, Literal
 
+from mistralai.client import MistralClient
 from openai import AsyncAzureOpenAI, AzureOpenAI
 from openai.types import Embedding
 from openai.types.chat import ChatCompletion, ChatCompletionChunk
@@ -12,6 +14,41 @@ from .fake import fake_llm
 from .usage import ModelUsage
 
 Messages = list
+
+
+@dataclass
+class Deployment:
+    name: str
+    provider: Literal["openai", "mistral"]
+    endpoint: str
+    api_key: str
+    api_version: str | None = "2023-05-15"
+
+
+def get_client(deployment: Deployment) -> Any:
+    match deployment.provider:
+        case "openai":
+            AzureOpenAI(
+                api_key=deployment.api_key,
+                api_version=deployment.api_version,
+                azure_endpoint=deployment.endpoint,
+            )
+        case "mistral":
+            return MistralClient(deployment.api_key, deployment.endpoint)
+        case _:
+            return None
+
+
+def get_aclient(deployment: Deployment) -> Any:
+    match deployment.provider:
+        case "openai":
+            return AsyncAzureOpenAI(
+                api_key=deployment.api_key,
+                api_version=deployment.api_version,
+                azure_endpoint=deployment.endpoint,
+            )
+        case _:
+            return None
 
 
 class LLMAzureOpenAI:
@@ -31,10 +68,7 @@ class LLMAzureOpenAI:
 
     def __init__(
         self,
-        api_key: str,
-        endpoint: str,
-        deployments: dict[Model, str],
-        api_version: str = "2023-05-15",
+        deployments: dict[Model, Deployment],
         get_usage: Callable[[], float] = lambda: 0.0,
         increment_usage: Callable[[float, Model], bool] = lambda _1, _2: True,
     ) -> None:
@@ -48,15 +82,18 @@ class LLMAzureOpenAI:
             get_usage: A function to get the current usage.
             increment_usage: A function to increment usage.
         """
-        self.client = AzureOpenAI(
-            api_key=api_key, api_version=api_version, azure_endpoint=endpoint
-        )
-        self.aclient = AsyncAzureOpenAI(
-            api_key=api_key, api_version=api_version, azure_endpoint=endpoint
-        )
+
         self.deployments = deployments
         self._get_usage = get_usage
         self._increment_usage = increment_usage
+
+        self.clients: dict[Model, Any] = {
+            model: get_client(deployment) for model, deployment in deployments.items()
+        }
+
+        self.aclients: dict[Model, Any] = {
+            model: get_aclient(deployment) for model, deployment in deployments.items()
+        }
 
     def _create_chat(
         self, messages: Messages, model: Model, **kwargs
@@ -70,7 +107,8 @@ class LLMAzureOpenAI:
         Returns:
             ChatCompletion: The completion response from the API.
         """
-        return self.client.chat.completions.create(
+        client = self.clients[model]
+        return client.chat.completions.create(
             messages=messages, model=self.deployments[model], **kwargs
         )
 
@@ -86,7 +124,8 @@ class LLMAzureOpenAI:
         Returns:
             ChatCompletion: The completion response from the API.
         """
-        result = await self.aclient.chat.completions.create(
+        aclient = self.aclients[model]
+        result = await aclient.chat.completions.create(
             messages=messages, model=self.deployments[model], **kwargs
         )
         return result
@@ -220,9 +259,8 @@ class LLMAzureOpenAI:
         """
         texts = [text.replace("\n", " ") for text in texts]
 
-        response = self.client.embeddings.create(
-            input=texts, model=self.deployments[model]
-        )
+        client = self.clients[model]
+        response = client.embeddings.create(input=texts, model=self.deployments[model])
 
         usage = ModelUsage(model, self._increment_usage)
         usage.add_tokens(prompt_tokens=response.usage.prompt_tokens)
