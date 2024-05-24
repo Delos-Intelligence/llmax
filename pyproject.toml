@@ -21,3 +21,96 @@ mypy = "^1.8.0"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+# fix = true
+src = ["llmax"]
+
+
+[tool.ruff.lint]
+extend-select = [
+  "F",     # pyflakes
+  "E",     # pycodestyle errors
+  "W",     # pycodestyle warnings
+  "C",     # Pylint convention messages
+  "C90",   # mccabe
+  "I",     # isort
+  "N",     # PEP8 Naming
+  "D",     # pydocstyle
+  "UP",    # pyupgrade
+  "YTT",   # flake8-2020
+  "ANN",   # flake8-annotations errors and warnings
+  "ASYNC", # flake8-async errors and warnings
+  "TRIO",  # flake8-trio errors and warnings
+  "S",     # flake8-bandit security warnings
+  "BLE",   # flake8-blind-except errors
+  "FBT",   # flake8-boolean-trap errors and warnings
+  "B",     # flake8-bugbear warnings
+  "A",     # flake8-builtins errors
+  "COM",   # flake8-commas errors
+  "CPY",   # flake8-copyright errors
+  "C4",    # flake8-comprehensions warnings
+  "DTZ",   # flake8-datetimez errors and warnings
+  "T10",   # flake8-debugger errors
+  "DJ",    # flake8-django errors and warnings
+  "EM",    # flake8-errmsg errors
+  "EXE",   # flake8-executable errors
+  # "FA",    # flake8-future-annotations errors
+  "ISC",  # flake8-implicit-str-concat warnings
+  "ICN",  # flake8-import-conventions errors and warnings
+  "LOG",  # flake8-logging errors
+  "G",    # flake8-logging-format warnings
+  "INP",  # flake8-no-pep420 errors
+  "PIE",  # flake8-pie errors and warnings
+  "T20",  # flake8-print errors
+  "PYI",  # flake8-pyi errors and warnings
+  "PT",   # flake8-pytest-style errors and warnings
+  "Q",    # flake8-quotes errors
+  "RSE",  # flake8-raise errors
+  "SLF",  # flake8-self errors
+  "RET",  # flake8-return errors
+  "SLOT", # flake8-slots errors
+  "SIM",  # flake8-simplify errors and warnings
+  "TID",  # flake8-tidy-imports errors
+  "TCH",  # flake8-type-checking errors and warnings
+  "INT",  # flake8-gettext errors and warnings
+  "ARG",  # flake8-unused-arguments warnings
+  "PTH",  # flake8-use-pathlib warnings
+  "TD",   # flake8-todos warnings
+  "FIX",  # flake8-fixme warnings
+  "ERA",  # eradicate
+  "PD",   # pandas-vet.
+  "PGH",  # pygrep-hooks,
+  "PL",   # pylint
+  "R",    # Pylint refactor messages
+  "TRY",  # tryceratops
+  "FLY",  # flyint
+  "NPY",  # numpy,
+  "AIR",  # airflow
+  "PERF", # perflint # performance -> check @bernadotte
+  "FURB", # refurb
+  "RUF",  # ruff # check @translate
+]
+
+ignore = [
+  "ANN101",
+  "RET504", # unnecessary-allign
+  "E501",   # line too long
+]
+
+pydocstyle.convention = "google"
+
+[tool.pyright]
+typeCheckingMode = "strict"
+reportMissingParameterType = "warning"
+reportMissingTypeArguments = "warning"
+reportMissingTypeArgument = "warning"
+reportMissingTypeImports = "error"
+reportMissingTypeStubs = "warning"
+reportUnknownArgumentType = "warning"
+reportUnknownLambdaType = "warning"
+reportUnknownParameterType = "warning"
+reportUnnecessaryTypeIgnoreComment = "warning"
+reportUnusedVariable = "warning"
+reportUnknownVariableType = "warning"
+reportUnknownMemberType = "warning"
