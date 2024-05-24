@@ -1,1 +1,3 @@
-Message = list
+from typing import Any
+
+Message = Any
