@@ -1,6 +1,6 @@
 from typing import Any
 
-from mistralai.client import MistralClient
+from openai import OpenAI
 
 from llmax import models
 from llmax.models import Deployment
@@ -16,14 +16,10 @@ def get_client(deployment: Deployment) -> Client:
         raise ValueError(message)
 
     match deployment.provider:
-        case "mistral":
-            return MistralClient(
-                api_key=deployment.api_key,
-            )
         case "azure":
-            return MistralClient(
+            return OpenAI(
                 api_key=deployment.api_key,
-                endpoint=deployment.endpoint,
+                base_url=deployment.endpoint,
             )
         case _:
             message = f"Invalid provider for Mistral model: {deployment.provider}. Please provide a valid provider."
