@@ -1,21 +1,26 @@
+"""This module contains the MultiAIClient class.
+
+This class is used to interface with multiple LLMs and AI models, supporting both
+synchronous and asynchronous operations.
+"""
+
 import random
 import time
-from typing import Callable, Generator
+from typing import Any, Callable, Generator
 
-from openai import AsyncAzureOpenAI, AzureOpenAI
 from openai.types import Embedding
 from openai.types.chat import ChatCompletion, ChatCompletionChunk
 
-from llmax.llms.models import Model
+from llmax import external_clients
+from llmax.messages import Messages
+from llmax.models.deployment import Deployment
+from llmax.models.fake import fake_llm
+from llmax.models.models import Model
+from llmax.usage import ModelUsage
 
-from .fake import fake_llm
-from .usage import ModelUsage
 
-Messages = list
-
-
-class LLMAzureOpenAI:
-    """Class to interface with Azure's OpenAI API for chat completions and embeddings.
+class MultiAIClient:
+    """Class to interface with multiple LLMs and AI models.
 
     This class supports both synchronous and asynchronous operations for obtaining
     chat completions, streaming responses, and generating text embeddings, with
@@ -31,35 +36,36 @@ class LLMAzureOpenAI:
 
     def __init__(
         self,
-        api_key: str,
-        endpoint: str,
-        deployments: dict[Model, str],
-        api_version: str = "2023-05-15",
+        deployments: dict[Model, Deployment],
         get_usage: Callable[[], float] = lambda: 0.0,
         increment_usage: Callable[[float, Model], bool] = lambda _1, _2: True,
     ) -> None:
-        """Initializes the LLMAzureOpenAI class with necessary API and usage tracking details.
+        """Initializes the MultiAIClient class.
 
         Args:
-            api_key: The API key for Azure OpenAI.
-            api_version: The version of the API to use.
-            endpoint: The endpoint for Azure OpenAI services.
-            deployments: A mapping from models to their deployment strings.
+            deployments: A mapping from models to their deployment objects.
             get_usage: A function to get the current usage.
             increment_usage: A function to increment usage.
         """
-        self.client = AzureOpenAI(
-            api_key=api_key, api_version=api_version, azure_endpoint=endpoint
-        )
-        self.aclient = AsyncAzureOpenAI(
-            api_key=api_key, api_version=api_version, azure_endpoint=endpoint
-        )
         self.deployments = deployments
         self._get_usage = get_usage
         self._increment_usage = increment_usage
 
+        self.clients: dict[Model, Any] = {
+            model: external_clients.get_client(deployment)
+            for model, deployment in deployments.items()
+        }
+
+        self.aclients: dict[Model, Any] = {
+            model: external_clients.get_aclient(deployment)
+            for model, deployment in deployments.items()
+        }
+
     def _create_chat(
-        self, messages: Messages, model: Model, **kwargs
+        self,
+        messages: Messages,
+        model: Model,
+        **kwargs,
     ) -> ChatCompletion:
         """Synchronously creates chat completions for the given messages and model.
 
@@ -70,12 +76,20 @@ class LLMAzureOpenAI:
         Returns:
             ChatCompletion: The completion response from the API.
         """
-        return self.client.chat.completions.create(
-            messages=messages, model=self.deployments[model], **kwargs
+        client = self.clients[model]
+        deployment = self.deployments[model]
+
+        return client.chat.completions.create(
+            messages=messages,
+            model=deployment.deployment_name,
+            **kwargs,
         )
 
     async def _acreate_chat(
-        self, messages: Messages, model: Model, **kwargs
+        self,
+        messages: Messages,
+        model: Model,
+        **kwargs,
     ) -> ChatCompletion:
         """Asynchronously creates chat completions for the given messages and model.
 
@@ -86,12 +100,20 @@ class LLMAzureOpenAI:
         Returns:
             ChatCompletion: The completion response from the API.
         """
-        result = await self.aclient.chat.completions.create(
-            messages=messages, model=self.deployments[model], **kwargs
+        aclient = self.aclients[model]
+        result = await aclient.chat.completions.create(
+            messages=messages,
+            model=self.deployments[model].deployment_name,
+            **kwargs,
         )
         return result
 
-    def invoke(self, messages: Messages, model: Model, **kwargs) -> ChatCompletion:
+    def invoke(
+        self,
+        messages: Messages,
+        model: Model,
+        **kwargs: Any,
+    ) -> ChatCompletion:
         """Synchronously invokes the API to get chat completions, tracking usage.
 
         Args:
@@ -103,11 +125,17 @@ class LLMAzureOpenAI:
         """
         response = self._create_chat(messages, model, **kwargs, stream=False)
         assert response.usage, "No usage for this request"
-        usage = ModelUsage(model, self._increment_usage, response.usage)
+        deployment = self.deployments[model]
+        usage = ModelUsage(deployment, self._increment_usage, response.usage)
         usage.apply()
         return response
 
-    def invoke_to_str(self, messages: Messages, model: Model, **kwargs) -> str | None:
+    def invoke_to_str(
+        self,
+        messages: Messages,
+        model: Model,
+        **kwargs,
+    ) -> str | None:
         """Convenience method to invoke the API and return the first response as a string.
 
         Args:
@@ -121,7 +149,10 @@ class LLMAzureOpenAI:
         return response.choices[0].message.content if response.choices else None
 
     async def ainvoke(
-        self, messages: Messages, model: Model, **kwargs
+        self,
+        messages: Messages,
+        model: Model,
+        **kwargs,
     ) -> ChatCompletion:
         """Asynchronously invokes the API to get chat completions, tracking usage.
 
@@ -134,7 +165,8 @@ class LLMAzureOpenAI:
         """
         response = await self._acreate_chat(messages, model, **kwargs, stream=False)
         assert response.usage, "No usage for this request"
-        usage = ModelUsage(model, self._increment_usage, response.usage)
+        deployment = self.deployments[model]
+        usage = ModelUsage(deployment, self._increment_usage, response.usage)
         usage.apply()
         return response
 
@@ -157,7 +189,10 @@ class LLMAzureOpenAI:
         return response.choices[0].message.content if response.choices else None
 
     def stream(
-        self, messages: Messages, model: Model, **kwargs
+        self,
+        messages: Messages,
+        model: Model,
+        **kwargs,
     ) -> Generator[ChatCompletionChunk, None, None]:
         """Streams chat completions, allowing responses to be received in chunks.
 
@@ -169,7 +204,8 @@ class LLMAzureOpenAI:
             ChatCompletionChunk: Individual chunks of the completion response.
         """
         response = self._create_chat(messages, model, **kwargs, stream=True)
-        usage = ModelUsage(model, self._increment_usage)
+        deployment = self.deployments[model]
+        usage = ModelUsage(deployment, self._increment_usage)
         usage.add_messages(messages)
 
         for chunk in response:
@@ -179,7 +215,10 @@ class LLMAzureOpenAI:
         usage.apply()
 
     def stream_output(
-        self, messages: Messages, model: Model, **kwargs
+        self,
+        messages: Messages,
+        model: Model,
+        **kwargs,
     ) -> Generator[str, None, str]:
         """Streams formatted output from the chat completions.
 
@@ -208,7 +247,11 @@ class LLMAzureOpenAI:
         yield "data: [DONE]\n\n"
         return output
 
-    def embedder(self, texts: list[str], model: Model) -> list[Embedding]:
+    def embedder(
+        self,
+        texts: list[str],
+        model: Model,
+    ) -> list[Embedding]:
         """Obtains vector embeddings for a list of texts asynchronously.
 
         Args:
@@ -220,11 +263,15 @@ class LLMAzureOpenAI:
         """
         texts = [text.replace("\n", " ") for text in texts]
 
-        response = self.client.embeddings.create(
-            input=texts, model=self.deployments[model]
+        client = self.clients[model]
+        deployment = self.deployments[model]
+
+        response = client.embeddings.create(
+            input=texts,
+            model=deployment.deployment_name,
         )
 
-        usage = ModelUsage(model, self._increment_usage)
+        usage = ModelUsage(deployment, self._increment_usage)
         usage.add_tokens(prompt_tokens=response.usage.prompt_tokens)
         usage.apply()
 
