@@ -6,10 +6,10 @@ from .models import MISTRAL_MODELS, MODELS, OPENAI_MODELS, Model
 from .providers import PROVIDERS, Provider
 
 __all__ = [
-    "PROVIDERS",
     "MISTRAL_MODELS",
-    "OPENAI_MODELS",
     "MODELS",
+    "OPENAI_MODELS",
+    "PROVIDERS",
     "Deployment",
     "Deployment",
     "Model",
