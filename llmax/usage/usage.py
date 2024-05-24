@@ -73,7 +73,7 @@ class ModelUsage:
         cost = 0
 
         if prompt_tokens := self.tokens_usage.prompt_tokens:
-            cost += prices.get_completion_price(
+            cost += prices.get_prompt_price(
                 self.deployment.model,
                 self.deployment.provider,
             ) * (prompt_tokens / 1000)
