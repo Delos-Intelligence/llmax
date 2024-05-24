@@ -10,6 +10,7 @@ Client = Any
 
 def get_client(deployment: Deployment) -> Client:
     """Get a client for the given deployment."""
+    deployment.validate()
     if deployment.model in OPENAI_MODELS:
         return openai.get_client(deployment)
     if deployment.model in MISTRAL_MODELS:
@@ -20,6 +21,7 @@ def get_client(deployment: Deployment) -> Client:
 
 def get_aclient(deployment: Deployment) -> Client:
     """Get an async client for the given deployment."""
+    deployment.validate()
     if deployment.model in OPENAI_MODELS:
         return openai.get_aclient(deployment)
     if deployment.model in MISTRAL_MODELS:

@@ -6,12 +6,11 @@ from openai.types import Embedding
 from openai.types.chat import ChatCompletion, ChatCompletionChunk
 
 from llmax import external_clients
+from llmax.messages import Messages
 from llmax.models.deployment import Deployment
 from llmax.models.fake import fake_llm
 from llmax.models.models import Model
 from llmax.usage import ModelUsage
-
-Messages = list
 
 
 class MultiAIClient:
