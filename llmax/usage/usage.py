@@ -1,36 +1,14 @@
+"""Defines the ModelUsage class for tracking usage statistics for a model."""
+
 from dataclasses import dataclass, field
 from typing import Any, Callable
 
 from openai.types import CompletionUsage
 
-from llmax.llms.models import Model
+from llmax.models import Deployment, Model
 from llmax.utils import logger
 
-from . import tokens
-from .prices import COMPLETION_PRICES_PER_1K, PROMPT_PRICES_PER_1K
-
-
-def get_cost(model_name: Model, num_tokens: int, is_completion: bool = False) -> float:
-    """
-    Get the cost in USD for a given model and number of tokens.
-
-    Args:
-        model_name: Name of the model
-        num_tokens: Number of tokens.
-        is_completion: Whether the model is used for completion or not.
-            Defaults to False.
-
-    Returns:
-        Cost in USD.
-    """
-    if model_name not in PROMPT_PRICES_PER_1K:
-        raise ValueError(
-            f"Unknown model: {model_name}. Please provide a valid OpenAI model name."
-            "Known models are: " + ", ".join(PROMPT_PRICES_PER_1K.keys())
-        )
-    if is_completion:
-        return COMPLETION_PRICES_PER_1K[model_name] * (num_tokens / 1000)
-    return PROMPT_PRICES_PER_1K[model_name] * (num_tokens / 1000)
+from . import prices, tokens
 
 
 @dataclass
@@ -43,19 +21,21 @@ class ModelUsage:
         tokens_usage: A CompletionUsage instance tracking token usage.
     """
 
-    model: Model
+    deployment: Deployment
     increment_usage: Callable[[float, Model], bool]
     tokens_usage: CompletionUsage = field(
         default_factory=lambda: CompletionUsage(
-            completion_tokens=0, prompt_tokens=0, total_tokens=0
-        )
+            completion_tokens=0,
+            prompt_tokens=0,
+            total_tokens=0,
+        ),
     )
 
     def __repr__(self) -> str:
         """Generates a string representation of model usage statistics.
 
         Returns:
-            A formatted string displaying prompt, completion, and total tokens, along with the total cost.
+            A formatted string displaying prompt, completion, and total tokens and cost.
         """
         return (
             f"\tPrompt Tokens: {self.tokens_usage.prompt_tokens}\n"
@@ -93,10 +73,16 @@ class ModelUsage:
         cost = 0
 
         if prompt_tokens := self.tokens_usage.prompt_tokens:
-            cost += get_cost(self.model, prompt_tokens)
+            cost += prices.get_completion_price(
+                self.deployment.model,
+                self.deployment.provider,
+            ) * (prompt_tokens / 1000)
 
         if completion_tokens := self.tokens_usage.completion_tokens:
-            cost += get_cost(self.model, completion_tokens, is_completion=True)
+            cost += prices.get_completion_price(
+                self.deployment.model,
+                self.deployment.provider,
+            ) * (completion_tokens / 1000)
 
         return cost
 
@@ -107,5 +93,5 @@ class ModelUsage:
             f"({self.tokens_usage.prompt_tokens} + {self.tokens_usage.completion_tokens}) "
             f"Cost: ${self.compute_cost():.6f}"
         )
-        logger.debug(f"Applying usage for model '{self.model}'. {message}")
-        _ = self.increment_usage(self.compute_cost(), self.model)
+        logger.debug(f"Applying usage for model '{self.deployment.model}'. {message}")
+        _ = self.increment_usage(self.compute_cost(), self.deployment.model)

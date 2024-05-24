@@ -1,58 +1,22 @@
 import random
 import time
-from dataclasses import dataclass
-from typing import Any, Callable, Generator, Literal
+from typing import Any, Callable, Generator
 
-from mistralai.client import MistralClient
-from openai import AsyncAzureOpenAI, AzureOpenAI
 from openai.types import Embedding
 from openai.types.chat import ChatCompletion, ChatCompletionChunk
 
-from llmax.llms.models import Model
+from llmax import clients
+from llmax.usage import ModelUsage
 
+from .deployment import Deployment
 from .fake import fake_llm
-from .usage import ModelUsage
+from .models import Model
 
 Messages = list
 
 
-@dataclass
-class Deployment:
-    name: str
-    provider: Literal["openai", "mistral"]
-    endpoint: str
-    api_key: str
-    api_version: str | None = "2023-05-15"
-
-
-def get_client(deployment: Deployment) -> Any:
-    match deployment.provider:
-        case "openai":
-            AzureOpenAI(
-                api_key=deployment.api_key,
-                api_version=deployment.api_version,
-                azure_endpoint=deployment.endpoint,
-            )
-        case "mistral":
-            return MistralClient(deployment.api_key, deployment.endpoint)
-        case _:
-            return None
-
-
-def get_aclient(deployment: Deployment) -> Any:
-    match deployment.provider:
-        case "openai":
-            return AsyncAzureOpenAI(
-                api_key=deployment.api_key,
-                api_version=deployment.api_version,
-                azure_endpoint=deployment.endpoint,
-            )
-        case _:
-            return None
-
-
-class LLMAzureOpenAI:
-    """Class to interface with Azure's OpenAI API for chat completions and embeddings.
+class MultiAIClient:
+    """Class to interface with multiple LLMs and AI models.
 
     This class supports both synchronous and asynchronous operations for obtaining
     chat completions, streaming responses, and generating text embeddings, with
@@ -72,31 +36,32 @@ class LLMAzureOpenAI:
         get_usage: Callable[[], float] = lambda: 0.0,
         increment_usage: Callable[[float, Model], bool] = lambda _1, _2: True,
     ) -> None:
-        """Initializes the LLMAzureOpenAI class with necessary API and usage tracking details.
+        """Initializes the MultiAIClient class.
 
         Args:
-            api_key: The API key for Azure OpenAI.
-            api_version: The version of the API to use.
-            endpoint: The endpoint for Azure OpenAI services.
-            deployments: A mapping from models to their deployment strings.
+            deployments: A mapping from models to their deployment objects.
             get_usage: A function to get the current usage.
             increment_usage: A function to increment usage.
         """
-
         self.deployments = deployments
         self._get_usage = get_usage
         self._increment_usage = increment_usage
 
         self.clients: dict[Model, Any] = {
-            model: get_client(deployment) for model, deployment in deployments.items()
+            model: clients.get_client(deployment)
+            for model, deployment in deployments.items()
         }
 
         self.aclients: dict[Model, Any] = {
-            model: get_aclient(deployment) for model, deployment in deployments.items()
+            model: clients.get_aclient(deployment)
+            for model, deployment in deployments.items()
         }
 
     def _create_chat(
-        self, messages: Messages, model: Model, **kwargs
+        self,
+        messages: Messages,
+        model: Model,
+        **kwargs,
     ) -> ChatCompletion:
         """Synchronously creates chat completions for the given messages and model.
 
@@ -109,11 +74,16 @@ class LLMAzureOpenAI:
         """
         client = self.clients[model]
         return client.chat.completions.create(
-            messages=messages, model=self.deployments[model], **kwargs
+            messages=messages,
+            model=self.deployments[model].deployment_name,
+            **kwargs,
         )
 
     async def _acreate_chat(
-        self, messages: Messages, model: Model, **kwargs
+        self,
+        messages: Messages,
+        model: Model,
+        **kwargs,
     ) -> ChatCompletion:
         """Asynchronously creates chat completions for the given messages and model.
 
@@ -126,11 +96,18 @@ class LLMAzureOpenAI:
         """
         aclient = self.aclients[model]
         result = await aclient.chat.completions.create(
-            messages=messages, model=self.deployments[model], **kwargs
+            messages=messages,
+            model=self.deployments[model].deployment_name,
+            **kwargs,
         )
         return result
 
-    def invoke(self, messages: Messages, model: Model, **kwargs) -> ChatCompletion:
+    def invoke(
+        self,
+        messages: Messages,
+        model: Model,
+        **kwargs: Any,
+    ) -> ChatCompletion:
         """Synchronously invokes the API to get chat completions, tracking usage.
 
         Args:
@@ -142,11 +119,17 @@ class LLMAzureOpenAI:
         """
         response = self._create_chat(messages, model, **kwargs, stream=False)
         assert response.usage, "No usage for this request"
-        usage = ModelUsage(model, self._increment_usage, response.usage)
+        deployment = self.deployments[model]
+        usage = ModelUsage(deployment, self._increment_usage, response.usage)
         usage.apply()
         return response
 
-    def invoke_to_str(self, messages: Messages, model: Model, **kwargs) -> str | None:
+    def invoke_to_str(
+        self,
+        messages: Messages,
+        model: Model,
+        **kwargs,
+    ) -> str | None:
         """Convenience method to invoke the API and return the first response as a string.
 
         Args:
@@ -160,7 +143,10 @@ class LLMAzureOpenAI:
         return response.choices[0].message.content if response.choices else None
 
     async def ainvoke(
-        self, messages: Messages, model: Model, **kwargs
+        self,
+        messages: Messages,
+        model: Model,
+        **kwargs,
     ) -> ChatCompletion:
         """Asynchronously invokes the API to get chat completions, tracking usage.
 
@@ -173,7 +159,8 @@ class LLMAzureOpenAI:
         """
         response = await self._acreate_chat(messages, model, **kwargs, stream=False)
         assert response.usage, "No usage for this request"
-        usage = ModelUsage(model, self._increment_usage, response.usage)
+        deployment = self.deployments[model]
+        usage = ModelUsage(deployment, self._increment_usage, response.usage)
         usage.apply()
         return response
 
@@ -196,7 +183,10 @@ class LLMAzureOpenAI:
         return response.choices[0].message.content if response.choices else None
 
     def stream(
-        self, messages: Messages, model: Model, **kwargs
+        self,
+        messages: Messages,
+        model: Model,
+        **kwargs,
     ) -> Generator[ChatCompletionChunk, None, None]:
         """Streams chat completions, allowing responses to be received in chunks.
 
@@ -208,7 +198,8 @@ class LLMAzureOpenAI:
             ChatCompletionChunk: Individual chunks of the completion response.
         """
         response = self._create_chat(messages, model, **kwargs, stream=True)
-        usage = ModelUsage(model, self._increment_usage)
+        deployment = self.deployments[model]
+        usage = ModelUsage(deployment, self._increment_usage)
         usage.add_messages(messages)
 
         for chunk in response:
@@ -218,7 +209,10 @@ class LLMAzureOpenAI:
         usage.apply()
 
     def stream_output(
-        self, messages: Messages, model: Model, **kwargs
+        self,
+        messages: Messages,
+        model: Model,
+        **kwargs,
     ) -> Generator[str, None, str]:
         """Streams formatted output from the chat completions.
 
@@ -247,7 +241,11 @@ class LLMAzureOpenAI:
         yield "data: [DONE]\n\n"
         return output
 
-    def embedder(self, texts: list[str], model: Model) -> list[Embedding]:
+    def embedder(
+        self,
+        texts: list[str],
+        model: Model,
+    ) -> list[Embedding]:
         """Obtains vector embeddings for a list of texts asynchronously.
 
         Args:
@@ -262,7 +260,8 @@ class LLMAzureOpenAI:
         client = self.clients[model]
         response = client.embeddings.create(input=texts, model=self.deployments[model])
 
-        usage = ModelUsage(model, self._increment_usage)
+        deployment = self.deployments[model]
+        usage = ModelUsage(deployment, self._increment_usage)
         usage.add_tokens(prompt_tokens=response.usage.prompt_tokens)
         usage.apply()
 

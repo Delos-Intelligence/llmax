@@ -1,19 +1,20 @@
+"""Token-related utilities."""
+
 import tiktoken
 from openai.types.chat import ChatCompletionMessage
 
 
-def count(string: str, model_name: str = "") -> int:
-    if model_name:
-        enc = tiktoken.encoding_for_model(model_name)
-    else:
-        enc = tiktoken.get_encoding("cl100k_base")
-
+def count(string: str) -> int:
+    """Count the number of tokens in a string."""
+    enc = tiktoken.get_encoding("cl100k_base")
     return len(enc.encode(repr(string)))
 
 
 def truncate(
-    messages: list[ChatCompletionMessage], max_tokens: int
+    messages: list[ChatCompletionMessage],
+    max_tokens: int,
 ) -> list[ChatCompletionMessage]:
+    """Truncate messages to a maximum token length."""
     tokens = 0
     for i, message in enumerate(messages):
         tokens += count(repr(message))
