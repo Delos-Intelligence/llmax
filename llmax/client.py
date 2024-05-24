@@ -6,11 +6,10 @@ from openai.types import Embedding
 from openai.types.chat import ChatCompletion, ChatCompletionChunk
 
 from llmax import clients
+from llmax.models.deployment import Deployment
+from llmax.models.fake import fake_llm
+from llmax.models.models import Model
 from llmax.usage import ModelUsage
-
-from .deployment import Deployment
-from .fake import fake_llm
-from .models import Model
 
 Messages = list
 
