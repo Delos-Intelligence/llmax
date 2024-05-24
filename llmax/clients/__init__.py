@@ -1,6 +1,5 @@
-from .clients import get_aclient, get_client
+from .multi_ai_client import MultiAIClient
 
 __all__ = [
-    "get_aclient",
-    "get_client",
+    "MultiAIClient",
 ]

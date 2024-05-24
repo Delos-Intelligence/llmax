@@ -1,5 +1,5 @@
 from . import clients, models, usage, utils
-from .client import MultiAIClient
+from .clients import MultiAIClient
 
 __all__ = [
     "usage",

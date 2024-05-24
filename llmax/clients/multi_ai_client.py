@@ -5,7 +5,7 @@ from typing import Any, Callable, Generator
 from openai.types import Embedding
 from openai.types.chat import ChatCompletion, ChatCompletionChunk
 
-from llmax import clients
+from llmax import external_clients
 from llmax.models.deployment import Deployment
 from llmax.models.fake import fake_llm
 from llmax.models.models import Model
@@ -47,12 +47,12 @@ class MultiAIClient:
         self._increment_usage = increment_usage
 
         self.clients: dict[Model, Any] = {
-            model: clients.get_client(deployment)
+            model: external_clients.get_client(deployment)
             for model, deployment in deployments.items()
         }
 
         self.aclients: dict[Model, Any] = {
-            model: clients.get_aclient(deployment)
+            model: external_clients.get_aclient(deployment)
             for model, deployment in deployments.items()
         }
 
