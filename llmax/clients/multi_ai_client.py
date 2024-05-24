@@ -1,3 +1,9 @@
+"""This module contains the MultiAIClient class.
+
+This class is used to interface with multiple LLMs and AI models, supporting both
+synchronous and asynchronous operations.
+"""
+
 import random
 import time
 from typing import Any, Callable, Generator
@@ -71,9 +77,11 @@ class MultiAIClient:
             ChatCompletion: The completion response from the API.
         """
         client = self.clients[model]
+        deployment = self.deployments[model]
+
         return client.chat.completions.create(
             messages=messages,
-            model=self.deployments[model].deployment_name,
+            model=deployment.deployment_name,
             **kwargs,
         )
 
@@ -256,9 +264,13 @@ class MultiAIClient:
         texts = [text.replace("\n", " ") for text in texts]
 
         client = self.clients[model]
-        response = client.embeddings.create(input=texts, model=self.deployments[model])
-
         deployment = self.deployments[model]
+
+        response = client.embeddings.create(
+            input=texts,
+            model=deployment.deployment_name,
+        )
+
         usage = ModelUsage(deployment, self._increment_usage)
         usage.add_tokens(prompt_tokens=response.usage.prompt_tokens)
         usage.apply()
