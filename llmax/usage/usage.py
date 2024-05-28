@@ -1,10 +1,11 @@
 """Defines the ModelUsage class for tracking usage statistics for a model."""
 
 from dataclasses import dataclass, field
-from typing import Any, Callable
+from typing import Callable
 
 from openai.types import CompletionUsage
 
+from llmax.messages.messages import Messages
 from llmax.models import Deployment, Model
 from llmax.utils import logger
 
@@ -55,7 +56,7 @@ class ModelUsage:
         self.tokens_usage.completion_tokens += completion_tokens
         self.tokens_usage.total_tokens += prompt_tokens + completion_tokens
 
-    def add_messages(self, messages: Any) -> None:
+    def add_messages(self, messages: Messages) -> None:
         """Counts tokens in messages and adds them to the prompt token count.
 
         Args:

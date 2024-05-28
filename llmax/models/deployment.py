@@ -1,7 +1,8 @@
 """Module to represent a deployment of a model."""
 
 from dataclasses import dataclass
-from typing import Literal
+
+from llmax.models.providers import Provider
 
 from .models import Model
 
@@ -12,10 +13,10 @@ class Deployment:
 
     model: Model
     api_key: str
-    provider: Literal["azure", "openai", "mistral"]
+    provider: Provider
     deployment_name: str = ""
     endpoint: str = ""
-    api_version: str | None = "2023-05-15"
+    api_version: str = "2023-05-15"
 
     def validate(self) -> None:
         """Validate the deployment."""

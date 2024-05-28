@@ -1,3 +1,5 @@
+"""This module provides functions to get a client for a given deployment."""
+
 from typing import Any
 
 from llmax.models import Deployment

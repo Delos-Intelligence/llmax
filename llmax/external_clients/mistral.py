@@ -1,3 +1,8 @@
+"""Mistral client for interacting with the Mistral API.
+
+Note: we use the OpenAI client to interact with the Mistral models.
+"""
+
 from typing import Any
 
 from openai import OpenAI
