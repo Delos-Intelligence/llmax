@@ -1,12 +1,13 @@
 [tool.poetry]
 name = "llmax"
 version = "0.2.2"
-description = ""
-authors = ["Your Name <you@example.com>"]
+description = "Interface to handle multiple LLMs and AI tools."
+authors = ["Delos Intelligence <maximiliendedinechin@delosintelligence.fr>"]
 readme = "README.md"
+keywords = ["AI", "LLM", "generative"]
 
 [tool.poetry.dependencies]
-python = "^3.11"
+python = ">=3.8.1,<4.0"
 openai = "^1.13.3"
 tiktoken = "^0.6.0"
 loguru = "^0.7.2"
