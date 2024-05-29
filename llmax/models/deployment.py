@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 from llmax.models.providers import Provider
 
-from .models import Model
+from .models import OPENAI_MODELS, Model
 
 
 @dataclass
@@ -23,6 +23,10 @@ class Deployment:
         if self.provider == "azure" and not self.endpoint:
             message = "Please provide an endpoint for Azure deployments."
             raise ValueError(message)
-        if self.provider == "azure" and not self.deployment_name:
-            message = "Please provide a deployment name for Azure deployments."
+        if (
+            self.provider == "azure"
+            and self.model in OPENAI_MODELS
+            and not self.deployment_name
+        ):
+            message = "Please provide a deployment name for Azure OpenAI deployments."
             raise ValueError(message)
