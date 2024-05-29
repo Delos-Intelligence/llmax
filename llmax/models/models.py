@@ -1,9 +1,22 @@
 """Supported models."""
 
 import typing
-from typing import Literal
+from typing import Literal, Union
 
-OpenAIModels = Literal[
+CohereModel = Literal[
+    "command-r",
+    "command-r-plus",
+]
+
+MetaModel = Literal["llama-3-70b-instruct",]
+
+MistralModel = Literal[
+    "mistral-large",
+    "mistral-small",
+]
+
+
+OpenAIModel = Literal[
     "ada-v2",
     "gpt-3.5",
     "gpt-4",
@@ -12,24 +25,16 @@ OpenAIModels = Literal[
     "text-embedding-3-small",
 ]
 
-MistralModels = Literal[
-    "mistral-large",
-    "mistral-small",
+
+COHERE_MODELS: tuple[CohereModel, ...] = typing.get_args(CohereModel)
+META_MODELS: tuple[MetaModel, ...] = typing.get_args(MetaModel)
+MISTRAL_MODELS: tuple[MistralModel, ...] = typing.get_args(MistralModel)
+OPENAI_MODELS: tuple[OpenAIModel, ...] = typing.get_args(OpenAIModel)
+
+Model = Union[
+    CohereModel,
+    MetaModel,
+    MistralModel,
+    OpenAIModel,
 ]
-
-CohereModels = Literal[
-    "command-r",
-    "command-r-plus",
-]
-
-MetaModels = Literal["llama-3-70b-instruct",]
-
-Model = OpenAIModels | MistralModels | CohereModels | MetaModels
-
-
-OPENAI_MODELS: tuple[OpenAIModels, ...] = typing.get_args(OpenAIModels)
-MISTRAL_MODELS: tuple[MistralModels, ...] = typing.get_args(MistralModels)
-COHERE_MODELS: tuple[CohereModels, ...] = typing.get_args(CohereModels)
-META_MODELS: tuple[MetaModels, ...] = typing.get_args(MetaModels)
-
-MODELS: tuple[Model, ...] = OPENAI_MODELS + MISTRAL_MODELS + COHERE_MODELS + META_MODELS
+MODELS: tuple[Model, ...] = typing.get_args(Model)
