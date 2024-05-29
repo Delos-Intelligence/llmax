@@ -8,26 +8,34 @@ PROMPT_PRICES_PER_1K: dict[Model, float | dict[Provider, float]] = {
     "text-embedding-3-small": 0.00002,
     "text-embedding-3-large": 0.00013,
     "ada-v2": 0.00010,
-    "mistral-small": {
-        "azure": 0.001,
-        "mistral": 0.001,
-    },
     "mistral-large": {
         "azure": 0.004,
-        "mistral": 0.004,
+    },
+    "mistral-small": {
+        "azure": 0.001,
+    },
+    "command-r-plus": {
+        "azure": 0.003,
+    },
+    "llama-3-70b-instruct": {
+        "azure": 0.00378,
     },
 }
 
 COMPLETION_PRICES_PER_1K: dict[Model, float | dict[Provider, float]] = {
     "gpt-4-turbo": 0.03,
     "gpt-3.5": 0.0015,
-    "mistral-small": {
-        "azure": 0.003,
-        "mistral": 0.003,
-    },
     "mistral-large": {
         "azure": 0.012,
-        "mistral": 0.012,
+    },
+    "mistral-small": {
+        "azure": 0.003,
+    },
+    "command-r-plus": {
+        "azure": 0.015,
+    },
+    "llama-3-70b-instruct": {
+        "azure": 0.01134,
     },
 }
 

@@ -17,9 +17,19 @@ MistralModels = Literal[
     "mistral-small",
 ]
 
-Model = OpenAIModels | MistralModels
+CohereModels = Literal[
+    "command-r",
+    "command-r-plus",
+]
+
+MetaModels = Literal["llama-3-70b-instruct",]
+
+Model = OpenAIModels | MistralModels | CohereModels | MetaModels
 
 
 OPENAI_MODELS: tuple[OpenAIModels, ...] = typing.get_args(OpenAIModels)
 MISTRAL_MODELS: tuple[MistralModels, ...] = typing.get_args(MistralModels)
-MODELS: tuple[Model, ...] = OPENAI_MODELS + MISTRAL_MODELS
+COHERE_MODELS: tuple[CohereModels, ...] = typing.get_args(CohereModels)
+META_MODELS: tuple[MetaModels, ...] = typing.get_args(MetaModels)
+
+MODELS: tuple[Model, ...] = OPENAI_MODELS + MISTRAL_MODELS + COHERE_MODELS + META_MODELS
