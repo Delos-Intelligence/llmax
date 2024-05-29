@@ -25,8 +25,22 @@ def main() -> None:
             model="mistral-large",
             provider="azure",
             deployment_name="mistral-large",
-            api_key=os.getenv("LLMAX_AZURE_MISTRAL_KEY", ""),
-            endpoint=os.getenv("LLMAX_AZURE_MISTRAL_ENDPOINT", ""),
+            api_key=os.getenv("LLMAX_AZURE_MISTRAL_LARGE_KEY", ""),
+            endpoint=os.getenv("LLMAX_AZURE_MISTRAL_LARGE_ENDPOINT", ""),
+        ),
+        "command-r-plus": Deployment(
+            model="command-r-plus",
+            provider="azure",
+            deployment_name="command-r-plus",
+            api_key=os.getenv("LLMAX_AZURE_COMMAND_R_PLUS_KEY", ""),
+            endpoint=os.getenv("LLMAX_AZURE_COMMAND_R_PLUS_ENDPOINT", ""),
+        ),
+        "llama-3-70b-instruct": Deployment(
+            model="llama-3-70b-instruct",
+            provider="azure",
+            deployment_name="llama-3-70b-instruct",
+            api_key=os.getenv("LLMAX_AZURE_LLAMA_3_70B_INSTRUCT_KEY", ""),
+            endpoint=os.getenv("LLMAX_AZURE_LLAMA_3_70B_INSTRUCT_ENDPOINT", ""),
         ),
     }
     client = MultiAIClient(
@@ -35,10 +49,11 @@ def main() -> None:
     messages = [
         {"role": "user", "content": "Quel est le meilleur restaurant de Paris?"},
     ]
-    response = client.stream(messages, "mistral-large")
-    logger.info(response)
+    MODEL = "llama-3-70b-instruct"
+    response = client.stream(messages, MODEL)
+    logger.info(f"Chatting with {MODEL} model...")
     for chunk in response:
-        logger.info(chunk)
+        print(chunk.choices[0].delta.content, end="")
 
 
 if __name__ == "__main__":

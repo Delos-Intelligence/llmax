@@ -1,8 +1,10 @@
+"""OpenAI clients."""
+
 from typing import Any
 
 from openai import AsyncAzureOpenAI, AsyncOpenAI, AzureOpenAI, OpenAI
 
-from llmax import models
+from llmax.external_clients.exceptions import ProviderNotFoundError
 from llmax.models import Deployment
 
 Client = Any
@@ -10,10 +12,6 @@ Client = Any
 
 def get_client(deployment: Deployment) -> Client:
     """Get a client for the given deployment."""
-    if deployment.model not in models.OPENAI_MODELS:
-        message = f"Unknown model: {deployment.model}. Please provide a valid OpenAI model name."
-        raise ValueError(message)
-
     match deployment.provider:
         case "openai":
             return OpenAI(
@@ -26,8 +24,7 @@ def get_client(deployment: Deployment) -> Client:
                 azure_endpoint=deployment.endpoint,
             )
         case _:
-            message = f"Invalid provider for OpenAI model: {deployment.provider}. Please provide a valid provider."
-            raise ValueError(message)
+            raise ProviderNotFoundError(deployment)
 
 
 def get_aclient(deployment: Deployment) -> Client:
@@ -44,5 +41,4 @@ def get_aclient(deployment: Deployment) -> Client:
                 azure_endpoint=deployment.endpoint,
             )
         case _:
-            message = f"Invalid provider for OpenAI model: {deployment.provider}. Please provide a valid provider."
-            raise ValueError(message)
+            raise ProviderNotFoundError(deployment)

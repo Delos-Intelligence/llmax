@@ -1,6 +1,6 @@
-"""Mistral client for interacting with the Mistral API.
+"""Cohere client for interacting with the Cohere API.
 
-Note: we use the OpenAI client to interact with the Mistral models.
+Note: we use the OpenAI client to interact with the Cohere models.
 
 Only azure deployments are supported for now.
 """
@@ -16,7 +16,7 @@ Client = Any
 
 
 def get_client(deployment: Deployment) -> Client:
-    """Get a Mistral client for the given deployment."""
+    """Get a Cohere client for the given deployment."""
     match deployment.provider:
         case "azure":
             return OpenAI(
@@ -28,7 +28,7 @@ def get_client(deployment: Deployment) -> Client:
 
 
 def get_aclient(deployment: Deployment) -> Client:
-    """Get an async Mistral client for the given deployment."""
+    """Get an async Cohere client for the given deployment."""
     match deployment.provider:
         case "azure":
             return AsyncOpenAI(
