@@ -14,6 +14,9 @@ PROMPT_PRICES_PER_1K: dict[Model, float | dict[Provider, float]] = {
     "mistral-small": {
         "azure": 0.001,
     },
+    "command-r": {
+        "azure": 0.0005,
+    },
     "command-r-plus": {
         "azure": 0.003,
     },
@@ -30,6 +33,9 @@ COMPLETION_PRICES_PER_1K: dict[Model, float | dict[Provider, float]] = {
     },
     "mistral-small": {
         "azure": 0.003,
+    },
+    "command-r": {
+        "azure": 0.0015,
     },
     "command-r-plus": {
         "azure": 0.015,
