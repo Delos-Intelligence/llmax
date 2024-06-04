@@ -1,7 +1,6 @@
 """Supported models."""
 
-import typing
-from typing import Literal, Union
+from typing import Literal, Union, get_args
 
 CohereModel = Literal[
     "command-r",
@@ -26,10 +25,10 @@ OpenAIModel = Literal[
 ]
 
 
-COHERE_MODELS: tuple[CohereModel, ...] = typing.get_args(CohereModel)
-META_MODELS: tuple[MetaModel, ...] = typing.get_args(MetaModel)
-MISTRAL_MODELS: tuple[MistralModel, ...] = typing.get_args(MistralModel)
-OPENAI_MODELS: tuple[OpenAIModel, ...] = typing.get_args(OpenAIModel)
+COHERE_MODELS: tuple[CohereModel, ...] = get_args(CohereModel)
+META_MODELS: tuple[MetaModel, ...] = get_args(MetaModel)
+MISTRAL_MODELS: tuple[MistralModel, ...] = get_args(MistralModel)
+OPENAI_MODELS: tuple[OpenAIModel, ...] = get_args(OpenAIModel)
 
 Model = Union[
     CohereModel,
@@ -37,4 +36,4 @@ Model = Union[
     MistralModel,
     OpenAIModel,
 ]
-MODELS: tuple[Model, ...] = typing.get_args(Model)
+MODELS: tuple[Model, ...] = get_args(Model)
