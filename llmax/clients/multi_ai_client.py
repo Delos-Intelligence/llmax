@@ -40,6 +40,7 @@ class MultiAIClient:
         deployments: dict[Model, Deployment],
         get_usage: Callable[[], float] = lambda: 0.0,
         increment_usage: Callable[[float, Model], bool] = lambda _1, _2: True,
+        verbose: bool = False,
     ) -> None:
         """Initializes the MultiAIClient class.
 
@@ -52,27 +53,28 @@ class MultiAIClient:
         self._get_usage = get_usage
         self._increment_usage = increment_usage
 
-        # self.clients: dict[Model, Any] = {
-        #     model: external_clients.get_client(deployment)
-        #     for model, deployment in deployments.items()
-        # }
-        #
-        # self.aclients: dict[Model, Any] = {
-        #     model: external_clients.get_aclient(deployment)
-        #     for model, deployment in deployments.items()
-        # }
+        if verbose:
+            self.clients: dict[Model, Any] = {}
+            for model, deployment in deployments.items():
+                logger.info(f"Creating client for {model}")
+                self.clients[model] = external_clients.get_client(deployment)
+                logger.info(f"Created client for {model}")
 
-        self.clients: dict[Model, Any] = {}
-        for model, deployment in deployments.items():
-            logger.info(f"Creating client for {model}")
-            self.clients[model] = external_clients.get_client(deployment)
-            logger.info(f"Created client for {model}")
+            self.aclients: dict[Model, Any] = {}
+            for model, deployment in deployments.items():
+                logger.info(f"Creating async client for {model}")
+                self.aclients[model] = external_clients.get_aclient(deployment)
+                logger.info(f"Created async client for {model}")
+        else:
+            self.clients: dict[Model, Any] = {
+                model: external_clients.get_client(deployment)
+                for model, deployment in deployments.items()
+            }
 
-        self.aclients: dict[Model, Any] = {}
-        for model, deployment in deployments.items():
-            logger.info(f"Creating async client for {model}")
-            self.aclients[model] = external_clients.get_aclient(deployment)
-            logger.info(f"Created async client for {model}")
+            self.aclients: dict[Model, Any] = {
+                model: external_clients.get_aclient(deployment)
+                for model, deployment in deployments.items()
+            }
 
     def _create_chat(
         self,
