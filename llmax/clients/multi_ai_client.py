@@ -17,6 +17,7 @@ from llmax.models.deployment import Deployment
 from llmax.models.fake import fake_llm
 from llmax.models.models import Model
 from llmax.usage import ModelUsage
+from llmax.utils import logger
 
 
 class MultiAIClient:
@@ -51,15 +52,27 @@ class MultiAIClient:
         self._get_usage = get_usage
         self._increment_usage = increment_usage
 
-        self.clients: dict[Model, Any] = {
-            model: external_clients.get_client(deployment)
-            for model, deployment in deployments.items()
-        }
+        # self.clients: dict[Model, Any] = {
+        #     model: external_clients.get_client(deployment)
+        #     for model, deployment in deployments.items()
+        # }
+        #
+        # self.aclients: dict[Model, Any] = {
+        #     model: external_clients.get_aclient(deployment)
+        #     for model, deployment in deployments.items()
+        # }
 
-        self.aclients: dict[Model, Any] = {
-            model: external_clients.get_aclient(deployment)
-            for model, deployment in deployments.items()
-        }
+        self.clients: dict[Model, Any] = {}
+        for model, deployment in deployments.items():
+            logger.info(f"Creating client for {model}")
+            self.clients[model] = external_clients.get_client(deployment)
+            logger.info(f"Created client for {model}")
+
+        self.aclients: dict[Model, Any] = {}
+        for model, deployment in deployments.items():
+            logger.info(f"Creating async client for {model}")
+            self.aclients[model] = external_clients.get_aclient(deployment)
+            logger.info(f"Created async client for {model}")
 
     def _create_chat(
         self,
