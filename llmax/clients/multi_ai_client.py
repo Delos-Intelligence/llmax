@@ -11,13 +11,12 @@ from typing import Any, Callable, Generator
 from openai.types import Embedding
 from openai.types.chat import ChatCompletion, ChatCompletionChunk
 
-from llmax import external_clients
+from llmax.external_clients.clients import Client, get_aclient, get_client
 from llmax.messages import Messages
 from llmax.models.deployment import Deployment
 from llmax.models.fake import fake_llm
 from llmax.models.models import Model
 from llmax.usage import ModelUsage
-from llmax.utils import logger
 
 
 class MultiAIClient:
@@ -40,7 +39,6 @@ class MultiAIClient:
         deployments: dict[Model, Deployment],
         get_usage: Callable[[], float] = lambda: 0.0,
         increment_usage: Callable[[float, Model], bool] = lambda _1, _2: True,
-        verbose: bool = False,
     ) -> None:
         """Initializes the MultiAIClient class.
 
@@ -53,28 +51,20 @@ class MultiAIClient:
         self._get_usage = get_usage
         self._increment_usage = increment_usage
 
-        if verbose:
-            self.clients: dict[Model, Any] = {}
-            for model, deployment in deployments.items():
-                logger.info(f"Creating client for {model}")
-                self.clients[model] = external_clients.get_client(deployment)
-                logger.info(f"Created client for {model}")
+        self._clients: dict[Model, Any] = {}
+        self._aclients: dict[Model, Any] = {}
 
-            self.aclients: dict[Model, Any] = {}
-            for model, deployment in deployments.items():
-                logger.info(f"Creating async client for {model}")
-                self.aclients[model] = external_clients.get_aclient(deployment)
-                logger.info(f"Created async client for {model}")
-        else:
-            self.clients: dict[Model, Any] = {
-                model: external_clients.get_client(deployment)
-                for model, deployment in deployments.items()
-            }
+    def client(self, model: Model) -> Client:
+        """Returns the client for the given model, creating it if necessary."""
+        if model not in self._clients:
+            self._clients[model] = get_client(self.deployments[model])
+        return self._clients[model]
 
-            self.aclients: dict[Model, Any] = {
-                model: external_clients.get_aclient(deployment)
-                for model, deployment in deployments.items()
-            }
+    def aclient(self, model: Model) -> Client:
+        """Returns the asynchronous client for the given model, creating it if necessary."""
+        if model not in self._aclients:
+            self._aclients[model] = get_aclient(self.deployments[model])
+        return self._aclients[model]
 
     def _create_chat(
         self,
@@ -91,7 +81,7 @@ class MultiAIClient:
         Returns:
             ChatCompletion: The completion response from the API.
         """
-        client = self.clients[model]
+        client = self.client(model)
         deployment = self.deployments[model]
 
         return client.chat.completions.create(
@@ -115,7 +105,7 @@ class MultiAIClient:
         Returns:
             ChatCompletion: The completion response from the API.
         """
-        aclient = self.aclients[model]
+        aclient = self.aclient(model)
         result = await aclient.chat.completions.create(
             messages=messages,
             model=self.deployments[model].deployment_name,
@@ -278,7 +268,7 @@ class MultiAIClient:
         """
         texts = [text.replace("\n", " ") for text in texts]
 
-        client = self.clients[model]
+        client = self.client(model)
         deployment = self.deployments[model]
 
         response = client.embeddings.create(
