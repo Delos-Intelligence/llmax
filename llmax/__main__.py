@@ -10,6 +10,8 @@ from llmax.utils import logger
 
 load_dotenv()
 
+MODEL: Model = "gpt-4o"
+
 
 def main() -> None:
     """Main."""
@@ -18,8 +20,15 @@ def main() -> None:
             model="gpt-4-turbo",
             provider="azure",
             deployment_name="gpt-4-1106-preview",
-            api_key=os.getenv("LLMAX_AZURE_OPENAI_KEY", ""),
-            endpoint=os.getenv("LLMAX_AZURE_OPENAI_ENDPOINT", ""),
+            api_key=os.getenv("LLMAX_AZURE_OPENAI_FRANCE_KEY", ""),
+            endpoint=os.getenv("LLMAX_AZURE_OPENAI_FRANCE_ENDPOINT", ""),
+        ),
+        "gpt-4o": Deployment(
+            model="gpt-4o",
+            provider="azure",
+            deployment_name="gpt-4o-2024-05-13",
+            api_key=os.getenv("LLMAX_AZURE_OPENAI_SWEDENCENTRAL_KEY", ""),
+            endpoint=os.getenv("LLMAX_AZURE_OPENAI_SWEDENCENTRAL_ENDPOINT", ""),
         ),
         "mistral-large": Deployment(
             model="mistral-large",
@@ -49,7 +58,6 @@ def main() -> None:
     messages = [
         {"role": "user", "content": "Quel est le meilleur restaurant de Paris?"},
     ]
-    MODEL = "llama-3-70b-instruct"
     response = client.stream(messages, MODEL)
     logger.info(f"Chatting with {MODEL} model...")
     for chunk in response:

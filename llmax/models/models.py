@@ -20,6 +20,7 @@ OpenAIModel = Literal[
     "gpt-3.5",
     "gpt-4",
     "gpt-4-turbo",
+    "gpt-4o",
     "text-embedding-3-large",
     "text-embedding-3-small",
 ]
