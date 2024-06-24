@@ -310,8 +310,10 @@ class MultiAIClient:
             Any: The response from the API.
         """
         client = self.client(model)
-        print(f"Processing audio data with model {model}")
         deployment = self.deployments[model]
+        print("deployment", deployment)
+        print("model", model)
+        print("deployment name", deployment.deployment_name)
 
         response = client.audio.transcriptions.create(
             file=file,
