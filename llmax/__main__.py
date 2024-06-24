@@ -1,5 +1,4 @@
-"""Main."""
-
+import argparse
 import os
 
 from dotenv import load_dotenv
@@ -10,10 +9,8 @@ from llmax.utils import logger
 
 load_dotenv()
 
-MODEL: Model = "gpt-4o"
 
-
-def main() -> None:
+def main(model: Model, question: str) -> None:
     """Main."""
     deployments: dict[Model, Deployment] = {
         "gpt-4-turbo": Deployment(
@@ -56,13 +53,30 @@ def main() -> None:
         deployments=deployments,
     )
     messages = [
-        {"role": "user", "content": "Quel est le meilleur restaurant de Paris?"},
+        {"role": "user", "content": question},
     ]
-    response = client.stream(messages, MODEL)
-    logger.info(f"Chatting with {MODEL} model...")
+    logger.info(f"Chatting with {model} model...")
+    logger.info(deployments[model].endpoint)
+
+    response = client.invoke_to_str(messages, model)
+    print(response)
+
+    response = client.stream(messages, model)
     for chunk in response:
         print(chunk.choices[0].delta.content, end="")
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description="AI Chatbot")
+    parser.add_argument(
+        "--model",
+        type=str,
+        required=True,
+        help="The model to speak with (e.g., 'gpt-4o', 'gpt-4-turbo', etc.)",
+    )
+    parser.add_argument(
+        "--question", type=str, required=True, help="The question to ask the model"
+    )
+
+    args = parser.parse_args()
+    main(args.model, args.question)
