@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "llmax"
-version = "0.6.0"
+version = "0.7.0"
 description = "Interface to handle multiple LLMs and AI tools."
 authors = ["Delos Intelligence <maximiliendedinechin@delosintelligence.fr>"]
 readme = "README.md"
@@ -12,12 +12,14 @@ openai = "^1.13.3"
 tiktoken = "^0.6.0"
 loguru = "^0.7.2"
 python-dotenv = "^1.0.1"
+pydub = "^0.25.1"
 
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.3.1"
 pyright = "^1.1.352"
 isort = "^5.13.2"
 mypy = "^1.8.0"
+pydub-stubs = "^0.25.1.1"
 
 [build-system]
 requires = ["poetry-core"]

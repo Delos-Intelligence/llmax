@@ -4,8 +4,6 @@ This class is used to interface with multiple LLMs and AI models, supporting bot
 synchronous and asynchronous operations.
 """
 
-import random
-import time
 from typing import Any, Callable, Generator
 
 from openai.types import Embedding
@@ -27,11 +25,9 @@ class MultiAIClient:
     an emphasis on tracking and managing API usage.
 
     Attributes:
-        client: The client for synchronous API calls.
-        aclient: The client for asynchronous API calls.
-        deployments: A mapping of models to deployment strings.
-        _get_usage: Function to get current usage.
-        _increment_usage: Function to increment usage by a given amount.
+        deployments: A mapping from models to their deployment objects.
+        get_usage: A function to get the current usage.
+        increment_usage: A function to increment usage.
     """
 
     def __init__(
@@ -51,17 +47,31 @@ class MultiAIClient:
         self._get_usage = get_usage
         self._increment_usage = increment_usage
 
-        self._clients: dict[Model, Any] = {}
-        self._aclients: dict[Model, Any] = {}
+        self._clients: dict[Model, Client] = {}
+        self._aclients: dict[Model, Client] = {}
 
     def client(self, model: Model) -> Client:
-        """Returns the client for the given model, creating it if necessary."""
+        """Returns the client for the given model, creating it if necessary.
+
+        Args:
+            model: The model for which to get the client.
+
+        Returns:
+            The client object for the specified model.
+        """
         if model not in self._clients:
             self._clients[model] = get_client(self.deployments[model])
         return self._clients[model]
 
     def aclient(self, model: Model) -> Client:
-        """Returns the asynchronous client for the given model, creating it if necessary."""
+        """Returns the asynchronous client for the given model, creating it if necessary.
+
+        Args:
+            model: The model for which to get the client.
+
+        Returns:
+            The asynchronous client object for the specified model.
+        """
         if model not in self._aclients:
             self._aclients[model] = get_aclient(self.deployments[model])
         return self._aclients[model]
@@ -70,7 +80,7 @@ class MultiAIClient:
         self,
         messages: Messages,
         model: Model,
-        **kwargs,
+        **kwargs: Any,
     ) -> ChatCompletion:
         """Synchronously creates chat completions for the given messages and model.
 
@@ -94,7 +104,7 @@ class MultiAIClient:
         self,
         messages: Messages,
         model: Model,
-        **kwargs,
+        **kwargs: Any,
     ) -> ChatCompletion:
         """Asynchronously creates chat completions for the given messages and model.
 
@@ -139,7 +149,7 @@ class MultiAIClient:
         self,
         messages: Messages,
         model: Model,
-        **kwargs,
+        **kwargs: Any,
     ) -> str | None:
         """Convenience method to invoke the API and return the first response as a string.
 
@@ -157,7 +167,7 @@ class MultiAIClient:
         self,
         messages: Messages,
         model: Model,
-        **kwargs,
+        **kwargs: Any,
     ) -> ChatCompletion:
         """Asynchronously invokes the API to get chat completions, tracking usage.
 
@@ -179,7 +189,7 @@ class MultiAIClient:
         self,
         messages: Messages,
         model: Model,
-        **kwargs,
+        **kwargs: Any,
     ) -> str | None:
         """Asynchronously invokes the API and returns the first response as a string.
 
@@ -197,7 +207,7 @@ class MultiAIClient:
         self,
         messages: Messages,
         model: Model,
-        **kwargs,
+        **kwargs: Any,
     ) -> Generator[ChatCompletionChunk, None, None]:
         """Streams chat completions, allowing responses to be received in chunks.
 
@@ -223,7 +233,7 @@ class MultiAIClient:
         self,
         messages: Messages,
         model: Model,
-        **kwargs,
+        **kwargs: Any,
     ) -> Generator[str, None, str]:
         """Streams formatted output from the chat completions.
 
@@ -241,8 +251,6 @@ class MultiAIClient:
         yield from fake_llm("", stream=False, send_empty=True)
         for completion_chunk in self.stream(messages, model, **kwargs):
             yield f"data: {completion_chunk.model_dump_json(exclude_unset=True)}\n\n"
-            if model == "gpt-4":
-                time.sleep(random.uniform(0.05, 0.15))
             output += (
                 content
                 if (choices := completion_chunk.choices)
@@ -282,3 +290,34 @@ class MultiAIClient:
 
         embeddings = response.data
         return embeddings
+
+    def speech_to_text(
+        self,
+        file,
+        model: Model,
+        **kwargs: Any,
+    ) -> str:
+        """Synchronously processes audio data for speech-to-text using the Whisper model.
+
+        Args:
+            audio_data: The audio data to process.
+            model: The model to use for processing the audio.
+            kwargs: Additional arguments to pass to the API.
+
+        Returns:
+            Any: The response from the API.
+        """
+        client = self.client(model)
+        deployment = self.deployments[model]
+
+        response = client.audio.transcriptions.create(
+            file=file,
+            model=deployment.deployment_name,
+            **kwargs,
+        )
+
+        # usage = ModelUsage(deployment, self._increment_usage)
+        # usage.add_audio_duration(len(file) / 1_000)
+        # usage.apply()
+
+        return response
