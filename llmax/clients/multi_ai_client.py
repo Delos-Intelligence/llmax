@@ -313,7 +313,7 @@ class MultiAIClient:
         deployment = self.deployments[model]
 
         response = client.audio.transcriptions.create(
-            audio=file,
+            file=file,
             model=deployment.deployment_name,
             **kwargs,
         )
