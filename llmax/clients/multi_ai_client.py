@@ -4,6 +4,7 @@ This class is used to interface with multiple LLMs and AI models, supporting bot
 synchronous and asynchronous operations.
 """
 
+from io import BytesIO
 from typing import Any, Callable, Generator
 
 from openai.types import Embedding
@@ -294,7 +295,7 @@ class MultiAIClient:
 
     def speech_to_text(
         self,
-        file: bytes,
+        file: bytes | BytesIO,
         model: Model,
         **kwargs: Any,
     ) -> str:
@@ -317,8 +318,8 @@ class MultiAIClient:
             **kwargs,
         )
 
-        usage = ModelUsage(deployment, self._increment_usage)
-        usage.add_audio_duration(len(file) / 1_000)
-        usage.apply()
+        # usage = ModelUsage(deployment, self._increment_usage)
+        # usage.add_audio_duration(len(file) / 1_000)
+        # usage.apply()
 
         return response
