@@ -294,7 +294,7 @@ class MultiAIClient:
 
     def speech_to_text(
         self,
-        audio_data: AudioSegment,
+        file: bytes,
         model: Model,
         **kwargs: Any,
     ) -> str:
@@ -312,13 +312,13 @@ class MultiAIClient:
         deployment = self.deployments[model]
 
         response = client.audio.transcriptions.create(
-            audio=audio_data,
+            audio=file,
             model=deployment.deployment_name,
             **kwargs,
         )
 
         usage = ModelUsage(deployment, self._increment_usage)
-        usage.add_audio_duration(len(audio_data) / 1_000)
+        usage.add_audio_duration(len(file) / 1_000)
         usage.apply()
 
         return response
