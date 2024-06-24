@@ -4,18 +4,20 @@ This class is used to interface with multiple LLMs and AI models, supporting bot
 synchronous and asynchronous operations.
 """
 
+import io
 import random
 import time
 from typing import Any, Callable, Generator
 
 from openai.types import Embedding
 from openai.types.chat import ChatCompletion, ChatCompletionChunk
+from pydub import AudioSegment
 
 from llmax.external_clients.clients import Client, get_aclient, get_client
 from llmax.messages import Messages
 from llmax.models.deployment import Deployment
 from llmax.models.fake import fake_llm
-from llmax.models.models import Model
+from llmax.models.models import AUDIO, Model
 from llmax.usage import ModelUsage
 
 
@@ -282,3 +284,40 @@ class MultiAIClient:
 
         embeddings = response.data
         return embeddings
+
+    def process_audio(
+        self,
+        audio_data: bytes,
+        model: Model,
+        **kwargs: Any,
+    ) -> str:
+        """Synchronously processes audio data for speech-to-text using the Whisper model.
+
+        Args:
+            audio_data: The audio data to process.
+            model: The model to use for processing the audio.
+            kwargs: Additional arguments to pass to the API.
+
+        Returns:
+            Any: The response from the API.
+        """
+        if model not in AUDIO:
+            message = f"Model '{model}' is not an audio model."
+            raise ValueError(message)
+
+        client = self.client(model)
+        deployment = self.deployments[model]
+
+        response = client.audio.transcriptions.create(
+            audio=audio_data,
+            model=deployment.deployment_name,
+            **kwargs,
+        )
+
+        duration = len(AudioSegment.from_file(io.BytesIO(audio_data))) / 1_000
+
+        usage = ModelUsage(deployment, self._increment_usage)
+        usage.add_audio_duration(duration)
+        usage.apply()
+
+        return response

@@ -2,6 +2,8 @@
 
 from llmax.models import Model, Provider
 
+from .exceptions import PriceNotFoundError
+
 PROMPT_PRICES_PER_1K: dict[Model, float | dict[Provider, float]] = {
     "gpt-4o": 0.005,
     "gpt-4-turbo": 0.01,
@@ -27,30 +29,39 @@ COMPLETION_PRICES_PER_1K: dict[Model, float | dict[Provider, float]] = {
     "llama-3-70b-instruct": 0.01134,
 }
 
+TRANSCRIPTION_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
+    "whisper-1": 0.006,
+}
+
+
+def _fetch_price(
+    prices: dict[Model, float | dict[Provider, float]],
+    model: Model,
+    provider: Provider,
+) -> float:
+    """Fetch price for a given model and provider from the provided dictionary."""
+    if model not in prices:
+        raise PriceNotFoundError(model)
+
+    prices_for_model = prices[model]
+    if isinstance(prices_for_model, dict):
+        if provider not in prices_for_model:
+            raise PriceNotFoundError(model, provider)
+        return prices_for_model[provider]
+
+    return prices_for_model
+
 
 def get_prompt_price(model: Model, provider: Provider) -> float:
     """Get the prompt price for a model and provider."""
-    if model not in PROMPT_PRICES_PER_1K:
-        message = f"Unknown model: {model}."
-        raise ValueError(message)
-    prices_for_model = PROMPT_PRICES_PER_1K[model]
-    if isinstance(prices_for_model, dict):
-        if provider not in prices_for_model:
-            message = f"Unknown provider: {provider} for model: {model}."
-            raise ValueError(message)
-        return prices_for_model[provider]
-    return prices_for_model
+    return _fetch_price(PROMPT_PRICES_PER_1K, model, provider)
 
 
 def get_completion_price(model: Model, provider: Provider) -> float:
     """Get the completion price for a model and provider."""
-    if model not in COMPLETION_PRICES_PER_1K:
-        message = f"Unknown model: {model}."
-        raise ValueError(message)
-    prices_for_model = COMPLETION_PRICES_PER_1K[model]
-    if isinstance(prices_for_model, dict):
-        if provider not in prices_for_model:
-            message = f"Unknown provider: {provider} for model: {model}."
-            raise ValueError(message)
-        return prices_for_model[provider]
-    return prices_for_model
+    return _fetch_price(COMPLETION_PRICES_PER_1K, model, provider)
+
+
+def get_stt_price(model: Model, provider: Provider) -> float:
+    """Get the audio price for a model and provider."""
+    return _fetch_price(TRANSCRIPTION_PRICES_PER_1M, model, provider)
