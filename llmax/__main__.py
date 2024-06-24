@@ -48,6 +48,13 @@ def main(model: Model, question: str) -> None:
             api_key=os.getenv("LLMAX_AZURE_LLAMA_3_70B_INSTRUCT_KEY", ""),
             endpoint=os.getenv("LLMAX_AZURE_LLAMA_3_70B_INSTRUCT_ENDPOINT", ""),
         ),
+        "whisper-1": Deployment(
+            model="whisper-1",
+            provider="azure",
+            deployment_name="whisper-1",
+            api_key=os.getenv("LLMAX_AZURE_OPENAI_SWEDENCENTRAL_KEY", ""),
+            endpoint=os.getenv("LLMAX_AZURE_OPENAI_SWEDENCENTRAL_ENDPOINT", ""),
+        ),
     }
     client = MultiAIClient(
         deployments=deployments,
