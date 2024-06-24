@@ -2,15 +2,17 @@ import argparse
 import os
 
 from dotenv import load_dotenv
+from openai import AzureOpenAI
 
 from llmax.clients import MultiAIClient
 from llmax.models import Deployment, Model
+from llmax.models.models import AUDIO
 from llmax.utils import logger
 
 load_dotenv()
 
 
-def main(model: Model, question: str) -> None:
+def main(model: Model, question: str, file_path: str) -> None:
     """Main."""
     deployments: dict[Model, Deployment] = {
         "gpt-4-turbo": Deployment(
@@ -54,6 +56,7 @@ def main(model: Model, question: str) -> None:
             deployment_name="whisper-1",
             api_key=os.getenv("LLMAX_AZURE_OPENAI_SWEDENCENTRAL_KEY", ""),
             endpoint=os.getenv("LLMAX_AZURE_OPENAI_SWEDENCENTRAL_ENDPOINT", ""),
+            api_version="2024-02-01",
         ),
     }
     client = MultiAIClient(
@@ -62,15 +65,24 @@ def main(model: Model, question: str) -> None:
     messages = [
         {"role": "user", "content": question},
     ]
-    logger.info(f"Chatting with {model} model...")
-    logger.info(deployments[model].endpoint)
 
-    response = client.invoke_to_str(messages, model)
-    print(response)
+    if model not in AUDIO:
+        logger.info(f"Chatting with {model} model...")
+        logger.info(deployments[model].endpoint)
 
-    response = client.stream(messages, model)
-    for chunk in response:
-        print(chunk.choices[0].delta.content, end="")
+        response = client.invoke_to_str(messages, model)
+        print(response)
+
+        response = client.stream(messages, model)
+        for chunk in response:
+            print(chunk.choices[0].delta.content, end="")
+    else:
+        logger.info(f"STT with {model} model...")
+        logger.info(deployments[model].endpoint)
+
+        with open(file_path, "rb") as audio_file:
+            response = client.speech_to_text(file=audio_file, model=model)
+            print(response)
 
 
 if __name__ == "__main__":
@@ -82,8 +94,11 @@ if __name__ == "__main__":
         help="The model to speak with (e.g., 'gpt-4o', 'gpt-4-turbo', etc.)",
     )
     parser.add_argument(
-        "--question", type=str, required=True, help="The question to ask the model"
+        "--question", type=str, required=False, help="The question to ask the model"
+    )
+    parser.add_argument(
+        "--file", type=str, required=False, help="The audio file to convert to text"
     )
 
     args = parser.parse_args()
-    main(args.model, args.question)
+    main(args.model, args.question, args.file)

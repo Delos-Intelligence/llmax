@@ -4,12 +4,10 @@ This class is used to interface with multiple LLMs and AI models, supporting bot
 synchronous and asynchronous operations.
 """
 
-from io import BytesIO
 from typing import Any, Callable, Generator
 
 from openai.types import Embedding
 from openai.types.chat import ChatCompletion, ChatCompletionChunk
-from pydub import AudioSegment
 
 from llmax.external_clients.clients import Client, get_aclient, get_client
 from llmax.messages import Messages
@@ -295,7 +293,7 @@ class MultiAIClient:
 
     def speech_to_text(
         self,
-        file: bytes | BytesIO,
+        file,
         model: Model,
         **kwargs: Any,
     ) -> str:
@@ -311,9 +309,6 @@ class MultiAIClient:
         """
         client = self.client(model)
         deployment = self.deployments[model]
-        print("deployment", deployment)
-        print("model", model)
-        print("deployment name", deployment.deployment_name)
 
         response = client.audio.transcriptions.create(
             file=file,
