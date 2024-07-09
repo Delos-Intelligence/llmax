@@ -321,3 +321,34 @@ class MultiAIClient:
         # usage.apply()
 
         return response
+
+    async def aspeech_to_text(
+        self,
+        file,
+        model: Model,
+        **kwargs: Any,
+    ) -> str:
+        """Asynchronously processes audio data for speech-to-text using the Whisper model.
+
+        Args:
+            audio_data: The audio data to process.
+            model: The model to use for processing the audio.
+            kwargs: Additional arguments to pass to the API.
+
+        Returns:
+            Any: The response from the API.
+        """
+        aclient = self.aclient(model)
+        deployment = self.deployments[model]
+
+        response = await aclient.audio.transcriptions.create(
+            file=file,
+            model=deployment.deployment_name,
+            **kwargs,
+        )
+
+        # usage = ModelUsage(deployment, self._increment_usage)
+        # usage.add_audio_duration(len(file) / 1_000)
+        # usage.apply()
+
+        return response
