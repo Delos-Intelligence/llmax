@@ -16,7 +16,7 @@ def to_completion_chunk(message: str, model: str) -> ChatCompletionChunk:
         id="fake",
         choices=[
             Choice(
-                delta=ChoiceDelta(content=message + " "),
+                delta=ChoiceDelta(content=message + ""),
                 finish_reason="stop",
                 index=0,
             ),
