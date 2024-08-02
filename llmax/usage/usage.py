@@ -120,6 +120,6 @@ class ModelUsage:
                 f"Cost: ${self.compute_cost():.6f}"
             )
         logger.debug(
-            f"[bold purple]LLMAX[/bold purple]Applying usage for model '{self.deployment.model}'. {message}",
+            f"[bold purple][LLMAX][/bold purple] Applying usage for model '{self.deployment.model}'. {message}",
         )
         self.increment_usage(self.compute_cost(), self.deployment.model)
