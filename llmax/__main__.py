@@ -82,7 +82,7 @@ def main(model: Model, question: str, file_path: str) -> None:
         logger.info(deployments[model].endpoint)
 
         with Path(file_path).open(mode="rb") as audio_file:
-            response = client.speech_to_text(file=audio_file, model=model)  # type: ignore
+            response = client.speech_to_text(file=audio_file, model=model)
 
 
 if __name__ == "__main__":

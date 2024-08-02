@@ -4,7 +4,7 @@ This class is used to interface with multiple LLMs and AI models, supporting bot
 synchronous and asynchronous operations.
 """
 
-from io import BytesIO
+from io import BufferedReader, BytesIO
 from typing import Any, Callable, Generator
 
 from openai.types import Embedding
@@ -306,7 +306,7 @@ class MultiAIClient:
 
     def speech_to_text(
         self,
-        file: BytesIO,
+        file: BufferedReader,
         model: Model,
         **kwargs: Any,
     ) -> str:
@@ -355,5 +355,9 @@ class MultiAIClient:
             model=deployment.deployment_name,
             **kwargs,
         )
+
+        """usage = ModelUsage(deployment, self._increment_usage)
+        usage.add_audio_duration(self.calculate_duration(audio_file=file))
+        usage.apply()"""
 
         return response
