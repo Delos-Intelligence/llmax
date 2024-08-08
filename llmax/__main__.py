@@ -73,16 +73,18 @@ def main(model: Model, question: str, file_path: str) -> None:
         logger.info(deployments[model].endpoint)
 
         response = client.invoke_to_str(messages, model)
+        logger.info(response)
 
         response = client.stream(messages, model)
-        for _chunk in response:
-            pass
+        logger.info(response)
+
     else:
         logger.info(f"STT with {model} model...")
         logger.info(deployments[model].endpoint)
 
         with Path(file_path).open(mode="rb") as audio_file:
             response = client.speech_to_text(file=audio_file, model=model)
+            logger.info(response)
 
 
 if __name__ == "__main__":
