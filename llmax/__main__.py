@@ -1,8 +1,10 @@
+"""Main file to launch the module."""
+
 import argparse
 import os
+from pathlib import Path
 
 from dotenv import load_dotenv
-from openai import AzureOpenAI
 
 from llmax.clients import MultiAIClient
 from llmax.models import Deployment, Model
@@ -71,18 +73,16 @@ def main(model: Model, question: str, file_path: str) -> None:
         logger.info(deployments[model].endpoint)
 
         response = client.invoke_to_str(messages, model)
-        print(response)
 
         response = client.stream(messages, model)
-        for chunk in response:
-            print(chunk.choices[0].delta.content, end="")
+        for _chunk in response:
+            pass
     else:
         logger.info(f"STT with {model} model...")
         logger.info(deployments[model].endpoint)
 
-        with open(file_path, "rb") as audio_file:
+        with Path(file_path).open(mode="rb") as audio_file:
             response = client.speech_to_text(file=audio_file, model=model)
-            print(response)
 
 
 if __name__ == "__main__":
@@ -94,10 +94,16 @@ if __name__ == "__main__":
         help="The model to speak with (e.g., 'gpt-4o', 'gpt-4-turbo', etc.)",
     )
     parser.add_argument(
-        "--question", type=str, required=False, help="The question to ask the model"
+        "--question",
+        type=str,
+        required=False,
+        help="The question to ask the model",
     )
     parser.add_argument(
-        "--file", type=str, required=False, help="The audio file to convert to text"
+        "--file",
+        type=str,
+        required=False,
+        help="The audio file to convert to text",
     )
 
     args = parser.parse_args()
