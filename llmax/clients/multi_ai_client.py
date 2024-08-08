@@ -4,9 +4,11 @@ This class is used to interface with multiple LLMs and AI models, supporting bot
 synchronous and asynchronous operations.
 """
 
+from io import BufferedReader, BytesIO
 from typing import Any, Callable, Generator
 
 from openai.types import Embedding
+from openai.types.audio import Transcription
 from openai.types.chat import ChatCompletion, ChatCompletionChunk
 
 from llmax.external_clients.clients import Client, get_aclient, get_client
@@ -87,6 +89,7 @@ class MultiAIClient:
         Args:
             messages: The list of messages to process.
             model: The model to use for generating completions.
+            kwargs: More args.
 
         Returns:
             ChatCompletion: The completion response from the API.
@@ -111,6 +114,7 @@ class MultiAIClient:
         Args:
             messages: The list of messages to process.
             model: The model to use for generating completions.
+            kwargs: More args.
 
         Returns:
             ChatCompletion: The completion response from the API.
@@ -134,12 +138,15 @@ class MultiAIClient:
         Args:
             messages: The list of messages for the chat.
             model: The model to use for generating the chat completions.
+            kwargs: More args.
 
         Returns:
             ChatCompletion: The API response containing the chat completions.
         """
         response = self._create_chat(messages, model, **kwargs, stream=False)
-        assert response.usage, "No usage for this request"
+        if not response.usage:
+            message = "No usage for this request"
+            raise ValueError(message)
         deployment = self.deployments[model]
         usage = ModelUsage(deployment, self._increment_usage, response.usage)
         usage.apply()
@@ -156,6 +163,7 @@ class MultiAIClient:
         Args:
             messages: The list of messages for the chat.
             model: The model to use for the chat completions.
+            kwargs: More args.
 
         Returns:
             str | None: The content of the first choice in the response, if available.
@@ -174,12 +182,15 @@ class MultiAIClient:
         Args:
             messages: The list of messages for the chat.
             model: The model to use for generating the chat completions.
+            kwargs: More args.
 
         Returns:
             ChatCompletion: The API response containing the chat completions.
         """
         response = await self._acreate_chat(messages, model, **kwargs, stream=False)
-        assert response.usage, "No usage for this request"
+        if not response.usage:
+            message = "No usage for this request"
+            raise ValueError(message)
         deployment = self.deployments[model]
         usage = ModelUsage(deployment, self._increment_usage, response.usage)
         usage.apply()
@@ -196,6 +207,7 @@ class MultiAIClient:
         Args:
             messages: The list of messages for the chat.
             model: The model to use for the chat completions.
+            kwargs: More args.
 
         Returns:
             str | None: The content of the first choice in the response, if available.
@@ -214,6 +226,7 @@ class MultiAIClient:
         Args:
             messages: The list of messages for the chat.
             model: The model to use for generating the chat completions.
+            kwargs: More args.
 
         Yields:
             ChatCompletionChunk: Individual chunks of the completion response.
@@ -225,7 +238,7 @@ class MultiAIClient:
 
         for chunk in response:
             usage.add_tokens(completion_tokens=1)
-            yield chunk
+            yield chunk  # type: ignore
 
         usage.apply()
 
@@ -243,6 +256,7 @@ class MultiAIClient:
         Args:
             messages: The list of messages for the chat.
             model: The model to use for generating the chat completions.
+            kwargs: More args.
 
         Yields:
             str: Formatted output for each chunk.
@@ -293,14 +307,14 @@ class MultiAIClient:
 
     def speech_to_text(
         self,
-        file,
+        file: BufferedReader,
         model: Model,
         **kwargs: Any,
     ) -> str:
         """Synchronously processes audio data for speech-to-text using the Whisper model.
 
         Args:
-            audio_data: The audio data to process.
+            file: The audio data to process.
             model: The model to use for processing the audio.
             kwargs: Additional arguments to pass to the API.
 
@@ -313,25 +327,26 @@ class MultiAIClient:
         response = client.audio.transcriptions.create(
             file=file,
             model=deployment.deployment_name,
+            response_format="verbose_json",
             **kwargs,
         )
 
-        # usage = ModelUsage(deployment, self._increment_usage)
-        # usage.add_audio_duration(len(file) / 1_000)
-        # usage.apply()
+        usage = ModelUsage(deployment, self._increment_usage)
+        usage.add_audio_duration(response.duration)
+        usage.apply()
 
         return response
 
     async def aspeech_to_text(
         self,
-        file,
+        file: BytesIO,
         model: Model,
         **kwargs: Any,
-    ) -> str:
+    ) -> Transcription:
         """Asynchronously processes audio data for speech-to-text using the Whisper model.
 
         Args:
-            audio_data: The audio data to process.
+            file: The audio data to process.
             model: The model to use for processing the audio.
             kwargs: Additional arguments to pass to the API.
 
@@ -344,11 +359,12 @@ class MultiAIClient:
         response = await aclient.audio.transcriptions.create(
             file=file,
             model=deployment.deployment_name,
+            response_format="verbose_json",
             **kwargs,
         )
 
-        # usage = ModelUsage(deployment, self._increment_usage)
-        # usage.add_audio_duration(len(file) / 1_000)
-        # usage.apply()
+        usage = ModelUsage(deployment, self._increment_usage)
+        usage.add_audio_duration(response.duration)
+        usage.apply()
 
         return response
