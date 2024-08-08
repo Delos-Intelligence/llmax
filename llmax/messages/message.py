@@ -1,5 +1,12 @@
 """Message type."""
 
-from typing import Any
+from typing import Any, Literal
 
-Message = Any
+from pydantic import BaseModel
+
+
+class Message(BaseModel):
+    """Message."""
+
+    role: Literal["user", "assistant", "system"]
+    content: Any
