@@ -7,13 +7,13 @@ from .providers import PROVIDERS, Provider
 
 __all__ = [
     "COHERE_MODELS",
-    "Deployment",
-    "Deployment",
-    "fake_llm",
     "MISTRAL_MODELS",
-    "Model",
     "MODELS",
     "OPENAI_MODELS",
-    "Provider",
     "PROVIDERS",
+    "Deployment",
+    "Deployment",
+    "Model",
+    "Provider",
+    "fake_llm",
 ]

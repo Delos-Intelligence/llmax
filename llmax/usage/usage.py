@@ -119,5 +119,7 @@ class ModelUsage:
                 f"({self.tokens_usage.prompt_tokens} + {self.tokens_usage.completion_tokens}) "
                 f"Cost: ${self.compute_cost():.6f}"
             )
-        logger.debug(f"Applying usage for model '{self.deployment.model}'. {message}")
+        logger.debug(
+            f"[bold purple][LLMAX][/bold purple] Applying usage for model '{self.deployment.model}'. {message}",
+        )
         self.increment_usage(self.compute_cost(), self.deployment.model)
