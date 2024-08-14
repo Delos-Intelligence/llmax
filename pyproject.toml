@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "llmax"
-version = "0.9.0"
+version = "0.10.0"
 description = "Interface to handle multiple LLMs and AI tools."
 authors = ["Delos Intelligence <maximiliendedinechin@delosintelligence.fr>"]
 readme = "README.md"
