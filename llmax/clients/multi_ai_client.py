@@ -8,6 +8,7 @@ from io import BufferedReader, BytesIO
 from typing import Any, Callable, Generator
 
 from openai.types import Embedding
+from openai.types.audio import Transcription
 from openai.types.chat import ChatCompletion, ChatCompletionChunk
 
 from llmax.external_clients.clients import Client, get_aclient, get_client
@@ -326,8 +327,13 @@ class MultiAIClient:
         response = client.audio.transcriptions.create(
             file=file,
             model=deployment.deployment_name,
+            response_format="verbose_json",
             **kwargs,
         )
+
+        usage = ModelUsage(deployment, self._increment_usage)
+        usage.add_audio_duration(response.duration)
+        usage.apply()
 
         return response
 
@@ -336,7 +342,7 @@ class MultiAIClient:
         file: BytesIO,
         model: Model,
         **kwargs: Any,
-    ) -> str:
+    ) -> Transcription:
         """Asynchronously processes audio data for speech-to-text using the Whisper model.
 
         Args:
@@ -353,11 +359,12 @@ class MultiAIClient:
         response = await aclient.audio.transcriptions.create(
             file=file,
             model=deployment.deployment_name,
+            response_format="verbose_json",
             **kwargs,
         )
 
-        """usage = ModelUsage(deployment, self._increment_usage)
-        usage.add_audio_duration(self.calculate_duration(audio_file=file))
-        usage.apply()"""
+        usage = ModelUsage(deployment, self._increment_usage)
+        usage.add_audio_duration(response.duration)
+        usage.apply()
 
         return response
