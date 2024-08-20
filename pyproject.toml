@@ -18,7 +18,7 @@ pydub = "^0.25.1"
 ruff = "^0.3.1"
 pyright = "^1.1.352"
 isort = "^5.13.2"
-mypy = "^1.8.0"
+mypy = "^1.11.1"
 pydub-stubs = "^0.25.1.1"
 
 [build-system]
