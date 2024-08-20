@@ -4,7 +4,6 @@ version = "0.10.1"
 description = "Interface to handle multiple LLMs and AI tools."
 authors = ["Delos Intelligence <maximiliendedinechin@delosintelligence.fr>"]
 readme = "README.md"
-requires-python = ">=3.8.1"
 keywords = ["AI", "LLM", "generative"]
 
 [tool.poetry.dependencies]
