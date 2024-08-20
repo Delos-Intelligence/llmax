@@ -5,9 +5,6 @@ description = "Interface to handle multiple LLMs and AI tools."
 authors = ["Delos Intelligence <maximiliendedinechin@delosintelligence.fr>"]
 readme = "README.md"
 keywords = ["AI", "LLM", "generative"]
-packages = [
-    { include = "llmax", from = "src" }
-]
 
 [tool.poetry.dependencies]
 python = ">=3.8.1,<4.0"
@@ -119,6 +116,7 @@ pydocstyle.convention = "google"
 "tests/**" = [
     "S101", # asserts allowed in tests...
     "S311", # Standard pseudo-random generators are not suitable for cryptographic purposes
+    "INP001"
 ]
 
 
