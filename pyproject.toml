@@ -9,7 +9,7 @@ keywords = ["AI", "LLM", "generative"]
 [tool.poetry.dependencies]
 python = ">=3.8.1,<4.0"
 openai = "^1.41.1"
-tiktoken = "^0.6.0"
+tiktoken = "^0.7.0"
 loguru = "^0.7.2"
 python-dotenv = "^1.0.1"
 pydub = "^0.25.1"
