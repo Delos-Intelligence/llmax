@@ -20,7 +20,7 @@ jobs:
         python-version: '3.11.7'
 
     - name: Set up PYTHONPATH
-      run: echo "PYTHONPATH=$PYTHONPATH:$GITHUB_WORKSPACE" >> $GITHUB_ENV
+      run: echo "PYTHONPATH=$PYTHONPATH:$GITHUB_WORKSPACE/src" >> $GITHUB_ENV
 
     - name: Install Poetry
       uses: snok/install-poetry@v1
