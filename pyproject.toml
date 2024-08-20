@@ -104,7 +104,7 @@ ignore = [
   "FBT002", # bool arguments
   "ANN401", # Any for kwargs
   "CPY001", #copyright
-
+  "B901", #generator
   "S311" , # usage of rnadom
   "PGH003", #type ignore
 ]

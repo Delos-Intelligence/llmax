@@ -5,10 +5,11 @@ import os
 from pathlib import Path
 
 from dotenv import load_dotenv
-from src.llmax.clients import MultiAIClient
-from src.llmax.models import Deployment, Model
-from src.llmax.models.models import AUDIO
-from src.llmax.utils import logger
+
+from llmax.clients import MultiAIClient
+from llmax.models import Deployment, Model
+from llmax.models.models import AUDIO
+from llmax.utils import logger
 
 load_dotenv()
 
@@ -74,8 +75,8 @@ def main(model: Model, question: str, file_path: str) -> None:
         response = client.invoke_to_str(messages, model)
         logger.info(response)
 
-        response = client.stream(messages, model)
-        logger.info(response)
+        response_stream = client.stream(messages, model)
+        logger.info(response_stream)
 
     else:
         logger.info(f"STT with {model} model...")
