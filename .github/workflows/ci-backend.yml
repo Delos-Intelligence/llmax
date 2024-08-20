@@ -51,3 +51,7 @@ jobs:
     - name: Run MyPy
       run: |
         poetry run mypy .
+
+    - name: Run Unit Tests
+      run: |
+        poetry run pytest --cov-report=term-missing
