@@ -5,6 +5,9 @@ description = "Interface to handle multiple LLMs and AI tools."
 authors = ["Delos Intelligence <maximiliendedinechin@delosintelligence.fr>"]
 readme = "README.md"
 keywords = ["AI", "LLM", "generative"]
+packages = [
+    { include = "llmax", from = "src" }
+]
 
 [tool.poetry.dependencies]
 python = ">=3.8.1,<4.0"

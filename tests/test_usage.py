@@ -1,9 +1,10 @@
 """Usage tests."""
 
 from openai.types import CompletionUsage
-from src.llmax import tokens
-from src.llmax.models import Deployment, Model
-from src.llmax.usage import ModelUsage
+
+from llmax import tokens
+from llmax.models import Deployment, Model
+from llmax.usage import ModelUsage
 
 deployments: dict[Model, Deployment] = {
     "gpt-4-turbo": Deployment(

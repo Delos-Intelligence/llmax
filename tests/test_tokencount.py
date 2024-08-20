@@ -1,6 +1,6 @@
 """Test function to test the count of tokens."""
 
-from src.llmax import tokens
+from llmax import tokens
 
 
 def test_token_count_short() -> None:
