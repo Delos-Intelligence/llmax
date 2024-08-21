@@ -1,11 +1,13 @@
 [tool.poetry]
-name = "llmax"
-version = "0.10.1"
+name = "delos-llmax"
+version = "0.10.3"
 description = "Interface to handle multiple LLMs and AI tools."
 authors = ["Delos Intelligence <maximiliendedinechin@delosintelligence.fr>"]
 readme = "README.md"
-requires-python = ">=3.8.1"
 keywords = ["AI", "LLM", "generative"]
+packages = [
+    { include = "llmax", from = "src" }
+]
 
 [tool.poetry.dependencies]
 python = ">=3.8.1,<4.0"
@@ -21,6 +23,8 @@ pyright = "^1.1.377"
 isort = "^5.13.2"
 mypy = "^1.11.1"
 pydub-stubs = "^0.25.1.1"
+pytest = "^7.0"
+pytest-cov = "^3.0"
 
 [build-system]
 requires = ["poetry-core"]
@@ -45,7 +49,6 @@ extend-select = [
   "YTT",   # flake8-2020
   "ANN",   # flake8-annotations errors and warnings
   "ASYNC", # flake8-async errors and warnings
-  "TRIO",  # flake8-trio errors and warnings
   "S",     # flake8-bandit security warnings
   "BLE",   # flake8-blind-except errors
   "FBT",   # flake8-boolean-trap errors and warnings
@@ -104,12 +107,21 @@ ignore = [
   "FBT002", # bool arguments
   "ANN401", # Any for kwargs
   "CPY001", #copyright
-
+  "B901", #generator
   "S311" , # usage of rnadom
   "PGH003", #type ignore
 ]
 
 pydocstyle.convention = "google"
+
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = [
+    "S101", # asserts allowed in tests...
+    "S311", # Standard pseudo-random generators are not suitable for cryptographic purposes
+    "INP001"
+]
+
 
 [tool.pyright]
 typeCheckingMode = "strict"

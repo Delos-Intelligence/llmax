@@ -89,7 +89,7 @@ class ModelUsage:
         Returns:
             The total cost for the prompt and completion tokens.
         """
-        cost = 0
+        cost: float = 0
         dep = self.deployment
 
         if self.audio_duration:
