@@ -1,9 +1,10 @@
 [tool.poetry]
 name = "llmax"
-version = "0.10.0"
+version = "0.10.1"
 description = "Interface to handle multiple LLMs and AI tools."
 authors = ["Delos Intelligence <maximiliendedinechin@delosintelligence.fr>"]
 readme = "README.md"
+requires-python = ">=3.8.1"
 keywords = ["AI", "LLM", "generative"]
 
 [tool.poetry.dependencies]
@@ -27,7 +28,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.ruff]
 # fix = true
-src = ["llmax"]
+src = ["src"]
 
 
 [tool.ruff.lint]
