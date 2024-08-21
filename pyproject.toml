@@ -11,7 +11,7 @@ packages = [
 
 [tool.poetry.dependencies]
 python = ">=3.8.1,<4.0"
-openai = "^1.41.1"
+openai = "^1.42.0"
 tiktoken = "^0.7.0"
 loguru = "^0.7.2"
 python-dotenv = "^1.0.1"
@@ -19,7 +19,7 @@ pydub = "^0.25.1"
 
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.6.1"
-pyright = "^1.1.376"
+pyright = "^1.1.377"
 isort = "^5.13.2"
 mypy = "^1.11.1"
 pydub-stubs = "^0.25.1.1"
