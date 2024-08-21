@@ -8,7 +8,7 @@ Python package to manage most external and internal LLM APIs fluently.
 To install, run the following command:
 
 ```bash
-python3 -m pip install llmax
+python3 -m pip install delos-llmax
 ```
 
 # How to use
