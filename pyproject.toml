@@ -24,7 +24,7 @@ isort = "^5.13.2"
 mypy = "^1.11.1"
 pydub-stubs = "^0.25.1.1"
 pytest = ">=7,<9"
-pytest-cov = "^3.0"
+pytest-cov = ">=3,<6"
 
 [build-system]
 requires = ["poetry-core"]
