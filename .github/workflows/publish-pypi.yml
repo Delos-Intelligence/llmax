@@ -28,6 +28,6 @@ jobs:
 
       - name: Publish package
         env:
-          TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
-          TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
-        run: python -m twine upload dist/*
+          TWINE_USERNAME: ${{ secrets.TEST_PYPI_USERNAME }}
+          TWINE_PASSWORD: ${{ secrets.TES_PYPI_PASSWORD }}
+        run: python -m twine upload --repository upload dist/*
