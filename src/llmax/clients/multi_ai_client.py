@@ -153,7 +153,7 @@ class MultiAIClient:
             ChatCompletion: The API response containing the chat completions.
         """
         if system:
-            messages = self.add_system_message(
+            messages = add_system_message(
                 messages=messages,
                 model=model,
                 system=system,
@@ -207,7 +207,7 @@ class MultiAIClient:
             ChatCompletion: The API response containing the chat completions.
         """
         if system:
-            messages = self.add_system_message(
+            messages = add_system_message(
                 messages=messages,
                 model=model,
                 system=system,
@@ -261,7 +261,7 @@ class MultiAIClient:
             ChatCompletionChunk: Individual chunks of the completion response.
         """
         if system:
-            messages = self.add_system_message(
+            messages = add_system_message(
                 messages=messages,
                 model=model,
                 system=system,
@@ -406,35 +406,35 @@ class MultiAIClient:
 
         return response
 
-    def add_system_message(
-        self,
-        messages: Messages,
-        model: Model,
-        system: str,
-    ) -> Messages:
-        """Adds a system message at the start of the messages.
 
-        It should take into account the model name to correctly name the system.
+def add_system_message(
+    messages: Messages,
+    model: Model,
+    system: str,
+) -> Messages:
+    """Adds a system message at the start of the messages.
 
-        Args:
-            messages: The list of messages for the chat.
-            model: The model to use for generating the chat completions.
-            system: A string that will be passed as a system prompt.
+    It should take into account the model name to correctly name the system.
 
-        Returns:
-            Messages: The same initial list with the system message inserted at index 0.
-        """
-        match model:
-            case model if model in OPENAI_MODELS:
-                messages.insert(0, {"role": "system", "content": system})
-            case model if model in COHERE_MODELS:
-                messages.insert(0, {"role": "system", "content": system})
-            case model if model in META_MODELS:
-                messages.insert(0, {"role": "system", "content": system})
-            case model if model in MISTRAL_MODELS:
-                messages.insert(0, {"role": "system", "content": system})
-            case _:
-                logger.debug(
-                    f"[bold purple][LLMAX][/bold purple] The model specified, {model}, does not understand system mode.",
-                )
-        return messages
+    Args:
+        messages: The list of messages for the chat.
+        model: The model to use for generating the chat completions.
+        system: A string that will be passed as a system prompt.
+
+    Returns:
+        Messages: The same initial list with the system message inserted at index 0.
+    """
+    match model:
+        case model if model in OPENAI_MODELS:
+            messages.insert(0, {"role": "system", "content": system})
+        case model if model in COHERE_MODELS:
+            messages.insert(0, {"role": "system", "content": system})
+        case model if model in META_MODELS:
+            messages.insert(0, {"role": "system", "content": system})
+        case model if model in MISTRAL_MODELS:
+            messages.insert(0, {"role": "system", "content": system})
+        case _:
+            logger.debug(
+                f"[bold purple][LLMAX][/bold purple] The model specified, {model}, does not understand system mode.",
+            )
+    return messages
