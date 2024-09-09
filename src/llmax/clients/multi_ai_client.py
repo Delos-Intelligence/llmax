@@ -15,8 +15,15 @@ from llmax.external_clients.clients import Client, get_aclient, get_client
 from llmax.messages import Messages
 from llmax.models.deployment import Deployment
 from llmax.models.fake import fake_llm
-from llmax.models.models import Model
+from llmax.models.models import (
+    COHERE_MODELS,
+    META_MODELS,
+    MISTRAL_MODELS,
+    OPENAI_MODELS,
+    Model,
+)
 from llmax.usage import ModelUsage
+from llmax.utils import logger
 
 
 class MultiAIClient:
@@ -131,6 +138,7 @@ class MultiAIClient:
         self,
         messages: Messages,
         model: Model,
+        system: str | None = None,
         **kwargs: Any,
     ) -> ChatCompletion:
         """Synchronously invokes the API to get chat completions, tracking usage.
@@ -138,11 +146,18 @@ class MultiAIClient:
         Args:
             messages: The list of messages for the chat.
             model: The model to use for generating the chat completions.
+            system: A string that will be passed as a system prompt.
             kwargs: More args.
 
         Returns:
             ChatCompletion: The API response containing the chat completions.
         """
+        if system:
+            messages = add_system_message(
+                messages=messages,
+                model=model,
+                system=system,
+            )
         response = self._create_chat(messages, model, **kwargs, stream=False)
         if not response.usage:
             message = "No usage for this request"
@@ -156,6 +171,7 @@ class MultiAIClient:
         self,
         messages: Messages,
         model: Model,
+        system: str | None = None,
         **kwargs: Any,
     ) -> str | None:
         """Convenience method to invoke the API and return the first response as a string.
@@ -163,18 +179,20 @@ class MultiAIClient:
         Args:
             messages: The list of messages for the chat.
             model: The model to use for the chat completions.
+            system: A string that will be passed as a system prompt.
             kwargs: More args.
 
         Returns:
             str | None: The content of the first choice in the response, if available.
         """
-        response = self.invoke(messages, model, **kwargs)
+        response = self.invoke(messages, model, system=system, **kwargs)
         return response.choices[0].message.content if response.choices else None
 
     async def ainvoke(
         self,
         messages: Messages,
         model: Model,
+        system: str | None = None,
         **kwargs: Any,
     ) -> ChatCompletion:
         """Asynchronously invokes the API to get chat completions, tracking usage.
@@ -182,11 +200,18 @@ class MultiAIClient:
         Args:
             messages: The list of messages for the chat.
             model: The model to use for generating the chat completions.
+            system: A string that will be passed as a system prompt.
             kwargs: More args.
 
         Returns:
             ChatCompletion: The API response containing the chat completions.
         """
+        if system:
+            messages = add_system_message(
+                messages=messages,
+                model=model,
+                system=system,
+            )
         response = await self._acreate_chat(messages, model, **kwargs, stream=False)
         if not response.usage:
             message = "No usage for this request"
@@ -200,6 +225,7 @@ class MultiAIClient:
         self,
         messages: Messages,
         model: Model,
+        system: str | None = None,
         **kwargs: Any,
     ) -> str | None:
         """Asynchronously invokes the API and returns the first response as a string.
@@ -207,18 +233,20 @@ class MultiAIClient:
         Args:
             messages: The list of messages for the chat.
             model: The model to use for the chat completions.
+            system: A string that will be passed as a system prompt.
             kwargs: More args.
 
         Returns:
             str | None: The content of the first choice in the response, if available.
         """
-        response = await self.ainvoke(messages, model, **kwargs)
+        response = await self.ainvoke(messages, model, system=system, **kwargs)
         return response.choices[0].message.content if response.choices else None
 
     def stream(
         self,
         messages: Messages,
         model: Model,
+        system: str | None = None,
         **kwargs: Any,
     ) -> Generator[ChatCompletionChunk, None, None]:
         """Streams chat completions, allowing responses to be received in chunks.
@@ -226,11 +254,18 @@ class MultiAIClient:
         Args:
             messages: The list of messages for the chat.
             model: The model to use for generating the chat completions.
+            system: A string that will be passed as a system prompt.
             kwargs: More args.
 
         Yields:
             ChatCompletionChunk: Individual chunks of the completion response.
         """
+        if system:
+            messages = add_system_message(
+                messages=messages,
+                model=model,
+                system=system,
+            )
         response = self._create_chat(messages, model, **kwargs, stream=True)
         deployment = self.deployments[model]
         usage = ModelUsage(deployment, self._increment_usage)
@@ -246,6 +281,7 @@ class MultiAIClient:
         self,
         messages: Messages,
         model: Model,
+        system: str | None = None,
         **kwargs: Any,
     ) -> Generator[str, None, str]:
         """Streams formatted output from the chat completions.
@@ -256,6 +292,7 @@ class MultiAIClient:
         Args:
             messages: The list of messages for the chat.
             model: The model to use for generating the chat completions.
+            system: A string that will be passed as a system prompt.
             kwargs: More args.
 
         Yields:
@@ -263,7 +300,7 @@ class MultiAIClient:
         """
         output = ""
         yield from fake_llm("", stream=False, send_empty=True)
-        for completion_chunk in self.stream(messages, model, **kwargs):
+        for completion_chunk in self.stream(messages, model, system=system, **kwargs):
             yield f"data: {completion_chunk.model_dump_json(exclude_unset=True)}\n\n"
             output += (
                 content
@@ -368,3 +405,36 @@ class MultiAIClient:
         usage.apply()
 
         return response
+
+
+def add_system_message(
+    messages: Messages,
+    model: Model,
+    system: str,
+) -> Messages:
+    """Adds a system message at the start of the messages.
+
+    It should take into account the model name to correctly name the system.
+
+    Args:
+        messages: The list of messages for the chat.
+        model: The model to use for generating the chat completions.
+        system: A string that will be passed as a system prompt.
+
+    Returns:
+        Messages: The same initial list with the system message inserted at index 0.
+    """
+    match model:
+        case model if model in OPENAI_MODELS:
+            messages.insert(0, {"role": "system", "content": system})
+        case model if model in COHERE_MODELS:
+            messages.insert(0, {"role": "system", "content": system})
+        case model if model in META_MODELS:
+            messages.insert(0, {"role": "system", "content": system})
+        case model if model in MISTRAL_MODELS:
+            messages.insert(0, {"role": "system", "content": system})
+        case _:
+            logger.debug(
+                f"[bold purple][LLMAX][/bold purple] The model specified, {model}, does not understand system mode.",
+            )
+    return messages
