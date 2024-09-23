@@ -5,7 +5,8 @@ from llmax.models import Model, Provider
 from .exceptions import PriceNotFoundError
 
 PROMPT_PRICES_PER_1K: dict[Model, float | dict[Provider, float]] = {
-    "gpt-4o": 0.005,
+    "gpt-4o-mini": 0.000165,
+    "gpt-4o": 0.00275,
     "gpt-4-turbo": 0.01,
     "gpt-3.5": 0.0005,
     "text-embedding-3-small": 0.00002,
@@ -19,7 +20,8 @@ PROMPT_PRICES_PER_1K: dict[Model, float | dict[Provider, float]] = {
 }
 
 COMPLETION_PRICES_PER_1K: dict[Model, float | dict[Provider, float]] = {
-    "gpt-4o": 0.015,
+    "gpt-4o-mini": 0.00066,
+    "gpt-4o": 0.011,
     "gpt-4-turbo": 0.03,
     "gpt-3.5": 0.0015,
     "mistral-large": 0.012,
