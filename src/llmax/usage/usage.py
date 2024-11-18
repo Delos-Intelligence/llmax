@@ -26,7 +26,7 @@ class ModelUsage:
     """
 
     deployment: Deployment
-    increment_usage: Callable[[float, Model], bool]
+    increment_usage: Callable[[float, Model, str], bool]
     tokens_usage: CompletionUsage = field(
         default_factory=lambda: CompletionUsage(
             completion_tokens=0,
@@ -106,7 +106,7 @@ class ModelUsage:
 
         return cost
 
-    def apply(self) -> None:
+    def apply(self, operation: str = "") -> None:
         """Applies the token usage, updating the usage statistics and logging the action."""
         if self.deployment.model in AUDIO:
             message = (
@@ -122,4 +122,4 @@ class ModelUsage:
         logger.debug(
             f"[bold purple][LLMAX][/bold purple] Applying usage for model '{self.deployment.model}'. {message}",
         )
-        self.increment_usage(self.compute_cost(), self.deployment.model)
+        self.increment_usage(self.compute_cost(), self.deployment.model, operation)

@@ -43,7 +43,7 @@ class MultiAIClient:
         self,
         deployments: dict[Model, Deployment],
         get_usage: Callable[[], float] = lambda: 0.0,
-        increment_usage: Callable[[float, Model], bool] = lambda _1, _2: True,
+        increment_usage: Callable[[float, Model, str], bool] = lambda _1, _2, _3: True,
     ) -> None:
         """Initializes the MultiAIClient class.
 
@@ -152,6 +152,7 @@ class MultiAIClient:
         Returns:
             ChatCompletion: The API response containing the chat completions.
         """
+        operation: str = kwargs.pop("operation", "")
         if system:
             messages = add_system_message(
                 messages=messages,
@@ -164,7 +165,7 @@ class MultiAIClient:
             raise ValueError(message)
         deployment = self.deployments[model]
         usage = ModelUsage(deployment, self._increment_usage, response.usage)
-        usage.apply()
+        usage.apply(operation=operation)
         return response
 
     def invoke_to_str(
@@ -206,6 +207,7 @@ class MultiAIClient:
         Returns:
             ChatCompletion: The API response containing the chat completions.
         """
+        operation: str = kwargs.pop("operation", "")
         if system:
             messages = add_system_message(
                 messages=messages,
@@ -218,7 +220,7 @@ class MultiAIClient:
             raise ValueError(message)
         deployment = self.deployments[model]
         usage = ModelUsage(deployment, self._increment_usage, response.usage)
-        usage.apply()
+        usage.apply(operation=operation)
         return response
 
     async def ainvoke_to_str(
@@ -260,6 +262,7 @@ class MultiAIClient:
         Yields:
             ChatCompletionChunk: Individual chunks of the completion response.
         """
+        operation: str = kwargs.pop("operation", "")
         if system:
             messages = add_system_message(
                 messages=messages,
@@ -275,7 +278,7 @@ class MultiAIClient:
             usage.add_tokens(completion_tokens=1)
             yield chunk  # type: ignore
 
-        usage.apply()
+        usage.apply(operation=operation)
 
     def stream_output(
         self,
@@ -315,16 +318,19 @@ class MultiAIClient:
         self,
         texts: list[str],
         model: Model,
+        **kwargs: Any,
     ) -> list[Embedding]:
         """Obtains vector embeddings for a list of texts asynchronously.
 
         Args:
             texts: The texts to generate embeddings for.
             model: The embedding model.
+            kwargs: More args.
 
         Returns:
             list[Embedding]: The embeddings for each text.
         """
+        operation: str = kwargs.pop("operation", "")
         texts = [text.replace("\n", " ") for text in texts]
 
         client = self.client(model)
@@ -337,7 +343,7 @@ class MultiAIClient:
 
         usage = ModelUsage(deployment, self._increment_usage)
         usage.add_tokens(prompt_tokens=response.usage.prompt_tokens)
-        usage.apply()
+        usage.apply(operation=operation)
 
         embeddings = response.data
         return embeddings
@@ -358,6 +364,7 @@ class MultiAIClient:
         Returns:
             Any: The response from the API.
         """
+        operation: str = kwargs.pop("operation", "")
         client = self.client(model)
         deployment = self.deployments[model]
 
@@ -370,7 +377,7 @@ class MultiAIClient:
 
         usage = ModelUsage(deployment, self._increment_usage)
         usage.add_audio_duration(response.duration)
-        usage.apply()
+        usage.apply(operation=operation)
 
         return response
 
@@ -390,6 +397,7 @@ class MultiAIClient:
         Returns:
             Any: The response from the API.
         """
+        operation: str = kwargs.pop("operation", "")
         aclient = self.aclient(model)
         deployment = self.deployments[model]
 
@@ -402,7 +410,7 @@ class MultiAIClient:
 
         usage = ModelUsage(deployment, self._increment_usage)
         usage.add_audio_duration(response.duration)
-        usage.apply()
+        usage.apply(operation=operation)
 
         return response
 
