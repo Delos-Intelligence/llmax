@@ -17,6 +17,7 @@ PROMPT_PRICES_PER_1K: dict[Model, float | dict[Provider, float]] = {
     "command-r": 0.0005,
     "command-r-plus": 0.003,
     "llama-3-70b-instruct": 0.00378,
+    "claude-3.5-sonnet": 0.003,
 }
 
 COMPLETION_PRICES_PER_1K: dict[Model, float | dict[Provider, float]] = {
@@ -29,6 +30,7 @@ COMPLETION_PRICES_PER_1K: dict[Model, float | dict[Provider, float]] = {
     "command-r": 0.0015,
     "command-r-plus": 0.015,
     "llama-3-70b-instruct": 0.01134,
+    "claude-3.5-sonnet": 0.015,
 }
 
 TRANSCRIPTION_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {

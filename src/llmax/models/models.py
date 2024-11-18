@@ -28,8 +28,12 @@ OpenAIModel = Literal[
     "o1-preview",
 ]
 
+AnthropicModel = Literal[
+    "claude-3.5-sonnet",
+]
 
-LLModel = Union[CohereModel, MetaModel, MistralModel, OpenAIModel]
+
+LLModel = Union[CohereModel, MetaModel, MistralModel, OpenAIModel, AnthropicModel]
 
 SpeechToTextModel = Literal["whisper-1",]
 
@@ -39,6 +43,7 @@ COHERE_MODELS: tuple[CohereModel, ...] = get_args(CohereModel)
 META_MODELS: tuple[MetaModel, ...] = get_args(MetaModel)
 MISTRAL_MODELS: tuple[MistralModel, ...] = get_args(MistralModel)
 OPENAI_MODELS: tuple[OpenAIModel, ...] = get_args(OpenAIModel)
+ANTHROPIC_MODELS: tuple[AnthropicModel, ...] = get_args(AnthropicModel)
 
 LLMS: tuple[LLModel, ...] = get_args(LLModel)
 AUDIO: tuple[SpeechToTextModel, ...] = get_args(SpeechToTextModel)

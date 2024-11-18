@@ -5,13 +5,14 @@ from typing import Any
 from llmax.external_clients.exceptions import ClientNotFoundError
 from llmax.models import Deployment
 from llmax.models.models import (
+    ANTHROPIC_MODELS,
     COHERE_MODELS,
     META_MODELS,
     MISTRAL_MODELS,
     OPENAI_MODELS,
 )
 
-from . import cohere, meta, mistral, openai
+from . import anthropic, cohere, meta, mistral, openai
 
 Client = Any
 
@@ -28,6 +29,8 @@ def get_client(deployment: Deployment) -> Client:
             return cohere.get_client(deployment)
         case model if model in META_MODELS:
             return meta.get_client(deployment)
+        case model if model in ANTHROPIC_MODELS:
+            return anthropic.get_client(deployment)
         case _:
             raise ClientNotFoundError(deployment)
 
@@ -44,5 +47,7 @@ def get_aclient(deployment: Deployment) -> Client:
             return cohere.get_aclient(deployment)
         case model if model in META_MODELS:
             return meta.get_aclient(deployment)
+        case model if model in ANTHROPIC_MODELS:
+            return anthropic.get_aclient(deployment)
         case _:
             raise ClientNotFoundError(deployment)
