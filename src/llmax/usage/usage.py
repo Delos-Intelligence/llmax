@@ -2,13 +2,13 @@
 
 import math
 from dataclasses import dataclass, field
-from typing import Callable
+from typing import Callable, Literal
 
 from openai.types import CompletionUsage
 
 from llmax.messages.messages import Messages
 from llmax.models import Deployment, Model
-from llmax.models.models import AUDIO
+from llmax.models.models import AUDIO, IMAGE
 from llmax.utils import logger
 
 from . import prices, tokens
@@ -35,6 +35,7 @@ class ModelUsage:
         ),
     )
     audio_duration: float = 0.0
+    image_information: float = 0.0
 
     def __repr__(self) -> str:
         """Generates a string representation of model usage statistics.
@@ -83,6 +84,26 @@ class ModelUsage:
         """
         self.audio_duration += duration
 
+    def add_image(
+        self,
+        quality: Literal["standard", "hd"],
+        size: Literal["1024x1024", "1024x1792", "1792x1024"],
+        n: int = 1,
+    ) -> None:
+        """Adds image pricing to the usage statistics for image generation models.
+
+        Args:
+            quality: The quality of the generated images.
+            size: The size of the generated images.
+            n: The number of generated images.
+        """
+        count = 1
+        if quality == "hd":
+            count += 1
+        if size != "1024x1024":
+            count += 1
+        self.image_information += count * n
+
     def compute_cost(self) -> float:
         """Calculates the total cost based on token usage.
 
@@ -104,6 +125,10 @@ class ModelUsage:
             price = prices.get_completion_price(dep.model, dep.provider)
             cost += price * completion_tokens / 1000
 
+        if self.image_information:
+            price = prices.get_tti_price(dep.model, dep.provider)
+            cost += price * self.image_information
+
         return cost
 
     def apply(self, operation: str = "") -> None:
@@ -113,12 +138,19 @@ class ModelUsage:
                 f"Audio Duration: {self.audio_duration} seconds "
                 f"Cost: ${self.compute_cost():.6f}"
             )
+        elif self.deployment.model in IMAGE:
+            message = (
+                f"Image generation : ~{self.image_information} images "
+                f"Cost: ${self.compute_cost():.6f}"
+            )
+
         else:
             message = (
                 f"Tokens: {self.tokens_usage.total_tokens} "
                 f"({self.tokens_usage.prompt_tokens} + {self.tokens_usage.completion_tokens}) "
                 f"Cost: ${self.compute_cost():.6f}"
             )
+
         logger.debug(
             f"[bold purple][LLMAX][/bold purple] Applying usage for model '{self.deployment.model}'. {message}",
         )

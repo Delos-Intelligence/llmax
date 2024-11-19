@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 
 from llmax.clients import MultiAIClient
 from llmax.models import Deployment, Model
-from llmax.models.models import AUDIO
+from llmax.models.models import AUDIO, IMAGE
 from llmax.utils import logger
 
 load_dotenv()
@@ -23,6 +23,14 @@ def main(model: Model, question: str, file_path: str) -> None:
             deployment_name="gpt-4-1106-preview",
             api_key=os.getenv("LLMAX_AZURE_OPENAI_FRANCE_KEY", ""),
             endpoint=os.getenv("LLMAX_AZURE_OPENAI_FRANCE_ENDPOINT", ""),
+        ),
+        "dall-e-3": Deployment(
+            model="dall-e-3",
+            provider="azure",
+            deployment_name="dalle-3",
+            api_key=os.getenv("LLMAX_AZURE_OPENAI_SWEDENCENTRAL_KEY", ""),
+            endpoint=os.getenv("LLMAX_AZURE_OPENAI_SWEDENCENTRAL_ENDPOINT", ""),
+            api_version="2024-10-21",
         ),
         "gpt-4o": Deployment(
             model="gpt-4o",
@@ -68,7 +76,22 @@ def main(model: Model, question: str, file_path: str) -> None:
         {"role": "user", "content": question},
     ]
 
-    if model not in AUDIO:
+    if model in IMAGE:
+        logger.info(f"Generating image with {model} model...")
+        logger.info(deployments[model].endpoint)
+
+        response = client.text_to_image(model, question)
+        logger.info(response)
+
+    elif model in AUDIO:
+        logger.info(f"STT with {model} model...")
+        logger.info(deployments[model].endpoint)
+
+        with Path(file_path).open(mode="rb") as audio_file:
+            response = client.speech_to_text(file=audio_file, model=model)
+            logger.info(response)
+
+    else:
         logger.info(f"Chatting with {model} model...")
         logger.info(deployments[model].endpoint)
 
@@ -77,14 +100,6 @@ def main(model: Model, question: str, file_path: str) -> None:
 
         response_stream = client.stream(messages, model)
         logger.info(response_stream)
-
-    else:
-        logger.info(f"STT with {model} model...")
-        logger.info(deployments[model].endpoint)
-
-        with Path(file_path).open(mode="rb") as audio_file:
-            response = client.speech_to_text(file=audio_file, model=model)
-            logger.info(response)
 
 
 if __name__ == "__main__":
