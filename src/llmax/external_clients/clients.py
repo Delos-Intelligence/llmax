@@ -6,12 +6,13 @@ from llmax.external_clients.exceptions import ClientNotFoundError
 from llmax.models import Deployment
 from llmax.models.models import (
     COHERE_MODELS,
+    GEMINI_MODELS,
     META_MODELS,
     MISTRAL_MODELS,
     OPENAI_MODELS,
 )
 
-from . import cohere, meta, mistral, openai
+from . import cohere, gemini, meta, mistral, openai
 
 Client = Any
 
@@ -28,6 +29,8 @@ def get_client(deployment: Deployment) -> Client:
             return cohere.get_client(deployment)
         case model if model in META_MODELS:
             return meta.get_client(deployment)
+        case model if model in GEMINI_MODELS:
+            return gemini.get_client(deployment)
         case _:
             raise ClientNotFoundError(deployment)
 

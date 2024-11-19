@@ -17,6 +17,8 @@ PROMPT_PRICES_PER_1K: dict[Model, float | dict[Provider, float]] = {
     "command-r": 0.0005,
     "command-r-plus": 0.003,
     "llama-3-70b-instruct": 0.00378,
+    "google/gemini-1.5-flash-002": 0.000075,
+    "google/gemini-1.5-pro-002": 0.00125,
 }
 
 COMPLETION_PRICES_PER_1K: dict[Model, float | dict[Provider, float]] = {
@@ -29,6 +31,8 @@ COMPLETION_PRICES_PER_1K: dict[Model, float | dict[Provider, float]] = {
     "command-r": 0.0015,
     "command-r-plus": 0.015,
     "llama-3-70b-instruct": 0.01134,
+    "google/gemini-1.5-flash-002": 0.0003,
+    "google/gemini-1.5-pro-002": 0.005,
 }
 
 TRANSCRIPTION_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {

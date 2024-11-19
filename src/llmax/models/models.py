@@ -9,6 +9,8 @@ CohereModel = Literal[
 
 MetaModel = Literal["llama-3-70b-instruct",]
 
+GeminiModel = Literal["google/gemini-1.5-flash-002", "google/gemini-1.5-pro-002"]
+
 MistralModel = Literal[
     "mistral-large",
     "mistral-small",
@@ -30,7 +32,7 @@ OpenAIModel = Literal[
 ]
 
 
-LLModel = Union[CohereModel, MetaModel, MistralModel, OpenAIModel]
+LLModel = Union[CohereModel, MetaModel, MistralModel, OpenAIModel, GeminiModel]
 
 SpeechToTextModel = Literal["whisper-1",]
 
@@ -40,6 +42,7 @@ Model = Union[LLModel, SpeechToTextModel, ImageGenerationModel]
 
 COHERE_MODELS: tuple[CohereModel, ...] = get_args(CohereModel)
 META_MODELS: tuple[MetaModel, ...] = get_args(MetaModel)
+GEMINI_MODELS: tuple[GeminiModel, ...] = get_args(GeminiModel)
 MISTRAL_MODELS: tuple[MistralModel, ...] = get_args(MistralModel)
 OPENAI_MODELS: tuple[OpenAIModel, ...] = get_args(OpenAIModel)
 
