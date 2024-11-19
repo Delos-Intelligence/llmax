@@ -5,7 +5,7 @@ synchronous and asynchronous operations.
 """
 
 from io import BufferedReader, BytesIO
-from typing import Any, Callable, Generator
+from typing import Any, Callable, Generator, Literal
 
 from openai.types import Embedding
 from openai.types.audio import Transcription
@@ -413,6 +413,57 @@ class MultiAIClient:
         usage.apply(operation=operation)
 
         return response
+
+    def text_to_image(
+        self,
+        model: Model,
+        prompt: str,
+        size: Literal["1024x1024", "1024x1792", "1792x1024"] = "1024x1024",
+        quality: Literal["standard", "hd"] = "standard",
+        n: int = 1,
+        **kwargs: Any,
+    ) -> str:
+        """Generate images from a text prompt using the specified model.
+
+        Parameters:
+        - model (Model): The model to be used for generating images.
+        - prompt (str): The text prompt that describes the image to be generated.
+        - size (Literal["1024x1024", "1024x1792", "1792x1024"]): The size of the generated image.
+        Default is "1024x1024".
+        - quality (Literal["standard", "hd"]): The quality of the generated image.
+        Default is "hd".
+        - n (int): The number of images to generate. Default is 1.
+        - **kwargs (Any): Additional keyword arguments for further customization.
+
+        Returns:
+        - None: This function does not return any value. It performs the image generation
+        operation and may handle side effects like saving or displaying the generated
+        images based on the implementation.
+
+        Raises:
+        - Any relevant exceptions that may occur during the image generation process.
+        """
+        operation: str = kwargs.pop("operation", "")
+        client = self.client(model)
+        deployment = self.deployments[model]
+
+        response = client.images.generate(
+            model=deployment.deployment_name,
+            prompt=prompt,
+            size=size,
+            quality=quality,
+            n=n,
+        )
+
+        usage = ModelUsage(deployment, self._increment_usage)
+        usage.add_image(
+            quality=quality,
+            size=size,
+            n=n,
+        )
+        usage.apply(operation=operation)
+
+        return response.data[0].url
 
 
 def add_system_message(

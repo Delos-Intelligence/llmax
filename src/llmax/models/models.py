@@ -26,6 +26,7 @@ OpenAIModel = Literal[
     "whisper-1",
     "gpt-4o-mini",
     "o1-preview",
+    "dall-e-3",
 ]
 
 
@@ -33,7 +34,9 @@ LLModel = Union[CohereModel, MetaModel, MistralModel, OpenAIModel]
 
 SpeechToTextModel = Literal["whisper-1",]
 
-Model = Union[LLModel, SpeechToTextModel]
+ImageGenerationModel = Literal["dall-e-3",]
+
+Model = Union[LLModel, SpeechToTextModel, ImageGenerationModel]
 
 COHERE_MODELS: tuple[CohereModel, ...] = get_args(CohereModel)
 META_MODELS: tuple[MetaModel, ...] = get_args(MetaModel)
@@ -42,5 +45,6 @@ OPENAI_MODELS: tuple[OpenAIModel, ...] = get_args(OpenAIModel)
 
 LLMS: tuple[LLModel, ...] = get_args(LLModel)
 AUDIO: tuple[SpeechToTextModel, ...] = get_args(SpeechToTextModel)
+IMAGE: tuple[ImageGenerationModel, ...] = get_args(ImageGenerationModel)
 
 MODELS: tuple[Model, ...] = get_args(Model)
