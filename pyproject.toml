@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "delos-llmax"
-version = "0.11.6"
+version = "0.11.7"
 description = "Interface to handle multiple LLMs and AI tools."
 authors = ["Delos Intelligence <maximiliendedinechin@delosintelligence.fr>"]
 readme = "README.md"
@@ -16,6 +16,7 @@ tiktoken = "^0.7.0"
 loguru = "^0.7.2"
 python-dotenv = "^1.0.1"
 pydub = "^0.25.1"
+google-auth = "^2.36.0"
 
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.6.1"
