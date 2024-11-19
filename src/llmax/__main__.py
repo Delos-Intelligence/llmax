@@ -80,16 +80,16 @@ def main(model: Model, question: str, file_path: str) -> None:
         logger.info(f"Generating image with {model} model...")
         logger.info(deployments[model].endpoint)
 
-        response = client.text_to_image(model, question)
-        logger.info(response)
+        url = client.text_to_image(model, question)
+        logger.info(url)
 
     elif model in AUDIO:
         logger.info(f"STT with {model} model...")
         logger.info(deployments[model].endpoint)
 
         with Path(file_path).open(mode="rb") as audio_file:
-            response = client.speech_to_text(file=audio_file, model=model)
-            logger.info(response)
+            transcription = client.speech_to_text(file=audio_file, model=model)
+            logger.info(transcription)
 
     else:
         logger.info(f"Chatting with {model} model...")
