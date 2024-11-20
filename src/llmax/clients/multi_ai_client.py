@@ -23,7 +23,7 @@ from llmax.models.models import (
     OPENAI_MODELS,
     Model,
 )
-from llmax.usage import ModelUsage
+from llmax.usage import ModelUsage, tokens
 from llmax.utils import logger
 
 
@@ -274,10 +274,17 @@ class MultiAIClient:
         deployment = self.deployments[model]
         usage = ModelUsage(deployment, self._increment_usage)
         usage.add_messages(messages)
+        answer = ""
 
         for chunk in response:
-            usage.add_tokens(completion_tokens=1)
+            try:
+                if chunk.choices[0].delta.content:  # type: ignore
+                    answer += str(chunk.choices[0].delta.content)  # type: ignore
+            except Exception as e:  # noqa: BLE001
+                logger.debug(f"Error in llmax streaming : {e}")
             yield chunk  # type: ignore
+
+        usage.add_tokens(completion_tokens=tokens.count(answer))
 
         usage.apply(operation=operation)
 
