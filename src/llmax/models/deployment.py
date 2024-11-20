@@ -17,6 +17,7 @@ class Deployment:
     deployment_name: str = ""
     endpoint: str = ""
     api_version: str = "2023-05-15"
+    project_id: str = ""
 
     def validate(self) -> None:
         """Validate the deployment."""

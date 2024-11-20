@@ -2,52 +2,59 @@
 
 from __future__ import annotations
 
-import os
-from typing import Optional
+from typing import Any, Callable
 
 
 from .chat import Chat
-from .completions import Completions
+from .chat_completion import ChatCompletion
 
 
 class UniversalClient:
+    internal_client: Any
     chat: Chat
-    completions: Completions
-
-    # client options
-    api_key: str
-    project: str | None
 
     def __init__(
         self,
-        *,
-        api_key: str | None = None,
-        project: str | None = None,
-        timeout: Optional[float] = None,
-        max_retries: int = 3,
+        client_creation: Callable[..., Any],
+        completion_call: Callable[..., ChatCompletion],
+        *args: Any,
+        **kwargs: Any,
     ) -> None:
-        """Construct a new synchronous openai client instance.
+        """Construct a new synchronous client instance based on OpenAI client model."""
+        self.internal_client = client_creation(*args, **kwargs)
+        self.chat = Chat(self.internal_client, completion_call)
 
-        This automatically infers the following arguments from their corresponding environment variables if they are not provided:
-        - `api_key` from `API_KEY`
-        - `project` from `PROJECT_ID`
-        """
-        if api_key is None:
-            api_key = os.environ.get("API_KEY")
-        if api_key is None:
-            raise Exception(
-                "The api_key client option must be set either by passing api_key to the client or by setting the API_KEY environment variable"
-            )
-        self.api_key = api_key
 
-        if project is None:
-            project = os.environ.get("PROJECT_ID")
-        self.project = project
+    # def __init__(
+    #     self,
+    #     *,
+    #     api_key: str | None = None,
+    #     project_id: str | None = None,
+    #     endpoint: str | None = None,
+    #     timeout: Optional[float] = None,
+    #     max_retries: int = 3,
+    # ) -> None:
+    #     """Construct a new synchronous openai client instance.
 
-        # self._default_stream_cls = Stream
+    #     This automatically infers the following arguments from their corresponding environment variables if they are not provided:
+    #     - `api_key` from `API_KEY`
+    #     - `project` from `PROJECT_ID`
+    #     """
+    #     if api_key is None:
+    #         api_key = os.environ.get("API_KEY")
+    #     if api_key is None:
+    #         raise Exception(
+    #             "The api_key client option must be set either by passing api_key to the client or by setting the API_KEY environment variable"
+    #         )
+    #     self.api_key = api_key
 
-        self.completions = Completions()
-        self.chat = Chat()
+    #     if project_id is None:
+    #         project_id = os.environ.get("PROJECT_ID")
+    #     self.project_id = project_id
+
+    #     # self._default_stream_cls = Stream
+
+    #     self.chat = Chat()
 
     # @property
     # @override

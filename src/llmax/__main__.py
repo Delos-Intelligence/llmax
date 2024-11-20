@@ -60,6 +60,15 @@ def main(model: Model, question: str, file_path: str) -> None:
             endpoint=os.getenv("LLMAX_AZURE_OPENAI_SWEDENCENTRAL_ENDPOINT", ""),
             api_version="2024-02-01",
         ),
+        "claude-3.5-sonnet": Deployment(
+            model="anthropic.claude-3-5-sonnet-20240620-v1:0",
+            provider="aws-bedrock",
+            deployment_name="bedrock-2023-05-31",
+            api_key=os.getenv("LLMAX_AZURE_OPENAI_SWEDENCENTRAL_KEY", ""),
+            endpoint=os.getenv("LLMAX_AZURE_OPENAI_SWEDENCENTRAL_ENDPOINT", ""),
+            project_id=os.getenv("LLMAX_AZURE_OPENAI_SWEDENCENTRAL_ENDPOINT", "")
+            api_version="2024-02-01",
+        ),
     }
     client = MultiAIClient(
         deployments=deployments,
