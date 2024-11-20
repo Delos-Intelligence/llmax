@@ -6,7 +6,6 @@ from dotenv import load_dotenv
 
 from llmax.clients import MultiAIClient
 from llmax.models import Deployment, Model
-from llmax.models.models import AUDIO
 from llmax.utils import logger
 
 load_dotenv()

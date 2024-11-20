@@ -4,7 +4,7 @@ import boto3
 from typing import Any
 
 from llmax.external_clients.exceptions import ProviderNotFoundError
-from llmax.models import Deployment
+from llmax.models import Deployment, Model
 from llmax.external_clients.universal_client.chat_completion import ChatCompletion
 from llmax.external_clients.universal_client.client import UniversalClient
 
@@ -18,9 +18,8 @@ def client_creation_anthropic(aws_key: str, aws_secret_key: str, region_name: st
         region_name=region_name
     ).client('bedrock-runtime')
 
-def completion_call_anthropic() -> ChatCompletion:
+def completion_call_anthropic(client: Any, messages: Any, model: Model) -> ChatCompletion:
     return ChatCompletion()
-
 
 def get_client(deployment: Deployment) -> Client:
     """Get a client for the given deployment."""
@@ -28,7 +27,8 @@ def get_client(deployment: Deployment) -> Client:
         case "aws-bedrock":
             return UniversalClient(
                 client_creation=client_creation_anthropic,
-                completion_call=completion_call_anthropic
+                completion_call=completion_call_anthropic,
+                deployment=deployment
             )
         case _:
             raise ProviderNotFoundError(deployment)

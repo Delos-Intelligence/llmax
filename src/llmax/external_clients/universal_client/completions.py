@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Callable, Iterable
+from typing import Any, Callable, Iterable, Union
 
 # from ..._utils import (
 #     maybe_transform,
@@ -12,9 +12,8 @@ from typing import Any, Callable, Iterable
 # )
 from llmax.external_clients.universal_client.chat_completion import ChatCompletion
 from llmax.external_clients.universal_client.chat_completion_message import ChatCompletionAssistantMessage, ChatCompletionSystemMessage, ChatCompletionUserMessage
-
+from llmax.models.deployment import Deployment
 from llmax.models.models import Model
-from typing import Union
 
 # __all__ = ["Completions", "AsyncCompletions"]
 
@@ -22,15 +21,18 @@ from typing import Union
 class Completions:
     client: Any
     completion_call: Callable[..., ChatCompletion]
+    deployment: Deployment
 
     def __init__(
         self,
         client: Any,
         completion_call: Callable[..., ChatCompletion],
+        deployment: Deployment,
     ) -> None:
         """Construct a completions object based on OpenAI client model."""
         self.client = client
         self.completion_call = completion_call
+        self.deployment = deployment
 
     def create(
         self,
@@ -39,7 +41,8 @@ class Completions:
         *args: Any,
         **kwargs: Any,
     ) -> ChatCompletion:
-        return self.completion_call(messages, model, *args, **kwargs)
+        res = model
+        return self.completion_call(messages, self.deployment, *args, **kwargs)
 
     # def create(
     #     self,

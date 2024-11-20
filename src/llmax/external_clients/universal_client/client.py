@@ -5,24 +5,26 @@ from __future__ import annotations
 from typing import Any, Callable
 
 
-from .chat import Chat
-from .chat_completion import ChatCompletion
-
+from llmax.external_clients.universal_client.chat import Chat
+from llmax.external_clients.universal_client.chat_completion import ChatCompletion
+from llmax.models.deployment import Deployment
 
 class UniversalClient:
     internal_client: Any
     chat: Chat
+    deployment: Deployment
 
     def __init__(
         self,
         client_creation: Callable[..., Any],
         completion_call: Callable[..., ChatCompletion],
+        deployment: Deployment,
         *args: Any,
         **kwargs: Any,
     ) -> None:
         """Construct a new synchronous client instance based on OpenAI client model."""
         self.internal_client = client_creation(*args, **kwargs)
-        self.chat = Chat(self.internal_client, completion_call)
+        self.chat = Chat(self.internal_client, completion_call, deployment)
 
 
     # def __init__(

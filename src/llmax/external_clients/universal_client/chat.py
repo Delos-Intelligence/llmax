@@ -10,7 +10,9 @@ from .completions import (
     # CompletionsWithStreamingResponse,
     # AsyncCompletionsWithStreamingResponse,
 )
-from .chat_completion import ChatCompletion
+from llmax.external_clients.universal_client.chat_completion import ChatCompletion
+from llmax.models.deployment import Deployment
+
 
 __all__ = [
     "Chat",
@@ -21,15 +23,18 @@ __all__ = [
 class Chat:
     client: Any
     completion_call: Callable[..., ChatCompletion]
+    deployment: Deployment
 
     def __init__(
         self,
         client: Any,
         completion_call: Callable[..., ChatCompletion],
+        deployment: Deployment,
     ) -> None:
         """Construct a chat instance based on OpenAI client model."""
         self.client = client
         self.completion_call = completion_call
+        self.deployment = deployment
 
     @cached_property
     def completions(self) -> Completions:
