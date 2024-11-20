@@ -7,12 +7,13 @@ from llmax.models import Deployment
 from llmax.models.models import (
     ANTHROPIC_MODELS,
     COHERE_MODELS,
+    GEMINI_MODELS,
     META_MODELS,
     MISTRAL_MODELS,
     OPENAI_MODELS,
 )
 
-from . import anthropic, cohere, meta, mistral, openai
+from . import anthropic, cohere, gemini, meta, mistral, openai
 
 Client = Any
 
@@ -31,6 +32,8 @@ def get_client(deployment: Deployment) -> Client:
             return meta.get_client(deployment)
         case model if model in ANTHROPIC_MODELS:
             return anthropic.get_client(deployment)
+        case model if model in GEMINI_MODELS:
+            return gemini.get_client(deployment)
         case _:
             raise ClientNotFoundError(deployment)
 

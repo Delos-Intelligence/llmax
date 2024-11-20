@@ -2,6 +2,8 @@
 
 from dataclasses import dataclass
 
+from google.oauth2.service_account import Credentials
+
 from llmax.models.providers import Provider
 
 from .models import OPENAI_MODELS, Model
@@ -18,6 +20,7 @@ class Deployment:
     endpoint: str = ""
     api_version: str = "2023-05-15"
     project_id: str = ""
+    creds: Credentials | None = None
 
     def validate(self) -> None:
         """Validate the deployment."""

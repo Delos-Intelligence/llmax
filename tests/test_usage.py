@@ -57,12 +57,12 @@ def test_model_usage_text() -> None:
     """Test the model usage for text."""
     message = "Raconte moi une blague."
     output = "Pourquoi les plongeurs plongent-ils toujours en arrière et jamais en avant ? Parce que sinon ils tombent dans le bateau !"
-    final_cost = 0.00055
+    final_cost = 0.000396
     message_token = 8
     output_token = 34
     usage = ModelUsage(
         deployments["gpt-4o"],
-        lambda _1, _2: True,
+        lambda _1, _2, _3: True,
         CompletionUsage(
             completion_tokens=tokens.count(output),
             prompt_tokens=tokens.count(message),
@@ -80,7 +80,7 @@ def test_model_usage_audio() -> None:
     cost_audio = 0.0789
     usage = ModelUsage(
         deployments["whisper-1"],
-        lambda _1, _2: True,
+        lambda _1, _2, _3: True,
         audio_duration=789,
     )
 

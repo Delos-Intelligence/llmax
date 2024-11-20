@@ -18,6 +18,8 @@ PROMPT_PRICES_PER_1K: dict[Model, float | dict[Provider, float]] = {
     "command-r-plus": 0.003,
     "llama-3-70b-instruct": 0.00378,
     "claude-3.5-sonnet": 0.003,
+    "google/gemini-1.5-flash-002": 0.000075,
+    "google/gemini-1.5-pro-002": 0.00125,
 }
 
 COMPLETION_PRICES_PER_1K: dict[Model, float | dict[Provider, float]] = {
@@ -31,10 +33,16 @@ COMPLETION_PRICES_PER_1K: dict[Model, float | dict[Provider, float]] = {
     "command-r-plus": 0.015,
     "llama-3-70b-instruct": 0.01134,
     "claude-3.5-sonnet": 0.015,
+    "google/gemini-1.5-flash-002": 0.0003,
+    "google/gemini-1.5-pro-002": 0.005,
 }
 
 TRANSCRIPTION_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "whisper-1": 0.006,
+}
+
+GENERATION_PRICE_BASE: dict[Model, float | dict[Provider, float]] = {
+    "dall-e-3": 0.04,
 }
 
 
@@ -69,3 +77,8 @@ def get_completion_price(model: Model, provider: Provider) -> float:
 def get_stt_price(model: Model, provider: Provider) -> float:
     """Get the audio price for a model and provider."""
     return _fetch_price(TRANSCRIPTION_PRICES_PER_1M, model, provider)
+
+
+def get_tti_price(model: Model, provider: Provider) -> float:
+    """Get the generation price for a model and provider."""
+    return _fetch_price(GENERATION_PRICE_BASE, model, provider)

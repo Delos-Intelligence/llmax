@@ -5,7 +5,7 @@ synchronous and asynchronous operations.
 """
 
 from io import BufferedReader, BytesIO
-from typing import Any, Callable, Generator
+from typing import Any, Callable, Generator, Literal
 
 from openai.types import Embedding
 from openai.types.audio import Transcription
@@ -17,12 +17,13 @@ from llmax.models.deployment import Deployment
 from llmax.models.fake import fake_llm
 from llmax.models.models import (
     COHERE_MODELS,
+    GEMINI_MODELS,
     META_MODELS,
     MISTRAL_MODELS,
     OPENAI_MODELS,
     Model,
 )
-from llmax.usage import ModelUsage
+from llmax.usage import ModelUsage, tokens
 from llmax.utils import logger
 
 
@@ -43,7 +44,7 @@ class MultiAIClient:
         self,
         deployments: dict[Model, Deployment],
         get_usage: Callable[[], float] = lambda: 0.0,
-        increment_usage: Callable[[float, Model], bool] = lambda _1, _2: True,
+        increment_usage: Callable[[float, Model, str], bool] = lambda _1, _2, _3: True,
     ) -> None:
         """Initializes the MultiAIClient class.
 
@@ -152,6 +153,7 @@ class MultiAIClient:
         Returns:
             ChatCompletion: The API response containing the chat completions.
         """
+        operation: str = kwargs.pop("operation", "")
         if system:
             messages = add_system_message(
                 messages=messages,
@@ -164,7 +166,7 @@ class MultiAIClient:
             raise ValueError(message)
         deployment = self.deployments[model]
         usage = ModelUsage(deployment, self._increment_usage, response.usage)
-        usage.apply()
+        usage.apply(operation=operation)
         return response
 
     def invoke_to_str(
@@ -206,6 +208,7 @@ class MultiAIClient:
         Returns:
             ChatCompletion: The API response containing the chat completions.
         """
+        operation: str = kwargs.pop("operation", "")
         if system:
             messages = add_system_message(
                 messages=messages,
@@ -218,7 +221,7 @@ class MultiAIClient:
             raise ValueError(message)
         deployment = self.deployments[model]
         usage = ModelUsage(deployment, self._increment_usage, response.usage)
-        usage.apply()
+        usage.apply(operation=operation)
         return response
 
     async def ainvoke_to_str(
@@ -260,6 +263,7 @@ class MultiAIClient:
         Yields:
             ChatCompletionChunk: Individual chunks of the completion response.
         """
+        operation: str = kwargs.pop("operation", "")
         if system:
             messages = add_system_message(
                 messages=messages,
@@ -270,12 +274,19 @@ class MultiAIClient:
         deployment = self.deployments[model]
         usage = ModelUsage(deployment, self._increment_usage)
         usage.add_messages(messages)
+        answer = ""
 
         for chunk in response:
-            usage.add_tokens(completion_tokens=1)
+            try:
+                if chunk.choices[0].delta.content:  # type: ignore
+                    answer += str(chunk.choices[0].delta.content)  # type: ignore
+            except Exception as e:  # noqa: BLE001
+                logger.debug(f"Error in llmax streaming : {e}")
             yield chunk  # type: ignore
 
-        usage.apply()
+        usage.add_tokens(completion_tokens=tokens.count(answer))
+
+        usage.apply(operation=operation)
 
     def stream_output(
         self,
@@ -315,16 +326,19 @@ class MultiAIClient:
         self,
         texts: list[str],
         model: Model,
+        **kwargs: Any,
     ) -> list[Embedding]:
         """Obtains vector embeddings for a list of texts asynchronously.
 
         Args:
             texts: The texts to generate embeddings for.
             model: The embedding model.
+            kwargs: More args.
 
         Returns:
             list[Embedding]: The embeddings for each text.
         """
+        operation: str = kwargs.pop("operation", "")
         texts = [text.replace("\n", " ") for text in texts]
 
         client = self.client(model)
@@ -337,7 +351,7 @@ class MultiAIClient:
 
         usage = ModelUsage(deployment, self._increment_usage)
         usage.add_tokens(prompt_tokens=response.usage.prompt_tokens)
-        usage.apply()
+        usage.apply(operation=operation)
 
         embeddings = response.data
         return embeddings
@@ -358,6 +372,7 @@ class MultiAIClient:
         Returns:
             Any: The response from the API.
         """
+        operation: str = kwargs.pop("operation", "")
         client = self.client(model)
         deployment = self.deployments[model]
 
@@ -370,7 +385,7 @@ class MultiAIClient:
 
         usage = ModelUsage(deployment, self._increment_usage)
         usage.add_audio_duration(response.duration)
-        usage.apply()
+        usage.apply(operation=operation)
 
         return response
 
@@ -390,6 +405,7 @@ class MultiAIClient:
         Returns:
             Any: The response from the API.
         """
+        operation: str = kwargs.pop("operation", "")
         aclient = self.aclient(model)
         deployment = self.deployments[model]
 
@@ -402,9 +418,60 @@ class MultiAIClient:
 
         usage = ModelUsage(deployment, self._increment_usage)
         usage.add_audio_duration(response.duration)
-        usage.apply()
+        usage.apply(operation=operation)
 
         return response
+
+    def text_to_image(
+        self,
+        model: Model,
+        prompt: str,
+        size: Literal["1024x1024", "1024x1792", "1792x1024"] = "1024x1024",
+        quality: Literal["standard", "hd"] = "standard",
+        n: int = 1,
+        **kwargs: Any,
+    ) -> str:
+        """Generate images from a text prompt using the specified model.
+
+        Parameters:
+        - model (Model): The model to be used for generating images.
+        - prompt (str): The text prompt that describes the image to be generated.
+        - size (Literal["1024x1024", "1024x1792", "1792x1024"]): The size of the generated image.
+        Default is "1024x1024".
+        - quality (Literal["standard", "hd"]): The quality of the generated image.
+        Default is "hd".
+        - n (int): The number of images to generate. Default is 1.
+        - **kwargs (Any): Additional keyword arguments for further customization.
+
+        Returns:
+        - None: This function does not return any value. It performs the image generation
+        operation and may handle side effects like saving or displaying the generated
+        images based on the implementation.
+
+        Raises:
+        - Any relevant exceptions that may occur during the image generation process.
+        """
+        operation: str = kwargs.pop("operation", "")
+        client = self.client(model)
+        deployment = self.deployments[model]
+
+        response = client.images.generate(
+            model=deployment.deployment_name,
+            prompt=prompt,
+            size=size,
+            quality=quality,
+            n=n,
+        )
+
+        usage = ModelUsage(deployment, self._increment_usage)
+        usage.add_image(
+            quality=quality,
+            size=size,
+            n=n,
+        )
+        usage.apply(operation=operation)
+
+        return response.data[0].url
 
 
 def add_system_message(
@@ -430,6 +497,8 @@ def add_system_message(
         case model if model in COHERE_MODELS:
             messages.insert(0, {"role": "system", "content": system})
         case model if model in META_MODELS:
+            messages.insert(0, {"role": "system", "content": system})
+        case model if model in GEMINI_MODELS:
             messages.insert(0, {"role": "system", "content": system})
         case model if model in MISTRAL_MODELS:
             pass
