@@ -131,7 +131,7 @@ class ModelUsage:
 
         return cost
 
-    def apply(self, operation: str = "") -> None:
+    def apply(self, operation: str = "") -> float:
         """Applies the token usage, updating the usage statistics and logging the action."""
         if self.deployment.model in AUDIO:
             message = (
@@ -155,3 +155,4 @@ class ModelUsage:
             f"[bold purple][LLMAX][/bold purple] Applying usage for model '{self.deployment.model}'. {message}",
         )
         self.increment_usage(self.compute_cost(), self.deployment.model, operation)
+        return self.compute_cost()
