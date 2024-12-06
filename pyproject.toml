@@ -19,7 +19,7 @@ pydub = "^0.25.1"
 google-auth = "^2.36.0"
 
 [tool.poetry.group.dev.dependencies]
-ruff = "^0.6.1"
+ruff = ">=0.6.1,<0.9.0"
 pyright = "^1.1.377"
 isort = "^5.13.2"
 mypy = "^1.11.1"
