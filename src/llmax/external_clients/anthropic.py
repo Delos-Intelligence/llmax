@@ -46,7 +46,7 @@ def anthropic_parsing(response: Dict[str, Any]) -> Optional[ChatCompletion]:
                 {
                     "finish_reason": MAPPING_FINISH_REASON[data["stop_reason"]],
                     "index": i,
-                    "message": e["text"],
+                    "message": {"content": e["text"]},
                 } for i, e in enumerate(data["content"])
             ]
         }
@@ -85,7 +85,6 @@ def completion_call_anthropic(client: Any, messages: Messages, model: Model, *ar
         "messages": messages
     }
     response = client.invoke_model(modelId=model, body=json.dumps(body))
-    print(response)
     return anthropic_parsing(response)
 
 def get_client(deployment: Deployment) -> Client:
