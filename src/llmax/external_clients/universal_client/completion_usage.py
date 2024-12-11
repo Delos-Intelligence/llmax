@@ -1,7 +1,10 @@
+from pydantic import BaseModel
+
+
 __all__ = ["CompletionUsage"]
 
 
-class CompletionUsage:
+class CompletionUsage(BaseModel):
     completion_tokens: int
     """Number of tokens in the generated completion."""
 

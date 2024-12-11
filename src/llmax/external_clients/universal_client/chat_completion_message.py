@@ -1,20 +1,21 @@
 from __future__ import annotations
 
+from pydantic import BaseModel
 from typing import Literal, Union
 
 
 __all__ = ["ChatCompletionMessage"]
 
 
-class ChatCompletionAssistantMessage:
+class ChatCompletionAssistantMessage(BaseModel):
     content: str
     """The contents of the assistant message."""
 
-    role: Literal["assistant"]
+    role: Literal["assistant"] = "assistant"
     """The role of the messages author, in this case `assistant`."""
 
 
-class ChatCompletionSystemMessage:
+class ChatCompletionSystemMessage(BaseModel):
     content: Union[list[str], str]
     """The contents of the system message."""
 
@@ -22,7 +23,7 @@ class ChatCompletionSystemMessage:
     """The role of the messages author, in this case `system`."""
 
 
-class ChatCompletionUserMessage:
+class ChatCompletionUserMessage(BaseModel):
     content: Union[list[str], str]
     """The contents of the user message."""
 
@@ -30,8 +31,10 @@ class ChatCompletionUserMessage:
     """The role of the messages author, in this case `user`."""
 
 
-ChatCompletionMessage: Union[
+ChatCompletionMessage = Union[
     ChatCompletionSystemMessage,
     ChatCompletionUserMessage,
     ChatCompletionAssistantMessage,
 ]
+
+# ChatCompletionMessage = ChatCompletionSystemMessage | ChatCompletionUserMessage | ChatCompletionAssistantMessage

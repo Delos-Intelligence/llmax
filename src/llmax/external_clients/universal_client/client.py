@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Callable
+from typing import Any, Callable, Optional
 
 
 from llmax.external_clients.universal_client.chat import Chat
@@ -17,7 +17,7 @@ class UniversalClient:
     def __init__(
         self,
         client_creation: Callable[..., Any],
-        completion_call: Callable[..., ChatCompletion],
+        completion_call: Callable[..., Optional[ChatCompletion]],
         deployment: Deployment,
         *args: Any,
         **kwargs: Any,

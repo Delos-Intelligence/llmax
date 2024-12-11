@@ -20,6 +20,7 @@ class Deployment:
     endpoint: str = ""
     api_version: str = "2023-05-15"
     project_id: str = ""
+    region: str = ""
     creds: Credentials | None = None
 
     def validate(self) -> None:

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 from functools import cached_property
-from typing import Any, Callable
+from typing import Any, Callable, Optional
 
 from .completions import (
     Completions,
@@ -22,13 +22,13 @@ __all__ = [
 
 class Chat:
     client: Any
-    completion_call: Callable[..., ChatCompletion]
+    completion_call: Callable[..., Optional[ChatCompletion]]
     deployment: Deployment
 
     def __init__(
         self,
         client: Any,
-        completion_call: Callable[..., ChatCompletion],
+        completion_call: Callable[..., Optional[ChatCompletion]],
         deployment: Deployment,
     ) -> None:
         """Construct a chat instance based on OpenAI client model."""
@@ -38,7 +38,7 @@ class Chat:
 
     @cached_property
     def completions(self) -> Completions:
-        return Completions(self.client, self.completion_call)
+        return Completions(self.client, self.completion_call, self.deployment)
 
     # @cached_property
     # def with_streaming_response(self) -> ChatWithStreamingResponse:

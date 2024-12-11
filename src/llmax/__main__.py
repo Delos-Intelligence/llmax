@@ -75,6 +75,7 @@ def main(model: Model, question: str, file_path: str) -> None:
             api_key=os.getenv("LLMAX_AWS_BEDROCK_ANTHROPIC_GERMAN_KEY", ""),
             project_id=os.getenv("LLMAX_AWS_BEDROCK_ANTHROPIC_GERMAN_PROJECT_ID", ""),
             api_version="bedrock-2023-05-31",
+            region=os.getenv("LLMAX_AWS_BEDROCK_ANTHROPIC_GERMAN_REGION", "")
         ),
     }
 
@@ -107,8 +108,8 @@ def main(model: Model, question: str, file_path: str) -> None:
         response = client.invoke_to_str(messages, model)
         logger.info(response)
 
-        response_stream = client.stream(messages, model)
-        logger.info(response_stream)
+        # response_stream = client.stream(messages, model)
+        # logger.info(response_stream)
 
 
 if __name__ == "__main__":
