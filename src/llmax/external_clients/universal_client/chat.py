@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 from functools import cached_property
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Generator, Optional
 
 from .completions import (
     Completions,
@@ -11,6 +11,7 @@ from .completions import (
     # AsyncCompletionsWithStreamingResponse,
 )
 from llmax.external_clients.universal_client.chat_completion import ChatCompletion
+from llmax.external_clients.universal_client.chat_completion_chunk import ChatCompletionChunk
 from llmax.models.deployment import Deployment
 
 
@@ -22,13 +23,13 @@ __all__ = [
 
 class Chat:
     client: Any
-    completion_call: Callable[..., Optional[ChatCompletion]]
+    completion_call: Callable[..., Optional[ChatCompletion] | Optional[Generator[ChatCompletionChunk, None, None]]]
     deployment: Deployment
 
     def __init__(
         self,
         client: Any,
-        completion_call: Callable[..., Optional[ChatCompletion]],
+        completion_call: Callable[..., Optional[ChatCompletion] | Optional[Generator[ChatCompletionChunk, None, None]]],
         deployment: Deployment,
     ) -> None:
         """Construct a chat instance based on OpenAI client model."""

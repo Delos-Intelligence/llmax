@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Generator, Optional
 
 
 from llmax.external_clients.universal_client.chat import Chat
 from llmax.external_clients.universal_client.chat_completion import ChatCompletion
+from llmax.external_clients.universal_client.chat_completion_chunk import ChatCompletionChunk
 from llmax.models.deployment import Deployment
 
 class UniversalClient:
@@ -17,7 +18,7 @@ class UniversalClient:
     def __init__(
         self,
         client_creation: Callable[..., Any],
-        completion_call: Callable[..., Optional[ChatCompletion]],
+        completion_call: Callable[..., Optional[ChatCompletion] | Optional[Generator[ChatCompletionChunk, None, None]]],
         deployment: Deployment,
         *args: Any,
         **kwargs: Any,

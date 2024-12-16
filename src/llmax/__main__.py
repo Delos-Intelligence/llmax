@@ -105,11 +105,14 @@ def main(model: Model, question: str, file_path: str) -> None:
         logger.info(f"Chatting with {model} model...")
         logger.info(deployments[model].endpoint)
 
-        response = client.invoke_to_str(messages, model)
-        logger.info(response)
+        # response = client.invoke_to_str(messages, model)
+        # logger.info(response)
 
-        # response_stream = client.stream(messages, model)
-        # logger.info(response_stream)
+        response_stream = client.stream(messages, model)
+        logger.info(response_stream)
+        
+        for e in response_stream:
+            print(e.choices[0].delta.content, end="")
 
 
 if __name__ == "__main__":

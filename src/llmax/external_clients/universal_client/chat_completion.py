@@ -37,7 +37,7 @@ class ChatCompletion(BaseModel):
     created: int
     """The Unix timestamp (in seconds) of when the chat completion was created."""
 
-    model: str
+    model: Optional[str] = None
     """The model used for the chat completion."""
 
     object: Literal["chat.completion"] = "chat.completion"
