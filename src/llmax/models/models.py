@@ -31,8 +31,20 @@ OpenAIModel = Literal[
     "dall-e-3",
 ]
 
+AnthropicModel = Literal[
+    "claude-3.5-sonnet",
+    "claude-3-haiku",
+]
 
-LLModel = Union[CohereModel, MetaModel, MistralModel, OpenAIModel, GeminiModel]
+
+LLModel = Union[
+    CohereModel,
+    MetaModel,
+    MistralModel,
+    OpenAIModel,
+    AnthropicModel,
+    GeminiModel,
+]
 
 SpeechToTextModel = Literal["whisper-1",]
 
@@ -45,6 +57,7 @@ META_MODELS: tuple[MetaModel, ...] = get_args(MetaModel)
 GEMINI_MODELS: tuple[GeminiModel, ...] = get_args(GeminiModel)
 MISTRAL_MODELS: tuple[MistralModel, ...] = get_args(MistralModel)
 OPENAI_MODELS: tuple[OpenAIModel, ...] = get_args(OpenAIModel)
+ANTHROPIC_MODELS: tuple[AnthropicModel, ...] = get_args(AnthropicModel)
 
 LLMS: tuple[LLModel, ...] = get_args(LLModel)
 AUDIO: tuple[SpeechToTextModel, ...] = get_args(SpeechToTextModel)

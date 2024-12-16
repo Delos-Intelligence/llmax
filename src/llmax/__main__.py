@@ -68,7 +68,26 @@ def main(model: Model, question: str, file_path: str) -> None:
             endpoint=os.getenv("LLMAX_AZURE_OPENAI_SWEDENCENTRAL_ENDPOINT", ""),
             api_version="2024-02-01",
         ),
+        "claude-3.5-sonnet": Deployment(
+            model="claude-3.5-sonnet",
+            provider="aws-bedrock",
+            deployment_name="anthropic.claude-3-5-sonnet-20240620-v1:0",
+            api_key=os.getenv("LLMAX_AWS_BEDROCK_ANTHROPIC_GERMAN_KEY", ""),
+            project_id=os.getenv("LLMAX_AWS_BEDROCK_ANTHROPIC_GERMAN_PROJECT_ID", ""),
+            api_version="bedrock-2023-05-31",
+            region=os.getenv("LLMAX_AWS_BEDROCK_ANTHROPIC_GERMAN_REGION", ""),
+        ),
+        "claude-3-haiku": Deployment(
+            model="claude-3-haiku",
+            provider="aws-bedrock",
+            deployment_name="anthropic.claude-3-haiku-20240307-v1:0",
+            api_key=os.getenv("LLMAX_AWS_BEDROCK_ANTHROPIC_GERMAN_KEY", ""),
+            project_id=os.getenv("LLMAX_AWS_BEDROCK_ANTHROPIC_GERMAN_PROJECT_ID", ""),
+            api_version="bedrock-2023-05-31",
+            region=os.getenv("LLMAX_AWS_BEDROCK_ANTHROPIC_GERMAN_REGION", ""),
+        ),
     }
+
     client = MultiAIClient(
         deployments=deployments,
     )
@@ -97,9 +116,6 @@ def main(model: Model, question: str, file_path: str) -> None:
 
         response = client.invoke_to_str(messages, model)
         logger.info(response)
-
-        response_stream = client.stream(messages, model)
-        logger.info(response_stream)
 
 
 if __name__ == "__main__":

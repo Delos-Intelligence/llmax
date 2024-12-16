@@ -17,6 +17,7 @@ from llmax.messages import Messages
 from llmax.models.deployment import Deployment
 from llmax.models.fake import fake_llm
 from llmax.models.models import (
+    ANTHROPIC_MODELS,
     COHERE_MODELS,
     GEMINI_MODELS,
     META_MODELS,
@@ -292,7 +293,7 @@ class MultiAIClient:
             try:
                 if chunk.choices[0].delta.content:  # type: ignore
                     answer += str(chunk.choices[0].delta.content)  # type: ignore
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:
                 logger.debug(f"Error in llmax streaming : {e}")
             yield chunk  # type: ignore
 
@@ -525,6 +526,8 @@ def add_system_message(
         case model if model in META_MODELS:
             messages.insert(0, {"role": "system", "content": system})
         case model if model in GEMINI_MODELS:
+            messages.insert(0, {"role": "system", "content": system})
+        case model if model in ANTHROPIC_MODELS:
             messages.insert(0, {"role": "system", "content": system})
         case model if model in MISTRAL_MODELS:
             pass

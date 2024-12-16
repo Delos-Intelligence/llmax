@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "delos-llmax"
-version = "0.11.10"
+version = "0.11.12"
 description = "Interface to handle multiple LLMs and AI tools."
 authors = ["Delos Intelligence <maximiliendedinechin@delosintelligence.fr>"]
 readme = "README.md"
@@ -16,6 +16,8 @@ tiktoken = "^0.7.0"
 loguru = "^0.7.2"
 python-dotenv = "^1.0.1"
 pydub = "^0.25.1"
+pydantic = "^2.9.2"
+boto3 = "^1.35.65"
 google-auth = "^2.36.0"
 
 [tool.poetry.group.dev.dependencies]
@@ -111,6 +113,7 @@ ignore = [
   "B901", #generator
   "S311" , # usage of rnadom
   "PGH003", #type ignore
+  "BLE001", #Exception
 ]
 
 pydocstyle.convention = "google"
@@ -138,3 +141,14 @@ reportUnnecessaryTypeIgnoreComment = "warning"
 reportUnusedVariable = "warning"
 reportUnknownVariableType = "warning"
 reportUnknownMemberType = "warning"
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+disable_error_code = [
+  "import-untyped",
+  "no-any-return",
+  "unused-ignore",
+  "no-untyped-call",
+  "attr-defined",
+]
