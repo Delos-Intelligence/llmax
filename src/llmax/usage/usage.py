@@ -43,17 +43,20 @@ class ModelUsage:
         Returns:
             A formatted string displaying prompt, completion, and total tokens and cost.
         """
+        cost = self.compute_cost()
+        cost_message = f"Total Cost (USD): ${cost:.6f}"
+
         if self.deployment.model in AUDIO:
-            return (
-                f"\tAudio Duration: {self.audio_duration} seconds\n"
-                f"Total Cost (USD): ${self.compute_cost():.6f}"
-            )
+            return f"\tAudio Duration: {self.audio_duration} seconds\n {cost_message}"
+
+        if self.deployment.model in IMAGE:
+            return f"\tImage generation : ~{self.image_information} images\n {cost_message}"
 
         return (
             f"\tPrompt Tokens: {self.tokens_usage.prompt_tokens}\n"
             f"\tCompletion Tokens: {self.tokens_usage.completion_tokens}\n"
             f"\tTotal Tokens: {self.tokens_usage.total_tokens}\n"
-            f"Total Cost (USD): ${self.compute_cost():.6f}"
+            f"{cost_message}"
         )
 
     def add_tokens(self, prompt_tokens: int = 0, completion_tokens: int = 0) -> None:
@@ -133,26 +136,26 @@ class ModelUsage:
 
     def apply(self, operation: str = "") -> float:
         """Applies the token usage, updating the usage statistics and logging the action."""
+        cost = self.compute_cost()
+        cost_message = f"Total Cost (USD): ${cost:.6f}"
+
         if self.deployment.model in AUDIO:
-            message = (
-                f"Audio Duration: {self.audio_duration} seconds "
-                f"Cost: ${self.compute_cost():.6f}"
-            )
+            message = f"Audio Duration: {self.audio_duration} seconds {cost_message}"
         elif self.deployment.model in IMAGE:
             message = (
                 f"Image generation : ~{self.image_information} images "
-                f"Cost: ${self.compute_cost():.6f}"
+                f"{cost_message}"
             )
 
         else:
             message = (
                 f"Tokens: {self.tokens_usage.total_tokens} "
                 f"({self.tokens_usage.prompt_tokens} + {self.tokens_usage.completion_tokens}) "
-                f"Cost: ${self.compute_cost():.6f}"
+                f"{cost_message}"
             )
 
         logger.debug(
             f"[bold purple][LLMAX][/bold purple] Applying usage for model '{self.deployment.model}'. {message}",
         )
-        self.increment_usage(self.compute_cost(), self.deployment.model, operation)
-        return self.compute_cost()
+        self.increment_usage(cost, self.deployment.model, operation)
+        return cost
