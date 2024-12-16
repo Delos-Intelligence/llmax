@@ -16,7 +16,6 @@ from llmax.external_clients.universal_client.chat_completion_message import (
 from llmax.external_clients.universal_client.client import UniversalClient
 from llmax.messages import Messages
 from llmax.models import Deployment, Model
-from llmax.utils import logger
 
 Client = Any
 
@@ -172,18 +171,18 @@ def completion_call_anthropic(
             try:
                 ChatCompletionAssistantMessage.model_validate(message)
                 counter += 1
-            except Exception as e:
-                logger.debug(f"Exception : {e}")
+            except Exception:  # noqa: S110
+                pass
             try:
                 ChatCompletionSystemMessage.model_validate(message)
                 counter += 1
-            except Exception as e:
-                logger.debug(f"Exception : {e}")
+            except Exception:  # noqa: S110
+                pass
             try:
                 ChatCompletionUserMessage.model_validate(message)
                 counter += 1
-            except Exception as e:
-                logger.debug(f"Exception : {e}")
+            except Exception:  # noqa: S110
+                pass
         if counter < len(messages):
             raise  # noqa: PLE0704
     except Exception:
