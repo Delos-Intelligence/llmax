@@ -4,8 +4,9 @@ This class is used to interface with multiple LLMs and AI models, supporting bot
 synchronous and asynchronous operations.
 """
 
+from collections.abc import Generator
 from io import BufferedReader, BytesIO
-from typing import Any, Callable, Generator, Literal
+from typing import Any, Callable, Literal
 
 from openai.types import Embedding
 from openai.types.audio import Transcription
@@ -38,6 +39,7 @@ class MultiAIClient:
         deployments: A mapping from models to their deployment objects.
         get_usage: A function to get the current usage.
         increment_usage: A function to increment usage.
+        total_usage: The total usage accumulated by the client. (Mainly for dev purposes, does not handles errors properly)
     """
 
     def __init__(
@@ -56,6 +58,8 @@ class MultiAIClient:
         self.deployments = deployments
         self._get_usage = get_usage
         self._increment_usage = increment_usage
+        self.total_usage: float = 0
+        self.usages: list[ModelUsage] = []
 
         self._clients: dict[Model, Client] = {}
         self._aclients: dict[Model, Client] = {}
@@ -166,7 +170,11 @@ class MultiAIClient:
             raise ValueError(message)
         deployment = self.deployments[model]
         usage = ModelUsage(deployment, self._increment_usage, response.usage)
-        usage.apply(operation=operation)
+
+        cost = usage.apply(operation=operation)
+        self.total_usage += cost
+        self.usages.append(usage)
+
         return response
 
     def invoke_to_str(
@@ -221,7 +229,11 @@ class MultiAIClient:
             raise ValueError(message)
         deployment = self.deployments[model]
         usage = ModelUsage(deployment, self._increment_usage, response.usage)
-        usage.apply(operation=operation)
+
+        cost = usage.apply(operation=operation)
+        self.total_usage += cost
+        self.usages.append(usage)
+
         return response
 
     async def ainvoke_to_str(
@@ -286,7 +298,9 @@ class MultiAIClient:
 
         usage.add_tokens(completion_tokens=tokens.count(answer))
 
-        usage.apply(operation=operation)
+        cost = usage.apply(operation=operation)
+        self.total_usage += cost
+        self.usages.append(usage)
 
     def stream_output(
         self,
@@ -351,7 +365,10 @@ class MultiAIClient:
 
         usage = ModelUsage(deployment, self._increment_usage)
         usage.add_tokens(prompt_tokens=response.usage.prompt_tokens)
-        usage.apply(operation=operation)
+
+        cost = usage.apply(operation=operation)
+        self.total_usage += cost
+        self.usages.append(usage)
 
         embeddings = response.data
         return embeddings
@@ -385,7 +402,10 @@ class MultiAIClient:
 
         usage = ModelUsage(deployment, self._increment_usage)
         usage.add_audio_duration(response.duration)
-        usage.apply(operation=operation)
+
+        cost = usage.apply(operation=operation)
+        self.total_usage += cost
+        self.usages.append(usage)
 
         return response
 
@@ -418,7 +438,10 @@ class MultiAIClient:
 
         usage = ModelUsage(deployment, self._increment_usage)
         usage.add_audio_duration(response.duration)
-        usage.apply(operation=operation)
+
+        cost = usage.apply(operation=operation)
+        self.total_usage += cost
+        self.usages.append(usage)
 
         return response
 
@@ -469,7 +492,10 @@ class MultiAIClient:
             size=size,
             n=n,
         )
-        usage.apply(operation=operation)
+
+        cost = usage.apply(operation=operation)
+        self.total_usage += cost
+        self.usages.append(usage)
 
         return response.data[0].url
 
