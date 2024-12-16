@@ -50,7 +50,5 @@ def get_aclient(deployment: Deployment) -> Client:
             return cohere.get_aclient(deployment)
         case model if model in META_MODELS:
             return meta.get_aclient(deployment)
-        # case model if model in ANTHROPIC_MODELS:
-        #     return anthropic.get_aclient(deployment)
         case _:
             raise ClientNotFoundError(deployment)

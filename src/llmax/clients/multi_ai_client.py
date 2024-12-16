@@ -292,7 +292,7 @@ class MultiAIClient:
             try:
                 if chunk.choices[0].delta.content:  # type: ignore
                     answer += str(chunk.choices[0].delta.content)  # type: ignore
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:
                 logger.debug(f"Error in llmax streaming : {e}")
             yield chunk  # type: ignore
 

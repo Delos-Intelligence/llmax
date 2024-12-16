@@ -1,3 +1,5 @@
+"""Chat completion message models."""
+
 from __future__ import annotations
 
 from typing import Literal, Union
@@ -16,7 +18,7 @@ class ChatCompletionAssistantMessage(BaseModel):
 
 
 class ChatCompletionSystemMessage(BaseModel):
-    content: Union[list[str], str]
+    content: list[str] | str
     """The contents of the system message."""
 
     role: Literal["system"]
@@ -24,7 +26,7 @@ class ChatCompletionSystemMessage(BaseModel):
 
 
 class ChatCompletionUserMessage(BaseModel):
-    content: Union[list[str], str]
+    content: list[str] | str
     """The contents of the user message."""
 
     role: Literal["user"]
@@ -36,5 +38,3 @@ ChatCompletionMessage = Union[
     ChatCompletionUserMessage,
     ChatCompletionAssistantMessage,
 ]
-
-# ChatCompletionMessage = ChatCompletionSystemMessage | ChatCompletionUserMessage | ChatCompletionAssistantMessage

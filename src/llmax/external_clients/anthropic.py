@@ -16,6 +16,7 @@ from llmax.external_clients.universal_client.chat_completion_message import (
 from llmax.external_clients.universal_client.client import UniversalClient
 from llmax.messages import Messages
 from llmax.models import Deployment, Model
+from llmax.utils import logger
 
 Client = Any
 
@@ -25,22 +26,36 @@ MAPPING_FINISH_REASON = {
 }
 
 
-def client_creation_anthropic(aws_key: str, aws_secret_key: str, region_name: str) -> Any:
-    return boto3.Session(
+def client_creation_anthropic(
+    aws_key: str,
+    aws_secret_key: str,
+    region_name: str,
+) -> Any:
+    """Create the antropic client."""
+    return boto3.Session(  # type: ignore
         aws_access_key_id=aws_key,
         aws_secret_access_key=aws_secret_key,
         region_name=region_name,
-    ).client("bedrock-runtime")  # type: ignore
+    ).client("bedrock-runtime")
 
 
 def anthropic_parsing(response: Dict[str, Any]) -> Optional[ChatCompletion]:
+    """The parsing from anthropic to openAi."""
     try:
         data = json.loads(response["body"].read())
-        input_tokens = response["ResponseMetadata"]["HTTPHeaders"]["x-amzn-bedrock-input-token-count"]
-        completion_tokens = response["ResponseMetadata"]["HTTPHeaders"]["x-amzn-bedrock-output-token-count"]
+        input_tokens = response["ResponseMetadata"]["HTTPHeaders"][
+            "x-amzn-bedrock-input-token-count"
+        ]
+        completion_tokens = response["ResponseMetadata"]["HTTPHeaders"][
+            "x-amzn-bedrock-output-token-count"
+        ]
         chat_completion = {
             "id": response["ResponseMetadata"]["RequestId"],
-            "created": int(parser.parse(response["ResponseMetadata"]["HTTPHeaders"]["date"]).timestamp()),
+            "created": int(
+                parser.parse(
+                    response["ResponseMetadata"]["HTTPHeaders"]["date"],
+                ).timestamp(),
+            ),
             "model": data["model"],
             "usage": {
                 "completion_tokens": completion_tokens,
@@ -52,25 +67,31 @@ def anthropic_parsing(response: Dict[str, Any]) -> Optional[ChatCompletion]:
                     "finish_reason": MAPPING_FINISH_REASON[data["stop_reason"]],
                     "index": i,
                     "message": {"content": e["text"], "role": data["role"]},
-                } for i, e in enumerate(data["content"])
+                }
+                for i, e in enumerate(data["content"])
             ],
             "object": "chat.completion",
         }
         return ChatCompletion.model_validate(chat_completion)
-    except Exception as e:
-        print(e)
+    except Exception:
         return None
 
 
-def anthropic_parsing_stream(response: Dict[str, Any]) -> Optional[Generator[ChatCompletionChunk, None, None]]:
+def anthropic_parsing_stream(
+    response: Dict[str, Any],
+) -> Optional[Generator[ChatCompletionChunk, None, None]]:
+    """The parsing from anthropic to openAi in streaming mode."""
     try:
         request_id = response["ResponseMetadata"]["RequestId"]
-        created = int(parser.parse(response["ResponseMetadata"]["HTTPHeaders"]["date"]).timestamp())
-    except Exception as e:
-        print(e)
+        created = int(
+            parser.parse(
+                response["ResponseMetadata"]["HTTPHeaders"]["date"],
+            ).timestamp(),
+        )
+    except Exception:
         return None
 
-    object = "chat.completion.chunk"
+    _object = "chat.completion.chunk"
     content = None
     model = None
     role = None
@@ -99,7 +120,9 @@ def anthropic_parsing_stream(response: Dict[str, Any]) -> Optional[Generator[Cha
             to_yield = True
         elif chunk["type"] == "message_stop":
             prompt_tokens = chunk["amazon-bedrock-invocationMetrics"]["inputTokenCount"]
-            completion_tokens = chunk["amazon-bedrock-invocationMetrics"]["outputTokenCount"]
+            completion_tokens = chunk["amazon-bedrock-invocationMetrics"][
+                "outputTokenCount"
+            ]
             content = ""
             to_yield = True
 
@@ -112,7 +135,9 @@ def anthropic_parsing_stream(response: Dict[str, Any]) -> Optional[Generator[Cha
                     "usage": {
                         "completion_tokens": completion_tokens,
                         "prompt_tokens": prompt_tokens,
-                        "total_tokens": completion_tokens + prompt_tokens if completion_tokens and prompt_tokens else None,
+                        "total_tokens": completion_tokens + prompt_tokens
+                        if completion_tokens and prompt_tokens
+                        else None,
                     },
                     "choices": [
                         {
@@ -124,35 +149,43 @@ def anthropic_parsing_stream(response: Dict[str, Any]) -> Optional[Generator[Cha
                             "finish_reason": stop_reason,
                         },
                     ],
-                    "object": object,
+                    "object": _object,
                 }
                 yield ChatCompletionChunk.model_validate(chat_completion_chunk)
-            except Exception as e:
-                print(e)
+            except Exception:
                 return None
+    return None
 
 
-def completion_call_anthropic(client: Any, messages: Messages, model: Model, stream: bool = False, *args: Any, **kwargs: Any) -> Optional[ChatCompletion] | Optional[Generator[ChatCompletionChunk, None, None]]:
+def completion_call_anthropic(
+    client: Any,
+    messages: Messages,
+    model: Model,
+    stream: bool = False,
+    *args: Any,  # noqa: ARG001
+    **kwargs: Any,  # noqa: ARG001
+) -> Optional[ChatCompletion] | Optional[Generator[ChatCompletionChunk, None, None]]:
+    """Anthropic call to make a completion."""
     try:
         counter = 0
         for message in messages:
             try:
                 ChatCompletionAssistantMessage.model_validate(message)
                 counter += 1
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"Exception : {e}")
             try:
                 ChatCompletionSystemMessage.model_validate(message)
                 counter += 1
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"Exception : {e}")
             try:
                 ChatCompletionUserMessage.model_validate(message)
                 counter += 1
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"Exception : {e}")
         if counter < len(messages):
-            raise
+            raise  # noqa: PLE0704
     except Exception:
         return None
 
@@ -162,7 +195,10 @@ def completion_call_anthropic(client: Any, messages: Messages, model: Model, str
         "messages": messages,
     }
     if stream:
-        response_stream = client.invoke_model_with_response_stream(modelId=model, body=json.dumps(body))
+        response_stream = client.invoke_model_with_response_stream(
+            modelId=model,
+            body=json.dumps(body),
+        )
         return anthropic_parsing_stream(response_stream)
     response = client.invoke_model(modelId=model, body=json.dumps(body))
     return anthropic_parsing(response)
@@ -182,16 +218,3 @@ def get_client(deployment: Deployment) -> Client:
             )
         case _:
             raise ProviderNotFoundError(deployment)
-
-
-# def get_aclient(deployment: Deployment) -> Client:
-#     """Get an async client for the given deployment."""
-#     match deployment.provider:
-#         case "aws-bedrock":
-#             return AsyncAzureOpenAI(
-#                 api_key=deployment.api_key,
-#                 api_version=deployment.api_version,
-#                 azure_endpoint=deployment.endpoint,
-#             )
-#         case _:
-#             raise ProviderNotFoundError(deployment)

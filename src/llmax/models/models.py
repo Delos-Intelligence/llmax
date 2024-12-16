@@ -34,11 +34,17 @@ OpenAIModel = Literal[
 AnthropicModel = Literal[
     "claude-3.5-sonnet",
     "claude-3-haiku",
-    # "anthropic.claude-3-5-sonnet-20240620-v1:0",
 ]
 
 
-LLModel = Union[CohereModel, MetaModel, MistralModel, OpenAIModel, AnthropicModel, GeminiModel]
+LLModel = Union[
+    CohereModel,
+    MetaModel,
+    MistralModel,
+    OpenAIModel,
+    AnthropicModel,
+    GeminiModel,
+]
 
 SpeechToTextModel = Literal["whisper-1",]
 
