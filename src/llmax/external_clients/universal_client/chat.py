@@ -1,24 +1,17 @@
 # File generated from our OpenAPI spec by Stainless. See CONTRIBUTING.md for details.
 
 from __future__ import annotations
+
 from functools import cached_property
 from typing import Any, Callable, Generator, Optional
 
-from .completions import (
-    Completions,
-    # AsyncCompletions,
-    # CompletionsWithStreamingResponse,
-    # AsyncCompletionsWithStreamingResponse,
-)
-from llmax.external_clients.universal_client.chat_completion import ChatCompletion
-from llmax.external_clients.universal_client.chat_completion_chunk import ChatCompletionChunk
+from openai.types.chat import ChatCompletion, ChatCompletionChunk
+
 from llmax.models.deployment import Deployment
 
+from .completions import Completions
 
-__all__ = [
-    "Chat",
-    # "AsyncChat"
-]
+__all__ = ["Chat"]
 
 
 class Chat:
@@ -40,15 +33,6 @@ class Chat:
     @cached_property
     def completions(self) -> Completions:
         return Completions(self.client, self.completion_call, self.deployment)
-
-    # @cached_property
-    # def with_streaming_response(self) -> ChatWithStreamingResponse:
-    #     """
-    #     An alternative to `.with_raw_response` that doesn't eagerly read the response body.
-
-    #     For more information, see https://www.github.com/openai/openai-python#with_streaming_response
-    #     """
-    #     return ChatWithStreamingResponse(self)
 
 
 # class AsyncChat(AsyncAPIResource):

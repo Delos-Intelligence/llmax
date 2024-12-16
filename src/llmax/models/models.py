@@ -33,6 +33,7 @@ OpenAIModel = Literal[
 
 AnthropicModel = Literal[
     "claude-3.5-sonnet",
+    "claude-3-haiku",
     # "anthropic.claude-3-5-sonnet-20240620-v1:0",
 ]
 

@@ -75,7 +75,16 @@ def main(model: Model, question: str, file_path: str) -> None:
             api_key=os.getenv("LLMAX_AWS_BEDROCK_ANTHROPIC_GERMAN_KEY", ""),
             project_id=os.getenv("LLMAX_AWS_BEDROCK_ANTHROPIC_GERMAN_PROJECT_ID", ""),
             api_version="bedrock-2023-05-31",
-            region=os.getenv("LLMAX_AWS_BEDROCK_ANTHROPIC_GERMAN_REGION", "")
+            region=os.getenv("LLMAX_AWS_BEDROCK_ANTHROPIC_GERMAN_REGION", ""),
+        ),
+        "claude-3-haiku": Deployment(
+            model="claude-3-haiku",
+            provider="aws-bedrock",
+            deployment_name="anthropic.claude-3-haiku-20240307-v1:0",
+            api_key=os.getenv("LLMAX_AWS_BEDROCK_ANTHROPIC_GERMAN_KEY", ""),
+            project_id=os.getenv("LLMAX_AWS_BEDROCK_ANTHROPIC_GERMAN_PROJECT_ID", ""),
+            api_version="bedrock-2023-05-31",
+            region=os.getenv("LLMAX_AWS_BEDROCK_ANTHROPIC_GERMAN_REGION", ""),
         ),
     }
 
@@ -105,14 +114,14 @@ def main(model: Model, question: str, file_path: str) -> None:
         logger.info(f"Chatting with {model} model...")
         logger.info(deployments[model].endpoint)
 
-        # response = client.invoke_to_str(messages, model)
-        # logger.info(response)
+        response = client.invoke_to_str(messages, model)
+        logger.info(response)
 
-        response_stream = client.stream(messages, model)
-        logger.info(response_stream)
-        
-        for e in response_stream:
-            print(e.choices[0].delta.content, end="")
+        # response_stream = client.stream(messages, model)
+        # logger.info(response_stream)
+
+        # for e in response_stream:
+        #     print(e.choices[0].delta.content, end="")
 
 
 if __name__ == "__main__":

@@ -4,11 +4,11 @@ from __future__ import annotations
 
 from typing import Any, Callable, Generator, Optional
 
+from openai.types.chat import ChatCompletion, ChatCompletionChunk
 
 from llmax.external_clients.universal_client.chat import Chat
-from llmax.external_clients.universal_client.chat_completion import ChatCompletion
-from llmax.external_clients.universal_client.chat_completion_chunk import ChatCompletionChunk
 from llmax.models.deployment import Deployment
+
 
 class UniversalClient:
     internal_client: Any
@@ -26,7 +26,6 @@ class UniversalClient:
         """Construct a new synchronous client instance based on OpenAI client model."""
         self.internal_client = client_creation(*args, **kwargs)
         self.chat = Chat(self.internal_client, completion_call, deployment)
-
 
     # def __init__(
     #     self,
@@ -64,7 +63,6 @@ class UniversalClient:
     # def auth_headers(self) -> dict[str, str]:
     #     api_key = self.api_key
     #     return {"Authorization": f"Bearer {api_key}"}
-
 
     # @override
     # def _make_status_error(

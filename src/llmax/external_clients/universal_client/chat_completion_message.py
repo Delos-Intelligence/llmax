@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from pydantic import BaseModel
 from typing import Literal, Union
 
+from pydantic import BaseModel
 
 __all__ = ["ChatCompletionMessage"]
 
