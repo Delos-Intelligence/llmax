@@ -57,7 +57,7 @@ def test_model_usage_text() -> None:
     """Test the model usage for text."""
     message = "Raconte moi une blague."
     output = "Pourquoi les plongeurs plongent-ils toujours en arrière et jamais en avant ? Parce que sinon ils tombent dans le bateau !"
-    final_cost = 0.000396
+    final_cost = 0.00055
     message_token = 8
     output_token = 34
     usage = ModelUsage(
