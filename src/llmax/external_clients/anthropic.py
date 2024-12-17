@@ -1,7 +1,7 @@
 """Anthropic clients."""
 
 import json
-from typing import Any, Dict, Generator, Optional
+from typing import Any, Dict, Generator, List, Optional
 
 import boto3  # type: ignore
 from dateutil import parser
@@ -166,25 +166,31 @@ def completion_call_anthropic(
     **kwargs: Any,  # noqa: ARG001
 ) -> Optional[ChatCompletion] | Optional[Generator[ChatCompletionChunk, None, None]]:
     """Anthropic call to make a completion."""
+    system_message: List[str] = []
+    to_remove: List[int] = []
+
     try:
         counter = 0
-        for message in messages:
+        for i, message in enumerate(messages):
             try:
                 ChatCompletionAssistantMessage.model_validate(message)
                 counter += 1
-            except Exception as e:
-                logger.debug(f"Exception : {e}")
+            except Exception:  # noqa: S110
+                pass
             try:
                 ChatCompletionSystemMessage.model_validate(message)
+                system_message.append(str(message["content"]))
+                to_remove.append(i)
                 counter += 1
-            except Exception as e:
-                logger.debug(f"Exception : {e}")
+            except Exception:  # noqa: S110
+                pass
             try:
                 ChatCompletionUserMessage.model_validate(message)
                 counter += 1
-            except Exception as e:
-                logger.debug(f"Exception : {e}")
+            except Exception:  # noqa: S110
+                pass
         if counter < len(messages):
+            logger.error("Incorrect message formatting")
             raise  # noqa: PLE0704
     except Exception:
         return None
@@ -192,8 +198,11 @@ def completion_call_anthropic(
     body = {
         "anthropic_version": "bedrock-2023-05-31",
         "max_tokens": 1000,
-        "messages": messages,
+        "messages": [message for i, message in enumerate(messages) if i not in to_remove],
     }
+    if len(system_message) > 0:
+        body.update({"system": " ".join(system_message)})
+
     if stream:
         response_stream = client.invoke_model_with_response_stream(
             modelId=model,
