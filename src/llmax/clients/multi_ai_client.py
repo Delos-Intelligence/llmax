@@ -532,6 +532,8 @@ def add_system_message(
             pass
         case model if model in MISTRAL_MODELS:
             pass
+        case model if model in ANTHROPIC_MODELS:
+            messages.insert(0, {"role": "system", "content": system})
         case _:
             logger.debug(
                 f"[bold purple][LLMAX][/bold purple] The model specified, {model}, does not understand system mode.",

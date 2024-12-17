@@ -114,7 +114,7 @@ def main(model: Model, question: str, file_path: str) -> None:
         logger.info(f"Chatting with {model} model...")
         logger.info(deployments[model].endpoint)
 
-        response = client.invoke_to_str(messages, model)
+        response = client.invoke_to_str(messages, model, system="Tu réponds toujours en finissant ton message pas une signature : Claude Model")
         logger.info(response)
 
 
