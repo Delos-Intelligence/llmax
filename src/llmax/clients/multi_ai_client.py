@@ -527,6 +527,8 @@ def add_system_message(
             messages.insert(0, {"role": "system", "content": system})
         case model if model in GEMINI_MODELS:
             messages.insert(0, {"role": "system", "content": system})
+        case model if model in ANTHROPIC_MODELS:
+            messages.insert(0, {"role": "system", "content": system})
         case model if model in MISTRAL_MODELS:
             pass
         case model if model in ANTHROPIC_MODELS:
