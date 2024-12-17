@@ -16,6 +16,7 @@ from llmax.external_clients.universal_client.chat_completion_message import (
 from llmax.external_clients.universal_client.client import UniversalClient
 from llmax.messages import Messages
 from llmax.models import Deployment, Model
+from llmax.utils import logger
 
 Client = Any
 
