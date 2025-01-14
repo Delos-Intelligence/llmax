@@ -500,6 +500,39 @@ class MultiAIClient:
 
         return response.data[0].url
 
+    def text_to_speech(
+        self,
+        text: str,
+        model: Model,
+        path,
+        **kwargs: Any,
+    ) -> str:
+        """Generate audio from text using the specified model.
+        Parameters:
+        - text (str): The text to be converted to speech.
+        - model (Model): The model to be used for generating audio.
+        - **kwargs (Any): Additional keyword arguments for further customization.
+        Returns:
+        - str: The URL of the generated audio file.
+        Raises:
+        - Any relevant exceptions that may occur during the audio generation process.
+        """
+        operation: str = kwargs.pop("operation", "")
+        client = self.client(model)
+        deployment = self.deployments[model]
+        print("model name", deployment.deployment_name)
+        response = client.audio.speech.create(
+            model=deployment.deployment_name,
+            input=text,
+            **kwargs,
+        )
+        response.stream_to_file(path)
+        usage = ModelUsage(deployment, self._increment_usage)
+        usage.add_tts(text)
+        cost = usage.apply(operation=operation)
+        self.total_usage += cost
+        self.usages.append(usage)
+        return path
 
 def add_system_message(
     messages: Messages,
