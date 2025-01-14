@@ -51,6 +51,7 @@ GENERATION_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "tts-1": 0.000015,
 }
 
+
 def _fetch_price(
     prices: dict[Model, float | dict[Provider, float]],
     model: Model,
@@ -87,6 +88,7 @@ def get_stt_price(model: Model, provider: Provider) -> float:
 def get_tti_price(model: Model, provider: Provider) -> float:
     """Get the generation price for a model and provider."""
     return _fetch_price(GENERATION_PRICE_BASE, model, provider)
+
 
 def get_tts_price(model: Model, provider: Provider) -> float:
     """Get the generation price for a model and provider."""

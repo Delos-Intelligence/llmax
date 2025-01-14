@@ -29,7 +29,7 @@ OpenAIModel = Literal[
     "gpt-4o-mini",
     "o1-preview",
     "dall-e-3",
-    "tts-1"
+    "tts-1",
 ]
 
 AnthropicModel = Literal[

@@ -110,6 +110,7 @@ class ModelUsage:
 
     def add_tts(self, text: str) -> None:
         """Records the usage of TTS.
+
         Args:
             text: The text to be TTS'ed.
         """
@@ -139,7 +140,7 @@ class ModelUsage:
         if self.image_information:
             price = prices.get_tti_price(dep.model, dep.provider)
             cost += price * self.image_information
-        
+
         if self.tts_information:
             price = prices.get_tts_price(dep.model, dep.provider)
             cost += price * self.tts_information
