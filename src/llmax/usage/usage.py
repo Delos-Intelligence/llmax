@@ -36,6 +36,7 @@ class ModelUsage:
     )
     audio_duration: float = 0.0
     image_information: float = 0.0
+    tts_information: float = 0.0
 
     def __repr__(self) -> str:
         """Generates a string representation of model usage statistics.
@@ -107,6 +108,14 @@ class ModelUsage:
             count += 1
         self.image_information += count * n
 
+    def add_tts(self, text: str) -> None:
+        """Records the usage of TTS.
+
+        Args:
+            text: The text to be TTS'ed.
+        """
+        self.tts_information += len(text)
+
     def compute_cost(self) -> float:
         """Calculates the total cost based on token usage.
 
@@ -131,6 +140,10 @@ class ModelUsage:
         if self.image_information:
             price = prices.get_tti_price(dep.model, dep.provider)
             cost += price * self.image_information
+
+        if self.tts_information:
+            price = prices.get_tts_price(dep.model, dep.provider)
+            cost += price * self.tts_information
 
         return cost
 
