@@ -4,8 +4,11 @@ This class is used to interface with multiple LLMs and AI models, supporting bot
 synchronous and asynchronous operations.
 """
 
+import threading
+import time
 from collections.abc import Generator
 from io import BufferedReader, BytesIO
+from queue import Queue
 from typing import Any, Callable, Literal
 
 from openai.types import Embedding
@@ -303,7 +306,77 @@ class MultiAIClient:
         self.total_usage += cost
         self.usages.append(usage)
 
-    def stream_output(
+    def stream_output_smooth(
+        self,
+        messages: Messages,
+        model: Model,
+        smooth_duration: int,
+        system: str | None = None,
+        **kwargs: Any,
+    ) -> Generator[str, None, str]:
+        """Streams formatted output from the chat completions.
+
+        This method formats each chunk received from `stream` into a specific
+        string format before yielding it.
+
+        Args:
+            messages: The list of messages for the chat.
+            model: The model to use for generating the chat completions.
+            system: A string that will be passed as a system prompt.
+            smooth_duration: The duration in ms to wait before trying to send another chunk.
+            kwargs: More args.
+
+        Yields:
+            str: Formatted output for each chunk.
+        """
+        output = ""
+        output_queue = Queue()
+        yield from fake_llm("", stream=False, send_empty=True)
+
+        def collect_chunks() -> None:
+            for completion_chunk in self.stream(
+                messages,
+                model,
+                system=system,
+                **kwargs,
+            ):
+                choices = completion_chunk.choices
+                if choices and (content := choices[0].delta.content):
+                    chunk_data = {
+                        "chunk": completion_chunk.model_dump_json(exclude_unset=True),
+                        "content": content,
+                    }
+                    output_queue.put(chunk_data)
+
+            # Marquer la fin du streaming
+            output_queue.put(None)
+
+        # Démarrer le thread de collecte
+        collector = threading.Thread(target=collect_chunks)
+        collector.start()
+
+        while True:
+            if not output_queue.empty():
+                chunk_data = output_queue.get()
+
+                # Vérifier si c'est la fin du streaming
+                if chunk_data is None:
+                    yield "data: [DONE]\n\n"
+                    break
+
+                # Yield le chunk
+                content, chunk = chunk_data["content"], chunk_data["chunk"]
+                yield f"data: {chunk}\n\n"
+                output += content
+
+            # Attendre 10ms avant le prochain check
+            time.sleep(smooth_duration / 1000)
+
+        # Attendre que le thread de collecte se termine
+        collector.join()
+        return output
+
+    def stream_output_base(
         self,
         messages: Messages,
         model: Model,
@@ -335,6 +408,47 @@ class MultiAIClient:
                 else ""
             )
         yield "data: [DONE]\n\n"
+        return output
+
+    def stream_output(
+        self,
+        messages: Messages,
+        model: Model,
+        system: str | None = None,
+        smooth_duration: int | None = None,
+        **kwargs: Any,
+    ) -> Generator[str, None, str]:
+        """Streams formatted output from the chat completions.
+
+        This method formats each chunk received from `stream` into a specific
+        string format before yielding it.
+
+        Args:
+            messages: The list of messages for the chat.
+            model: The model to use for generating the chat completions.
+            system: A string that will be passed as a system prompt.
+            smooth_duration: The duration in ms to wait before trying to send another chunk.
+            kwargs: More args.
+
+        Yields:
+            str: Formatted output for each chunk.
+        """
+        if smooth_duration is None:
+            output = yield from self.stream_output_base(
+                messages=messages,
+                model=model,
+                system=system,
+                **kwargs,
+            )
+            return output
+
+        output = yield from self.stream_output_smooth(
+            messages=messages,
+            model=model,
+            system=system,
+            smooth_duration=smooth_duration,
+            **kwargs,
+        )
         return output
 
     def embedder(
@@ -499,40 +613,6 @@ class MultiAIClient:
         self.usages.append(usage)
 
         return response.data[0].url
-
-    def text_to_speech(
-        self,
-        text: str,
-        model: Model,
-        **kwargs: Any,
-    ) -> str:
-        """Generate audio from text using the specified model.
-
-        Parameters:
-        - text (str): The text to be converted to speech.
-        - model (Model): The model to be used for generating audio.
-        - **kwargs (Any): Additional keyword arguments for further customization.
-
-        Returns:
-        - str: The URL of the generated audio file.
-
-        Raises:
-        - Any relevant exceptions that may occur during the audio generation process.
-        """
-        operation: str = kwargs.pop("operation", "")
-        client = self.client(model)
-        deployment = self.deployments[model]
-        response = client.audio.speech.create(
-            model=deployment.deployment_name,
-            input=text,
-            **kwargs,
-        )
-        usage = ModelUsage(deployment, self._increment_usage)
-        usage.add_tts(text)
-        cost = usage.apply(operation=operation)
-        self.total_usage += cost
-        self.usages.append(usage)
-        return response
 
 
 def add_system_message(
