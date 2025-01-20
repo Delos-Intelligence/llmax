@@ -4,6 +4,7 @@ This class is used to interface with multiple LLMs and AI models, supporting bot
 synchronous and asynchronous operations.
 """
 
+import json
 import threading
 import time
 from collections.abc import Generator
@@ -361,12 +362,11 @@ class MultiAIClient:
 
                 # Vérifier si c'est la fin du streaming
                 if chunk_data is None:
-                    yield "data: [DONE]\n\n"
                     break
 
                 # Yield le chunk
-                content, chunk = chunk_data["content"], chunk_data["chunk"]
-                yield f"data: {chunk}\n\n"
+                content = chunk_data["content"]
+                yield stream_chunk(content, "text")
                 output += content
 
             # Attendre 10ms avant le prochain check
@@ -400,14 +400,11 @@ class MultiAIClient:
         output = ""
         yield from fake_llm("", stream=False, send_empty=True)
         for completion_chunk in self.stream(messages, model, system=system, **kwargs):
-            yield f"data: {completion_chunk.model_dump_json(exclude_unset=True)}\n\n"
-            output += (
-                content
-                if (choices := completion_chunk.choices)
-                and (content := choices[0].delta.content)
-                else ""
-            )
-        yield "data: [DONE]\n\n"
+            content = completion_chunk.choices[0].delta.content or ""
+            if not content:
+                continue
+            yield stream_chunk(content, "text")
+            output += content
         return output
 
     def stream_output(
@@ -650,3 +647,25 @@ def add_system_message(
                 f"[bold purple][LLMAX][/bold purple] The model specified, {model}, does not understand system mode.",
             )
     return messages
+
+
+def stream_chunk(chunk: str, stream_part_type: str = "text") -> str:
+    """Format the chunk to the correct format for vercel sdk."""
+    code = get_stream_part_code(stream_part_type)
+    formatted_stream_part = f"{code}:{json.dumps(chunk, separators=(',', ':'))}\n\n"
+    return formatted_stream_part
+
+
+def get_stream_part_code(stream_part_type: str) -> str:
+    """Converts the type to a number."""
+    stream_part_types = {
+        "text": "0",
+        "function_call": "1",
+        "data": "2",
+        "error": "3",
+        "assistant_message": "4",
+        "assistant_data_stream_part": "5",
+        "data_stream_part": "6",
+        "message_annotations_stream_part": "7",
+    }
+    return stream_part_types[stream_part_type]
