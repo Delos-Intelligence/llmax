@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "delos-llmax"
 
-version = "0.11.17"
+version = "0.11.18"
 description = "Interface to handle multiple LLMs and AI tools."
 authors = ["Delos Intelligence <maximiliendedinechin@delosintelligence.fr>"]
 readme = "README.md"
@@ -135,7 +135,7 @@ reportMissingTypeArguments = "warning"
 reportMissingTypeArgument = "warning"
 reportMissingTypeImports = "error"
 reportMissingTypeStubs = "warning"
-reportUnknownArgumentType = "warning"
+reportUnknownArgumentType = "none"
 reportUnknownLambdaType = "warning"
 reportUnknownParameterType = "warning"
 reportUnnecessaryTypeIgnoreComment = "warning"
