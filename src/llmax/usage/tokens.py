@@ -7,7 +7,7 @@ from openai.types.chat import ChatCompletionMessage
 def count(string: str) -> int:
     """Count the number of tokens in a string."""
     enc = tiktoken.get_encoding("cl100k_base")
-    return len(enc.encode(repr(string)))
+    return len(enc.encode(repr(string), disallowed_special=()))
 
 
 def truncate(
