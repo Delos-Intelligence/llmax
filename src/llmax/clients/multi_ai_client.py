@@ -334,7 +334,12 @@ class MultiAIClient:
         """
         output = ""
         output_queue = Queue()
-        yield from fake_llm("", stream=False, send_empty=True)
+        yield from fake_llm(
+            "",
+            stream=False,
+            send_empty=True,
+            beta=beta,
+        )
 
         def collect_chunks() -> None:
             for completion_chunk in self.stream(
@@ -408,7 +413,7 @@ class MultiAIClient:
         """
         if beta:
             output = ""
-            yield from fake_llm("", stream=False, send_empty=True)
+            yield from fake_llm("", stream=False, send_empty=True, beta=beta)
             for completion_chunk in self.stream(
                 messages,
                 model,
