@@ -313,6 +313,7 @@ class MultiAIClient:
         model: Model,
         smooth_duration: int,
         system: str | None = None,
+        beta: bool = False,
         **kwargs: Any,
     ) -> Generator[str, None, str]:
         """Streams formatted output from the chat completions.
@@ -325,6 +326,7 @@ class MultiAIClient:
             model: The model to use for generating the chat completions.
             system: A string that will be passed as a system prompt.
             smooth_duration: The duration in ms to wait before trying to send another chunk.
+            beta: Whether to use the beta chat for vercel streaming
             kwargs: More args.
 
         Yields:
@@ -362,11 +364,17 @@ class MultiAIClient:
 
                 # Vérifier si c'est la fin du streaming
                 if chunk_data is None:
+                    if not beta:
+                        yield "data: [DONE]\n\n"
                     break
 
                 # Yield le chunk
-                content = chunk_data["content"]
-                yield stream_chunk(content, "text")
+                if beta:
+                    content = chunk_data["content"]
+                    yield stream_chunk(content, "text")
+                else:
+                    content, chunk = chunk_data["content"], chunk_data["chunk"]
+                    yield f"data: {chunk}\n\n"
                 output += content
 
             # Attendre 10ms avant le prochain check
@@ -376,11 +384,12 @@ class MultiAIClient:
         collector.join()
         return output
 
-    def stream_output_base(
+    def stream_output_base(  # noqa: D417
         self,
         messages: Messages,
         model: Model,
         system: str | None = None,
+        beta: bool = False,
         **kwargs: Any,
     ) -> Generator[str, None, str]:
         """Streams formatted output from the chat completions.
@@ -397,14 +406,33 @@ class MultiAIClient:
         Yields:
             str: Formatted output for each chunk.
         """
+        if beta:
+            output = ""
+            yield from fake_llm("", stream=False, send_empty=True)
+            for completion_chunk in self.stream(
+                messages,
+                model,
+                system=system,
+                **kwargs,
+            ):
+                content = completion_chunk.choices[0].delta.content or ""
+                if not content:
+                    continue
+                yield stream_chunk(content, "text")
+                output += content
+            return output
+
         output = ""
         yield from fake_llm("", stream=False, send_empty=True)
         for completion_chunk in self.stream(messages, model, system=system, **kwargs):
-            content = completion_chunk.choices[0].delta.content or ""
-            if not content:
-                continue
-            yield stream_chunk(content, "text")
-            output += content
+            yield f"data: {completion_chunk.model_dump_json(exclude_unset=True)}\n\n"
+            output += (
+                content
+                if (choices := completion_chunk.choices)
+                and (content := choices[0].delta.content)
+                else ""
+            )
+        yield "data: [DONE]\n\n"
         return output
 
     def stream_output(
@@ -413,6 +441,7 @@ class MultiAIClient:
         model: Model,
         system: str | None = None,
         smooth_duration: int | None = None,
+        beta: bool = False,
         **kwargs: Any,
     ) -> Generator[str, None, str]:
         """Streams formatted output from the chat completions.
@@ -425,6 +454,7 @@ class MultiAIClient:
             model: The model to use for generating the chat completions.
             system: A string that will be passed as a system prompt.
             smooth_duration: The duration in ms to wait before trying to send another chunk.
+            beta: whether or not to use the new chat version of vercel.
             kwargs: More args.
 
         Yields:
@@ -435,6 +465,7 @@ class MultiAIClient:
                 messages=messages,
                 model=model,
                 system=system,
+                beta=beta,
                 **kwargs,
             )
             return output
@@ -444,6 +475,7 @@ class MultiAIClient:
             model=model,
             system=system,
             smooth_duration=smooth_duration,
+            beta=beta,
             **kwargs,
         )
         return output
