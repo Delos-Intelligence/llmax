@@ -313,7 +313,7 @@ class MultiAIClient:
         model: Model,
         smooth_duration: int,
         system: str | None = None,
-        beta: bool = False,
+        beta: bool = True,
         **kwargs: Any,
     ) -> Generator[str, None, str]:
         """Streams formatted output from the chat completions.
@@ -394,7 +394,7 @@ class MultiAIClient:
         messages: Messages,
         model: Model,
         system: str | None = None,
-        beta: bool = False,
+        beta: bool = True,
         **kwargs: Any,
     ) -> Generator[str, None, str]:
         """Streams formatted output from the chat completions.
@@ -446,7 +446,7 @@ class MultiAIClient:
         model: Model,
         system: str | None = None,
         smooth_duration: int | None = None,
-        beta: bool = False,
+        beta: bool = True,
         **kwargs: Any,
     ) -> Generator[str, None, str]:
         """Streams formatted output from the chat completions.

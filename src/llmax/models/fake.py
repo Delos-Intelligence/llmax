@@ -34,7 +34,7 @@ def fake_llm(  # noqa: PLR0913, PLR0917
     stream: bool = True,
     done: bool = False,
     send_empty: bool = False,
-    beta: bool = False,
+    beta: bool = True,
 ) -> Generator[str, None, None]:
     """Generate fake LLM messages."""
     if beta:
