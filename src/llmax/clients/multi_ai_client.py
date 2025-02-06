@@ -12,6 +12,7 @@ from io import BufferedReader, BytesIO
 from queue import Queue
 from typing import Any, Callable, Literal
 
+from openai import BadRequestError
 from openai.types import Embedding
 from openai.types.audio import Transcription
 from openai.types.chat import ChatCompletion, ChatCompletionChunk
@@ -287,7 +288,10 @@ class MultiAIClient:
                 model=model,
                 system=system,
             )
-        response = self._create_chat(messages, model, **kwargs, stream=True)
+        try:
+            response = self._create_chat(messages, model, **kwargs, stream=True)
+        except BadRequestError:
+            return
         deployment = self.deployments[model]
         usage = ModelUsage(deployment, self._increment_usage)
         usage.add_messages(messages)
