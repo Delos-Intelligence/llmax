@@ -52,7 +52,10 @@ class MultiAIClient:
         self,
         deployments: dict[Model, Deployment],
         get_usage: Callable[[], float] = lambda: 0.0,
-        increment_usage: Callable[[float, Model, str], bool] = lambda _1, _2, _3: True,
+        increment_usage: Callable[
+            [float, Model, str, float, float | None],
+            bool,
+        ] = lambda _1, _2, _3, _4, _5: True,
     ) -> None:
         """Initializes the MultiAIClient class.
 
@@ -163,6 +166,7 @@ class MultiAIClient:
         Returns:
             ChatCompletion: The API response containing the chat completions.
         """
+        start_time = time.time()
         operation: str = kwargs.pop("operation", "")
         if system:
             messages = add_system_message(
@@ -171,13 +175,18 @@ class MultiAIClient:
                 system=system,
             )
         response = self._create_chat(messages, model, **kwargs, stream=False)
+        duration = time.time() - start_time
         if not response.usage:
             message = "No usage for this request"
             raise ValueError(message)
         deployment = self.deployments[model]
         usage = ModelUsage(deployment, self._increment_usage, response.usage)
 
-        cost = usage.apply(operation=operation)
+        cost = usage.apply(
+            operation=operation,
+            duration=duration,
+            ttft=None,
+        )
         self.total_usage += cost
         self.usages.append(usage)
 
@@ -222,6 +231,7 @@ class MultiAIClient:
         Returns:
             ChatCompletion: The API response containing the chat completions.
         """
+        start_time = time.time()
         operation: str = kwargs.pop("operation", "")
         if system:
             messages = add_system_message(
@@ -230,13 +240,18 @@ class MultiAIClient:
                 system=system,
             )
         response = await self._acreate_chat(messages, model, **kwargs, stream=False)
+        duration = time.time() - start_time
         if not response.usage:
             message = "No usage for this request"
             raise ValueError(message)
         deployment = self.deployments[model]
         usage = ModelUsage(deployment, self._increment_usage, response.usage)
 
-        cost = usage.apply(operation=operation)
+        cost = usage.apply(
+            operation=operation,
+            duration=duration,
+            ttft=None,
+        )
         self.total_usage += cost
         self.usages.append(usage)
 
@@ -281,6 +296,8 @@ class MultiAIClient:
         Yields:
             ChatCompletionChunk: Individual chunks of the completion response.
         """
+        start = time.time()
+        ttft = None
         operation: str = kwargs.pop("operation", "")
         if system:
             messages = add_system_message(
@@ -300,14 +317,17 @@ class MultiAIClient:
         for chunk in response:
             try:
                 if chunk.choices[0].delta.content:  # type: ignore
+                    if ttft is None:
+                        ttft = time.time() - start
                     answer += str(chunk.choices[0].delta.content)  # type: ignore
             except Exception as e:
                 logger.debug(f"Error in llmax streaming : {e}")
             yield chunk  # type: ignore
 
+        duration = time.time() - start
         usage.add_tokens(completion_tokens=tokens.count(answer))
 
-        cost = usage.apply(operation=operation)
+        cost = usage.apply(operation=operation, ttft=ttft, duration=duration)
         self.total_usage += cost
         self.usages.append(usage)
 
@@ -505,6 +525,7 @@ class MultiAIClient:
         Returns:
             list[Embedding]: The embeddings for each text.
         """
+        start = time.time()
         operation: str = kwargs.pop("operation", "")
         texts = [text.replace("\n", " ") for text in texts]
 
@@ -515,11 +536,12 @@ class MultiAIClient:
             input=texts,
             model=deployment.deployment_name,
         )
+        duration = time.time() - start
 
         usage = ModelUsage(deployment, self._increment_usage)
         usage.add_tokens(prompt_tokens=response.usage.prompt_tokens)
 
-        cost = usage.apply(operation=operation)
+        cost = usage.apply(operation=operation, duration=duration, ttft=None)
         self.total_usage += cost
         self.usages.append(usage)
 
@@ -542,6 +564,7 @@ class MultiAIClient:
         Returns:
             Any: The response from the API.
         """
+        start = time.time()
         operation: str = kwargs.pop("operation", "")
         client = self.client(model)
         deployment = self.deployments[model]
@@ -552,11 +575,16 @@ class MultiAIClient:
             response_format="verbose_json",
             **kwargs,
         )
+        duration = time.time() - start
 
         usage = ModelUsage(deployment, self._increment_usage)
         usage.add_audio_duration(response.duration)
 
-        cost = usage.apply(operation=operation)
+        cost = usage.apply(
+            operation=operation,
+            duration=duration,
+            ttft=None,
+        )
         self.total_usage += cost
         self.usages.append(usage)
 
@@ -578,6 +606,7 @@ class MultiAIClient:
         Returns:
             Any: The response from the API.
         """
+        start = time.time()
         operation: str = kwargs.pop("operation", "")
         aclient = self.aclient(model)
         deployment = self.deployments[model]
@@ -588,11 +617,16 @@ class MultiAIClient:
             response_format="verbose_json",
             **kwargs,
         )
+        duration = time.time() - start
 
         usage = ModelUsage(deployment, self._increment_usage)
         usage.add_audio_duration(response.duration)
 
-        cost = usage.apply(operation=operation)
+        cost = usage.apply(
+            operation=operation,
+            duration=duration,
+            ttft=None,
+        )
         self.total_usage += cost
         self.usages.append(usage)
 
@@ -627,6 +661,7 @@ class MultiAIClient:
         Raises:
         - Any relevant exceptions that may occur during the image generation process.
         """
+        start = time.time()
         operation: str = kwargs.pop("operation", "")
         client = self.client(model)
         deployment = self.deployments[model]
@@ -638,6 +673,7 @@ class MultiAIClient:
             quality=quality,
             n=n,
         )
+        duration = time.time() - start
 
         usage = ModelUsage(deployment, self._increment_usage)
         usage.add_image(
@@ -646,7 +682,11 @@ class MultiAIClient:
             n=n,
         )
 
-        cost = usage.apply(operation=operation)
+        cost = usage.apply(
+            operation=operation,
+            duration=duration,
+            ttft=None,
+        )
         self.total_usage += cost
         self.usages.append(usage)
 

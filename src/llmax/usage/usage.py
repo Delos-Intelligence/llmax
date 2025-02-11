@@ -26,7 +26,7 @@ class ModelUsage:
     """
 
     deployment: Deployment
-    increment_usage: Callable[[float, Model, str], bool]
+    increment_usage: Callable[[float, Model, str, float, float | None], bool]
     tokens_usage: CompletionUsage = field(
         default_factory=lambda: CompletionUsage(
             completion_tokens=0,
@@ -147,7 +147,7 @@ class ModelUsage:
 
         return cost
 
-    def apply(self, operation: str = "") -> float:
+    def apply(self, duration: float, ttft: float | None, operation: str = "") -> float:
         """Applies the token usage, updating the usage statistics and logging the action."""
         cost = self.compute_cost()
         cost_message = f"Total Cost (USD): ${cost:.6f}"
@@ -170,5 +170,5 @@ class ModelUsage:
         logger.debug(
             f"[bold purple][LLMAX][/bold purple] Applying usage for model '{self.deployment.model}'. {message}",
         )
-        self.increment_usage(cost, self.deployment.model, operation)
+        self.increment_usage(cost, self.deployment.model, operation, duration, ttft)
         return cost
