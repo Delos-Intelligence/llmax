@@ -26,7 +26,7 @@ class ModelUsage:
     """
 
     deployment: Deployment
-    increment_usage: Callable[[float, Model, str, float, float | None], bool]
+    increment_usage: Callable[[float, Model, str, float, float | None, int, int], bool]
     tokens_usage: CompletionUsage = field(
         default_factory=lambda: CompletionUsage(
             completion_tokens=0,
@@ -151,16 +151,22 @@ class ModelUsage:
         """Applies the token usage, updating the usage statistics and logging the action."""
         cost = self.compute_cost()
         cost_message = f"Total Cost (USD): ${cost:.6f}"
+        input_tokens = 0
+        output_tokens = 0
 
         if self.deployment.model in AUDIO:
+            input_tokens = int(self.audio_duration)
             message = f"Audio Duration: {self.audio_duration} seconds {cost_message}"
         elif self.deployment.model in IMAGE:
+            input_tokens += int(self.image_information)
             message = (
                 f"Image generation : ~{self.image_information} images "
                 f"{cost_message}"
             )
 
         else:
+            input_tokens = self.tokens_usage.prompt_tokens
+            output_tokens = self.tokens_usage.completion_tokens
             message = (
                 f"Tokens: {self.tokens_usage.total_tokens} "
                 f"({self.tokens_usage.prompt_tokens} + {self.tokens_usage.completion_tokens}) "
@@ -170,5 +176,13 @@ class ModelUsage:
         logger.debug(
             f"[bold purple][LLMAX][/bold purple] Applying usage for model '{self.deployment.model}'. {message}",
         )
-        self.increment_usage(cost, self.deployment.model, operation, duration, ttft)
+        self.increment_usage(
+            cost,
+            self.deployment.model,
+            operation,
+            duration,
+            ttft,
+            input_tokens,
+            output_tokens,
+        )
         return cost
