@@ -1,5 +1,6 @@
 """Fake LLM messages."""
 
+import json
 import random
 import time
 from typing import Generator
@@ -27,14 +28,28 @@ def to_completion_chunk(message: str, model: str) -> ChatCompletionChunk:
     )
 
 
-def fake_llm(
+def fake_llm(  # noqa: PLR0913, PLR0917
     message: str,
     model: Model = "gpt-4-turbo",
     stream: bool = True,
     done: bool = False,
     send_empty: bool = False,
+    beta: bool = True,
 ) -> Generator[str, None, None]:
     """Generate fake LLM messages."""
+    if beta:
+        if send_empty:
+            yield f"0: {json.dumps('', separators=(',', ':'))}\n\n"
+            return
+
+        if stream:
+            for word in message.split(" "):
+                yield f"0: {json.dumps(word, separators=(',', ':'))}\n\n"
+                time.sleep(0.1 * random.random())
+        else:
+            yield f"0: {json.dumps(message, separators=(',', ':'))}\n\n"
+        return
+
     if send_empty:
         completion_chunk = to_completion_chunk("", model)
         yield f"data: {completion_chunk.model_dump_json(exclude_unset=True)}\n\n"

@@ -23,6 +23,7 @@ Client = Any
 
 MAPPING_FINISH_REASON = {
     "end_turn": "stop",
+    "max_tokens": "stop",
 }
 
 
@@ -32,7 +33,7 @@ def client_creation_anthropic(
     region_name: str,
 ) -> Any:
     """Create the antropic client."""
-    return boto3.Session(  # type: ignore
+    return boto3.Session(
         aws_access_key_id=aws_key,
         aws_secret_access_key=aws_secret_key,
         region_name=region_name,
@@ -197,8 +198,10 @@ def completion_call_anthropic(
 
     body = {
         "anthropic_version": "bedrock-2023-05-31",
-        "max_tokens": 1000,
-        "messages": [message for i, message in enumerate(messages) if i not in to_remove],
+        "max_tokens": 10_000,
+        "messages": [
+            message for i, message in enumerate(messages) if i not in to_remove
+        ],
     }
     if len(system_message) > 0:
         body.update({"system": " ".join(system_message)})
