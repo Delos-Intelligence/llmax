@@ -86,6 +86,14 @@ def main(model: Model, question: str, file_path: str) -> None:
             api_version="bedrock-2023-05-31",
             region=os.getenv("LLMAX_AWS_BEDROCK_ANTHROPIC_GERMAN_REGION", ""),
         ),
+        "tts-1": Deployment(
+            model="tts-1",
+            api_key=os.getenv("LLMAX_AZURE_OPENAI_SWEDENCENTRAL_KEY", ""),
+            endpoint=os.getenv("LLMAX_AZURE_OPENAI_SWEDENCENTRAL_ENDPOINT", ""),
+            provider="azure",
+            deployment_name="tts",
+            api_version="2024-05-01-preview",
+        ),
     }
 
     client = MultiAIClient(
@@ -94,6 +102,10 @@ def main(model: Model, question: str, file_path: str) -> None:
     messages = [
         {"role": "user", "content": question},
     ]
+
+    if model == "tts-1":
+        client.text_to_speech("Bonjour, j'ai 22 ans", "tts-1", "test.mp3")
+        return
 
     if model in IMAGE:
         logger.info(f"Generating image with {model} model...")
@@ -114,7 +126,11 @@ def main(model: Model, question: str, file_path: str) -> None:
         logger.info(f"Chatting with {model} model...")
         logger.info(deployments[model].endpoint)
 
-        response = client.invoke_to_str(messages, model, system="Tu réponds toujours en finissant ton message pas une signature : Claude Model")
+        response = client.invoke_to_str(
+            messages,
+            model,
+            system="Tu réponds toujours en finissant ton message pas une signature : Claude Model",
+        )
         logger.info(response)
 
 
