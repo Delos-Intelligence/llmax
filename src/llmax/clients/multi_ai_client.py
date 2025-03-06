@@ -4,6 +4,7 @@ This class is used to interface with multiple LLMs and AI models, supporting bot
 synchronous and asynchronous operations.
 """
 
+import asyncio
 import json
 import threading
 import time
@@ -12,7 +13,7 @@ from io import BufferedReader, BytesIO
 from queue import Queue
 from typing import Any, Callable, Literal
 
-from openai import BadRequestError
+from openai import BadRequestError, RateLimitError
 from openai.types import Embedding
 from openai.types.audio import Transcription
 from openai.types.chat import ChatCompletion, ChatCompletionChunk
@@ -153,6 +154,8 @@ class MultiAIClient:
         messages: Messages,
         model: Model,
         system: str | None = None,
+        delay: float = 0.0,
+        tries: int = 1,
         **kwargs: Any,
     ) -> ChatCompletion:
         """Synchronously invokes the API to get chat completions, tracking usage.
@@ -161,6 +164,8 @@ class MultiAIClient:
             messages: The list of messages for the chat.
             model: The model to use for generating the chat completions.
             system: A string that will be passed as a system prompt.
+            delay : How log to wait between each try (in s).
+            tries : How many tries we can endure with rate limits.
             kwargs: More args.
 
         Returns:
@@ -174,7 +179,19 @@ class MultiAIClient:
                 model=model,
                 system=system,
             )
-        response = self._create_chat(messages, model, **kwargs, stream=False)
+        response: ChatCompletion | None = None
+        for _ in range(tries):
+            try:
+                response = self._create_chat(messages, model, **kwargs, stream=False)
+                break
+            except RateLimitError as e:
+                time.sleep(delay)
+                logger.debug(f"Rate limit error: {e}")
+
+        if response is None:
+            message = "Rate Limit error"
+            raise ValueError(message)
+
         duration = time.time() - start_time
         if not response.usage:
             message = "No usage for this request"
@@ -197,6 +214,8 @@ class MultiAIClient:
         messages: Messages,
         model: Model,
         system: str | None = None,
+        delay: float = 0.0,
+        tries: int = 1,
         **kwargs: Any,
     ) -> str | None:
         """Convenience method to invoke the API and return the first response as a string.
@@ -205,12 +224,21 @@ class MultiAIClient:
             messages: The list of messages for the chat.
             model: The model to use for the chat completions.
             system: A string that will be passed as a system prompt.
+            delay : How log to wait between each try (in s).
+            tries : How many tries we can endure with rate limits.
             kwargs: More args.
 
         Returns:
             str | None: The content of the first choice in the response, if available.
         """
-        response = self.invoke(messages, model, system=system, **kwargs)
+        response = self.invoke(
+            messages,
+            model,
+            system=system,
+            delay=delay,
+            tries=tries,
+            **kwargs,
+        )
         return response.choices[0].message.content if response.choices else None
 
     async def ainvoke(
@@ -218,6 +246,8 @@ class MultiAIClient:
         messages: Messages,
         model: Model,
         system: str | None = None,
+        delay: float = 0.0,
+        tries: int = 1,
         **kwargs: Any,
     ) -> ChatCompletion:
         """Asynchronously invokes the API to get chat completions, tracking usage.
@@ -226,6 +256,8 @@ class MultiAIClient:
             messages: The list of messages for the chat.
             model: The model to use for generating the chat completions.
             system: A string that will be passed as a system prompt.
+            delay : How log to wait between each try (in s).
+            tries : How many tries we can endure with rate limits.
             kwargs: More args.
 
         Returns:
@@ -239,7 +271,20 @@ class MultiAIClient:
                 model=model,
                 system=system,
             )
-        response = await self._acreate_chat(messages, model, **kwargs, stream=False)
+
+        response: ChatCompletion | None = None
+        for _ in range(tries):
+            try:
+                response = self._create_chat(messages, model, **kwargs, stream=False)
+                break
+            except RateLimitError as e:
+                await asyncio.sleep(delay)
+                logger.debug(f"Rate limit error: {e}")
+
+        if response is None:
+            message = "Rate Limit error"
+            raise ValueError(message)
+
         duration = time.time() - start_time
         if not response.usage:
             message = "No usage for this request"
@@ -262,6 +307,8 @@ class MultiAIClient:
         messages: Messages,
         model: Model,
         system: str | None = None,
+        delay: float = 0.0,
+        tries: int = 1,
         **kwargs: Any,
     ) -> str | None:
         """Asynchronously invokes the API and returns the first response as a string.
@@ -270,12 +317,21 @@ class MultiAIClient:
             messages: The list of messages for the chat.
             model: The model to use for the chat completions.
             system: A string that will be passed as a system prompt.
+            delay : How log to wait between each try (in s).
+            tries : How many tries we can endure with rate limits.
             kwargs: More args.
 
         Returns:
             str | None: The content of the first choice in the response, if available.
         """
-        response = await self.ainvoke(messages, model, system=system, **kwargs)
+        response = await self.ainvoke(
+            messages,
+            model,
+            delay=delay,
+            tries=tries,
+            system=system,
+            **kwargs,
+        )
         return response.choices[0].message.content if response.choices else None
 
     def stream(
