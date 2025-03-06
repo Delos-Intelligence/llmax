@@ -275,7 +275,12 @@ class MultiAIClient:
         response: ChatCompletion | None = None
         for _ in range(tries):
             try:
-                response = self._create_chat(messages, model, **kwargs, stream=False)
+                response = await self._acreate_chat(
+                    messages,
+                    model,
+                    **kwargs,
+                    stream=False,
+                )
                 break
             except RateLimitError as e:
                 await asyncio.sleep(delay)
