@@ -54,9 +54,9 @@ class MultiAIClient:
         deployments: dict[Model, Deployment],
         get_usage: Callable[[], float] = lambda: 0.0,
         increment_usage: Callable[
-            [float, Model, str, float, float | None, int, int],
+            [float, Model, str, float, float | None, int, int, str, str, str],
             bool,
-        ] = lambda _1, _2, _3, _4, _5, _6, _7: True,
+        ] = lambda _1, _2, _3, _4, _5, _6, _7, _8, _9, _10: True,
     ) -> None:
         """Initializes the MultiAIClient class.
 
