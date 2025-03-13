@@ -20,9 +20,9 @@ def get_client(deployment: Deployment) -> Client:
         case "openai":
             if deployment.creds:
                 auth_req = Request()
-                deployment.creds.refresh(auth_req)  # type: ignore
+                deployment.creds.refresh(auth_req)
                 return OpenAI(
-                    api_key=deployment.creds.token,  # type: ignore
+                    api_key=deployment.creds.token,
                     base_url=deployment.endpoint,
                 )
             raise ProviderNotFoundError(deployment)
@@ -36,9 +36,9 @@ def get_aclient(deployment: Deployment) -> Client:
         case "openai":
             if deployment.creds:
                 auth_req = Request()
-                deployment.creds.refresh(auth_req)  # type: ignore
+                deployment.creds.refresh(auth_req)
                 return AsyncOpenAI(
-                    api_key=deployment.creds.token,  # type: ignore
+                    api_key=deployment.creds.token,
                     base_url=deployment.endpoint,
                 )
             raise ProviderNotFoundError(deployment)

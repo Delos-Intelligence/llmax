@@ -26,7 +26,10 @@ class ModelUsage:
     """
 
     deployment: Deployment
-    increment_usage: Callable[[float, Model, str, float, float | None, int, int], bool]
+    increment_usage: Callable[
+        [float, Model, str, float, float | None, int, int, str, str, str],
+        bool,
+    ]
     tokens_usage: CompletionUsage = field(
         default_factory=lambda: CompletionUsage(
             completion_tokens=0,
@@ -184,5 +187,8 @@ class ModelUsage:
             ttft,
             input_tokens,
             output_tokens,
+            self.deployment.provider,
+            self.deployment.project_id,
+            self.deployment.region,
         )
         return cost
