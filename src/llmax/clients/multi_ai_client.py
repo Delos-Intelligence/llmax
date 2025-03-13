@@ -15,7 +15,7 @@ from typing import Any, Callable, Literal
 
 from openai import BadRequestError, RateLimitError
 from openai.types import Embedding
-from openai.types.audio import Transcription
+from openai.types.audio import TranscriptionVerbose
 from openai.types.chat import ChatCompletion, ChatCompletionChunk
 
 from llmax.external_clients.clients import Client, get_aclient, get_client
@@ -614,7 +614,7 @@ class MultiAIClient:
         file: BufferedReader,
         model: Model,
         **kwargs: Any,
-    ) -> str:
+    ) -> TranscriptionVerbose:
         """Synchronously processes audio data for speech-to-text using the Whisper model.
 
         Args:
@@ -656,7 +656,7 @@ class MultiAIClient:
         file: BytesIO,
         model: Model,
         **kwargs: Any,
-    ) -> Transcription:
+    ) -> TranscriptionVerbose:
         """Asynchronously processes audio data for speech-to-text using the Whisper model.
 
         Args:
