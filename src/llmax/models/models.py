@@ -27,6 +27,7 @@ OpenAIModel = Literal[
     "text-embedding-3-small",
     "whisper-1",
     "gpt-4o-mini",
+    "o3-mini",
     "o1-preview",
     "dall-e-3",
     "tts-1",
