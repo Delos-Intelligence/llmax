@@ -400,7 +400,7 @@ class MultiAIClient:
         system: str | None = None,
         beta: bool = True,
         **kwargs: Any,
-    ) -> Generator[str, None, str]:
+    ) -> Generator[str, None, dict[str, str]]:
         """Streams formatted output from the chat completions.
 
         This method formats each chunk received from `stream` into a specific
@@ -417,7 +417,6 @@ class MultiAIClient:
         Yields:
             str: Formatted output for each chunk.
         """
-        output = ""
         output_queue = Queue()
         yield from fake_llm(
             "",
@@ -434,12 +433,7 @@ class MultiAIClient:
                 **kwargs,
             ):
                 choices = completion_chunk.choices
-                if choices and (content := choices[0].delta.content):
-                    chunk_data = {
-                        "chunk": completion_chunk.model_dump_json(exclude_unset=True),
-                        "content": content,
-                    }
-                    output_queue.put(chunk_data)
+                output_queue.put(choices)
 
             # Marquer la fin du streaming
             output_queue.put(None)
@@ -447,83 +441,37 @@ class MultiAIClient:
         # Démarrer le thread de collecte
         collector = threading.Thread(target=collect_chunks)
         collector.start()
+        function_call_name = ""
+        function_call_arguments = ""
 
         while True:
             if not output_queue.empty():
-                chunk_data = output_queue.get()
+                choices = output_queue.get()
 
                 # Vérifier si c'est la fin du streaming
-                if chunk_data is None:
+                if choices is None:
                     if not beta:
                         yield "data: [DONE]\n\n"
                     break
 
                 # Yield le chunk
-                if beta:
-                    content = chunk_data["content"]
+                if choices and (content := choices[0].delta.content):
                     yield stream_chunk(content, "text")
-                else:
-                    content, chunk = chunk_data["content"], chunk_data["chunk"]
-                    yield f"data: {chunk}\n\n"
-                output += content
+                if (
+                    choices
+                    and choices[0].delta.tool_calls
+                    and (tool := choices[0].delta.tool_calls[0].function)
+                ):
+                    if tool.name:
+                        function_call_name += tool.name
+                    function_call_arguments += tool.arguments
 
             # Attendre 10ms avant le prochain check
             time.sleep(smooth_duration / 1000)
 
         # Attendre que le thread de collecte se termine
         collector.join()
-        return output
-
-    def stream_output_base(  # noqa: D417
-        self,
-        messages: Messages,
-        model: Model,
-        system: str | None = None,
-        beta: bool = True,
-        **kwargs: Any,
-    ) -> Generator[str, None, str]:
-        """Streams formatted output from the chat completions.
-
-        This method formats each chunk received from `stream` into a specific
-        string format before yielding it.
-
-        Args:
-            messages: The list of messages for the chat.
-            model: The model to use for generating the chat completions.
-            system: A string that will be passed as a system prompt.
-            kwargs: More args.
-
-        Yields:
-            str: Formatted output for each chunk.
-        """
-        if beta:
-            output = ""
-            yield from fake_llm("", stream=False, send_empty=True, beta=beta)
-            for completion_chunk in self.stream(
-                messages,
-                model,
-                system=system,
-                **kwargs,
-            ):
-                content = completion_chunk.choices[0].delta.content or ""
-                if not content:
-                    continue
-                yield stream_chunk(content, "text")
-                output += content
-            return output
-
-        output = ""
-        yield from fake_llm("", stream=False, send_empty=True)
-        for completion_chunk in self.stream(messages, model, system=system, **kwargs):
-            yield f"data: {completion_chunk.model_dump_json(exclude_unset=True)}\n\n"
-            output += (
-                content
-                if (choices := completion_chunk.choices)
-                and (content := choices[0].delta.content)
-                else ""
-            )
-        yield "data: [DONE]\n\n"
-        return output
+        return {"name": function_call_name, "arguments": function_call_arguments}
 
     def stream_output(
         self,
@@ -533,7 +481,7 @@ class MultiAIClient:
         smooth_duration: int | None = None,
         beta: bool = True,
         **kwargs: Any,
-    ) -> Generator[str, None, str]:
+    ) -> Generator[str, None, dict[str, str]]:
         """Streams formatted output from the chat completions.
 
         This method formats each chunk received from `stream` into a specific
@@ -550,25 +498,14 @@ class MultiAIClient:
         Yields:
             str: Formatted output for each chunk.
         """
-        if smooth_duration is None:
-            output = yield from self.stream_output_base(
-                messages=messages,
-                model=model,
-                system=system,
-                beta=beta,
-                **kwargs,
-            )
-            return output
-
-        output = yield from self.stream_output_smooth(
+        return self.stream_output_smooth(
             messages=messages,
             model=model,
             system=system,
-            smooth_duration=smooth_duration,
+            smooth_duration=smooth_duration or 0,
             beta=beta,
             **kwargs,
         )
-        return output
 
     def embedder(
         self,
