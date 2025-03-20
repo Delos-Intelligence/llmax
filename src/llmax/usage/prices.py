@@ -6,6 +6,7 @@ from .exceptions import PriceNotFoundError
 
 PROMPT_PRICES_PER_1K: dict[Model, float | dict[Provider, float]] = {
     "gpt-4o-mini": 0.000165,
+    "o3-mini": 0.0011,
     "gpt-4o": 0.00500,
     "gpt-4-turbo": 0.01,
     "gpt-3.5": 0.0005,
@@ -25,6 +26,7 @@ PROMPT_PRICES_PER_1K: dict[Model, float | dict[Provider, float]] = {
 
 COMPLETION_PRICES_PER_1K: dict[Model, float | dict[Provider, float]] = {
     "gpt-4o-mini": 0.00066,
+    "o3-mini": 0.0044,
     "gpt-4o": 0.015,
     "gpt-4-turbo": 0.03,
     "gpt-3.5": 0.0015,
