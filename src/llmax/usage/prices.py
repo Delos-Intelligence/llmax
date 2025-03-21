@@ -6,6 +6,8 @@ from .exceptions import PriceNotFoundError
 
 PROMPT_PRICES_PER_1K: dict[Model, float | dict[Provider, float]] = {
     "gpt-4o-mini": 0.000165,
+    "o3-mini": 0.0011,
+    "o3-mini-high": 0.0011,
     "gpt-4o": 0.00500,
     "gpt-4-turbo": 0.01,
     "gpt-3.5": 0.0005,
@@ -21,10 +23,13 @@ PROMPT_PRICES_PER_1K: dict[Model, float | dict[Provider, float]] = {
     "claude-3-haiku": 0.00025,
     "google/gemini-1.5-flash-002": 0.000075,
     "google/gemini-1.5-pro-002": 0.00125,
+    "mistral-large-2411": 0.002,
 }
 
 COMPLETION_PRICES_PER_1K: dict[Model, float | dict[Provider, float]] = {
     "gpt-4o-mini": 0.00066,
+    "o3-mini": 0.0044,
+    "o3-mini-high": 0.011,
     "gpt-4o": 0.015,
     "gpt-4-turbo": 0.03,
     "gpt-3.5": 0.0015,
@@ -37,6 +42,7 @@ COMPLETION_PRICES_PER_1K: dict[Model, float | dict[Provider, float]] = {
     "claude-3-haiku": 0.00125,
     "google/gemini-1.5-flash-002": 0.0003,
     "google/gemini-1.5-pro-002": 0.005,
+    "mistral-large-2411": 0.006,
 }
 
 TRANSCRIPTION_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {

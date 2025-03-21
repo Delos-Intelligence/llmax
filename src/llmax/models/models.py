@@ -14,6 +14,7 @@ GeminiModel = Literal["google/gemini-1.5-flash-002", "google/gemini-1.5-pro-002"
 MistralModel = Literal[
     "mistral-large",
     "mistral-small",
+    "mistral-large-2411",
 ]
 
 
@@ -27,6 +28,8 @@ OpenAIModel = Literal[
     "text-embedding-3-small",
     "whisper-1",
     "gpt-4o-mini",
+    "o3-mini",
+    "o3-mini-high",
     "o1-preview",
     "dall-e-3",
     "tts-1",

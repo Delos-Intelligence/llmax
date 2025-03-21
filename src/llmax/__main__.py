@@ -1,6 +1,5 @@
 """Main file to launch the module."""
 
-import argparse
 import os
 from pathlib import Path
 
@@ -126,34 +125,40 @@ def main(model: Model, question: str, file_path: str) -> None:
         logger.info(f"Chatting with {model} model...")
         logger.info(deployments[model].endpoint)
 
-        response = client.invoke_to_str(
+        tools = [
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_weather",
+                    "description": "Get current temperature for a given location.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "location": {
+                                "type": "string",
+                                "description": "City and country e.g. Bogotá, Colombia",
+                            },
+                        },
+                        "required": ["location"],
+                        "additionalProperties": False,
+                    },
+                    "strict": True,
+                },
+            },
+        ]
+
+        for _chunk in client.stream_output_smooth(
             messages,
             model,
-            system="Tu réponds toujours en finissant ton message pas une signature : Claude Model",
-        )
-        logger.info(response)
+            smooth_duration=15,
+            tools=tools,
+        ):
+            pass
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="AI Chatbot")
-    parser.add_argument(
-        "--model",
-        type=str,
-        required=True,
-        help="The model to speak with (e.g., 'gpt-4o', 'gpt-4-turbo', etc.)",
+    main(
+        "gpt-4o",
+        "Comment tu t'appelles ? Si tu utilises un tool, prévien smoi avant puis appelle le sans confirmation.",
+        "",
     )
-    parser.add_argument(
-        "--question",
-        type=str,
-        required=False,
-        help="The question to ask the model",
-    )
-    parser.add_argument(
-        "--file",
-        type=str,
-        required=False,
-        help="The audio file to convert to text",
-    )
-
-    args = parser.parse_args()
-    main(args.model, args.question, args.file)
