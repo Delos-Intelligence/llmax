@@ -371,7 +371,7 @@ class MultiAIClient:
             if model == "o3-mini-high":
                 response = self._create_chat(
                     messages,
-                    model,
+                    "o3-mini",
                     **kwargs,
                     stream=True,
                     reasoning_effort="high",
