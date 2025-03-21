@@ -376,6 +376,7 @@ class MultiAIClient:
                     stream=True,
                     reasoning_effort="high",
                 )
+                model = "o3-mini"
             else:
                 response = self._create_chat(messages, model, **kwargs, stream=True)
         except BadRequestError:
