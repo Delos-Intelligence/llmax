@@ -22,6 +22,7 @@ PROMPT_PRICES_PER_1K: dict[Model, float | dict[Provider, float]] = {
     "claude-3-haiku": 0.00025,
     "google/gemini-1.5-flash-002": 0.000075,
     "google/gemini-1.5-pro-002": 0.00125,
+    "mistral-large-2411": 0.002,
 }
 
 COMPLETION_PRICES_PER_1K: dict[Model, float | dict[Provider, float]] = {
@@ -39,6 +40,7 @@ COMPLETION_PRICES_PER_1K: dict[Model, float | dict[Provider, float]] = {
     "claude-3-haiku": 0.00125,
     "google/gemini-1.5-flash-002": 0.0003,
     "google/gemini-1.5-pro-002": 0.005,
+    "mistral-large-2411": 0.006,
 }
 
 TRANSCRIPTION_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {

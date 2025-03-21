@@ -14,6 +14,7 @@ GeminiModel = Literal["google/gemini-1.5-flash-002", "google/gemini-1.5-pro-002"
 MistralModel = Literal[
     "mistral-large",
     "mistral-small",
+    "mistral-large-2411",
 ]
 
 
