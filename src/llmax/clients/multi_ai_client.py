@@ -378,6 +378,8 @@ class MultiAIClient:
 
         for chunk in response:
             try:
+                if len(chunk.choices) == 0:  # type: ignore
+                    continue
                 if chunk.choices[0].delta.content:  # type: ignore
                     if ttft is None:
                         ttft = time.time() - start
@@ -450,12 +452,13 @@ class MultiAIClient:
                 choices = output_queue.get()
 
                 # Vérifier si c'est la fin du streaming
-                if choices is None:
+                if choices is None or len(choices) == 0:
                     break
 
                 # Yield le chunk
                 if choices and (content := choices[0].delta.content):
                     final_output += content
+
                     yield stream_chunk(content, "text")
                 for tool_call in choices[0].delta.tool_calls or []:
                     index = tool_call.index
@@ -518,7 +521,7 @@ class MultiAIClient:
         self,
         messages: Messages,
         model: Model,
-        execute_tools: Callable[[str, str], tuple[str, bool, str]],
+        execute_tools: Callable[[str, str], Generator[str, None, tuple[str, bool]]],
         system: str | None = None,
         smooth_duration: int | None = None,
         beta: bool = True,
@@ -575,11 +578,10 @@ class MultiAIClient:
                     f"Tool called for function `{function_name}` with the args `{function_args}`",
                 )
 
-                resultat, retrigger, yield_content = execute_tools(
+                resultat, retrigger = yield from execute_tools(
                     function_name,
                     function_args,
                 )
-                yield from fake_llm(yield_content)
 
                 if not retrigger:
                     retrigger_stream = False
