@@ -11,12 +11,13 @@ import time
 from collections.abc import Generator
 from io import BufferedReader, BytesIO
 from queue import Queue
-from typing import Any, Callable, Literal
+from typing import Any, Callable, List, Literal
 
 from openai import BadRequestError, RateLimitError
 from openai.types import Embedding
-from openai.types.audio import Transcription
+from openai.types.audio import TranscriptionVerbose
 from openai.types.chat import ChatCompletion, ChatCompletionChunk
+from openai.types.chat.chat_completion_chunk import Choice, ChoiceDeltaToolCall
 
 from llmax.external_clients.clients import Client, get_aclient, get_client
 from llmax.messages import Messages
@@ -400,7 +401,7 @@ class MultiAIClient:
         system: str | None = None,
         beta: bool = True,
         **kwargs: Any,
-    ) -> Generator[str, None, dict[str, str]]:
+    ) -> Generator[str, None, tuple[dict[int, ChoiceDeltaToolCall], str]]:
         """Streams formatted output from the chat completions.
 
         This method formats each chunk received from `stream` into a specific
@@ -417,7 +418,7 @@ class MultiAIClient:
         Yields:
             str: Formatted output for each chunk.
         """
-        output_queue = Queue()
+        output_queue: Queue[List[Choice] | None] = Queue()
         yield from fake_llm(
             "",
             stream=False,
@@ -441,8 +442,8 @@ class MultiAIClient:
         # Démarrer le thread de collecte
         collector = threading.Thread(target=collect_chunks)
         collector.start()
-        function_call_name = ""
-        function_call_arguments = ""
+        final_tool_calls: dict[int, ChoiceDeltaToolCall] = {}
+        final_output = ""
 
         while True:
             if not output_queue.empty():
@@ -450,28 +451,34 @@ class MultiAIClient:
 
                 # Vérifier si c'est la fin du streaming
                 if choices is None:
-                    if not beta:
-                        yield "data: [DONE]\n\n"
                     break
 
                 # Yield le chunk
                 if choices and (content := choices[0].delta.content):
+                    final_output += content
                     yield stream_chunk(content, "text")
-                if (
-                    choices
-                    and choices[0].delta.tool_calls
-                    and (tool := choices[0].delta.tool_calls[0].function)
-                ):
-                    if tool.name:
-                        function_call_name += tool.name
-                    function_call_arguments += tool.arguments
+                for tool_call in choices[0].delta.tool_calls or []:
+                    index = tool_call.index
+
+                    if index not in final_tool_calls:
+                        final_tool_calls[index] = tool_call
+
+                    elif (
+                        tool_call.function is not None
+                        and final_tool_calls[index].function is not None
+                    ):
+                        current_args = final_tool_calls[index].function.arguments or ""
+                        new_args = tool_call.function.arguments or ""
+                        final_tool_calls[index].function.arguments = (
+                            current_args + new_args
+                        )
 
             # Attendre 10ms avant le prochain check
             time.sleep(smooth_duration / 1000)
 
         # Attendre que le thread de collecte se termine
         collector.join()
-        return {"name": function_call_name, "arguments": function_call_arguments}
+        return final_tool_calls, final_output
 
     def stream_output(
         self,
@@ -481,7 +488,7 @@ class MultiAIClient:
         smooth_duration: int | None = None,
         beta: bool = True,
         **kwargs: Any,
-    ) -> Generator[str, None, dict[str, str]]:
+    ) -> Generator[str, None, tuple[dict[int, ChoiceDeltaToolCall], str]]:
         """Streams formatted output from the chat completions.
 
         This method formats each chunk received from `stream` into a specific
@@ -506,6 +513,90 @@ class MultiAIClient:
             beta=beta,
             **kwargs,
         )
+
+    def stream_output_with_tools(  # noqa: PLR0913
+        self,
+        messages: Messages,
+        model: Model,
+        execute_tools: Callable[[str, str], tuple[str, bool, str]],
+        system: str | None = None,
+        smooth_duration: int | None = None,
+        beta: bool = True,
+        **kwargs: Any,
+    ) -> Generator[str, None, None]:
+        """Streams formatted output from the chat completions.
+
+        This method formats each chunk received from `stream` into a specific
+        string format before yielding it.
+
+        Args:
+            messages: The list of messages for the chat.
+            model: The model to use for generating the chat completions.
+            system: A string that will be passed as a system prompt.
+            smooth_duration: The duration in ms to wait before trying to send another chunk.
+            beta: whether or not to use the new chat version of vercel.
+            execute_tools: how to execute the tools given.
+            kwargs: More args.
+
+        Yields:
+            str: Formatted output for each chunk.
+        """
+        tries = 0
+        max_tries = 4
+
+        while tries < max_tries:
+            tries += 1
+            final_tool_calls, output_str = yield from self.stream_output(
+                messages=messages,
+                model=model,
+                system=system,
+                smooth_duration=smooth_duration,
+                beta=beta,
+                **kwargs,
+            )
+            finished = len(final_tool_calls) == 0
+
+            if finished:
+                break
+
+            retrigger_stream = True
+
+            messages.append({"role": "assistant", "content": output_str})
+
+            for tool in final_tool_calls.values():
+                if tool.function is None:
+                    continue
+                function_name = tool.function.name
+                function_args = tool.function.arguments
+                if function_args is None or function_name is None:
+                    continue
+
+                logger.info(
+                    f"Tool called for function `{function_name}` with the args `{function_args}`",
+                )
+
+                resultat, retrigger, yield_content = execute_tools(
+                    function_name,
+                    function_args,
+                )
+                yield from fake_llm(yield_content)
+
+                if not retrigger:
+                    retrigger_stream = False
+
+                messages.append(parse_tool_call(tool))
+                messages.append(
+                    {
+                        "role": "tool",
+                        "tool_call_id": tool.id,
+                        "content": str(resultat),
+                    },
+                )
+
+            yield from fake_llm("\n")
+
+            if not retrigger_stream:
+                break
 
     def embedder(
         self,
@@ -551,7 +642,7 @@ class MultiAIClient:
         file: BufferedReader,
         model: Model,
         **kwargs: Any,
-    ) -> str:
+    ) -> TranscriptionVerbose:
         """Synchronously processes audio data for speech-to-text using the Whisper model.
 
         Args:
@@ -593,7 +684,7 @@ class MultiAIClient:
         file: BytesIO,
         model: Model,
         **kwargs: Any,
-    ) -> Transcription:
+    ) -> TranscriptionVerbose:
         """Asynchronously processes audio data for speech-to-text using the Whisper model.
 
         Args:
@@ -787,3 +878,28 @@ def get_stream_part_code(stream_part_type: str) -> str:
         "message_annotations_stream_part": "7",
     }
     return stream_part_types[stream_part_type]
+
+
+def parse_tool_call(tool_call: ChoiceDeltaToolCall) -> dict[str, Any]:
+    """Returns the tool and the correct format for the llm."""
+    call_id = tool_call.id
+    function_name = tool_call.function.name if tool_call.function else ""
+
+    formatted_call = {
+        "role": "assistant",
+        "content": None,
+        "tool_calls": [
+            {
+                "id": call_id,
+                "type": "function",
+                "function": {
+                    "name": function_name,
+                    "arguments": tool_call.function.arguments
+                    if tool_call.function
+                    else "",
+                },
+            },
+        ],
+    }
+
+    return formatted_call
