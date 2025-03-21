@@ -29,6 +29,7 @@ OpenAIModel = Literal[
     "whisper-1",
     "gpt-4o-mini",
     "o3-mini",
+    "o3-mini-high",
     "o1-preview",
     "dall-e-3",
     "tts-1",

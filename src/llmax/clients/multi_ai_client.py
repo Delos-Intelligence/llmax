@@ -368,7 +368,16 @@ class MultiAIClient:
                 system=system,
             )
         try:
-            response = self._create_chat(messages, model, **kwargs, stream=True)
+            if model == "o3-mini-high":
+                response = self._create_chat(
+                    messages,
+                    model,
+                    **kwargs,
+                    stream=True,
+                    reasoning_effort="high",
+                )
+            else:
+                response = self._create_chat(messages, model, **kwargs, stream=True)
         except BadRequestError:
             return
         deployment = self.deployments[model]
