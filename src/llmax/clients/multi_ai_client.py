@@ -11,7 +11,7 @@ import time
 from collections.abc import Generator
 from io import BufferedReader, BytesIO
 from queue import Queue
-from typing import Any, Callable, List, Literal
+from typing import Any, Callable, Literal
 
 from openai import BadRequestError, RateLimitError
 from openai.types import Embedding
@@ -174,6 +174,8 @@ class MultiAIClient:
         """
         start_time = time.time()
         operation: str = kwargs.pop("operation", "")
+        if model in {"o3-mini", "o3-mini-high"}:
+            kwargs.pop("temperature")
         if system:
             messages = add_system_message(
                 messages=messages,
@@ -266,6 +268,8 @@ class MultiAIClient:
         """
         start_time = time.time()
         operation: str = kwargs.pop("operation", "")
+        if model in {"o3-mini", "o3-mini-high"}:
+            kwargs.pop("temperature")
         if system:
             messages = add_system_message(
                 messages=messages,
@@ -361,6 +365,8 @@ class MultiAIClient:
         start = time.time()
         ttft = None
         operation: str = kwargs.pop("operation", "")
+        if model in {"o3-mini", "o3-mini-high"}:
+            kwargs.pop("temperature")
         if system:
             messages = add_system_message(
                 messages=messages,
@@ -430,7 +436,7 @@ class MultiAIClient:
         Yields:
             str: Formatted output for each chunk.
         """
-        output_queue: Queue[List[Choice] | None] = Queue()
+        output_queue: Queue[list[Choice] | None] = Queue()
         yield from fake_llm(
             "",
             stream=False,
@@ -764,6 +770,8 @@ class MultiAIClient:
         """
         start = time.time()
         operation: str = kwargs.pop("operation", "")
+        if model in {"o3-mini", "o3-mini-high"}:
+            kwargs.pop("temperature")
         client = self.client(model)
         deployment = self.deployments[model]
 
