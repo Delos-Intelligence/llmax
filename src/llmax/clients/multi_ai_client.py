@@ -174,7 +174,7 @@ class MultiAIClient:
         """
         start_time = time.time()
         operation: str = kwargs.pop("operation", "")
-        if model in {"o3-mini", "o3-mini-high"}:
+        if "temperature" in kwargs and model in {"o3-mini", "o3-mini-high"}:
             kwargs.pop("temperature")
         if system:
             messages = add_system_message(
@@ -268,7 +268,7 @@ class MultiAIClient:
         """
         start_time = time.time()
         operation: str = kwargs.pop("operation", "")
-        if model in {"o3-mini", "o3-mini-high"}:
+        if "temperature" in kwargs and model in {"o3-mini", "o3-mini-high"}:
             kwargs.pop("temperature")
         if system:
             messages = add_system_message(
@@ -365,7 +365,7 @@ class MultiAIClient:
         start = time.time()
         ttft = None
         operation: str = kwargs.pop("operation", "")
-        if model in {"o3-mini", "o3-mini-high"}:
+        if "temperature" in kwargs and model in {"o3-mini", "o3-mini-high"}:
             kwargs.pop("temperature")
         if system:
             messages = add_system_message(
@@ -770,7 +770,7 @@ class MultiAIClient:
         """
         start = time.time()
         operation: str = kwargs.pop("operation", "")
-        if model in {"o3-mini", "o3-mini-high"}:
+        if "temperature" in kwargs and model in {"o3-mini", "o3-mini-high"}:
             kwargs.pop("temperature")
         client = self.client(model)
         deployment = self.deployments[model]
