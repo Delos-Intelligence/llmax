@@ -445,7 +445,8 @@ class MultiAIClient:
         Yields:
             str: Formatted output for each chunk.
         """
-        output_queue: Queue[list[Choice] | None] = Queue()
+        output_queue: Queue[list[Choice] | Exception | None] = Queue()
+
         yield from fake_llm(
             "",
             stream=False,
@@ -454,58 +455,66 @@ class MultiAIClient:
         )
 
         def collect_chunks() -> None:
-            for completion_chunk in self.stream(
-                messages,
-                model,
-                system=system,
-                **kwargs,
-            ):
-                choices = completion_chunk.choices
-                output_queue.put(choices)
+            try:
+                for completion_chunk in self.stream(
+                    messages,
+                    model,
+                    system=system,
+                    **kwargs,
+                ):
+                    output_queue.put(completion_chunk.choices)
+            except Exception as e:
+                output_queue.put(e)
+            finally:
+                output_queue.put(None)
 
-            # Marquer la fin du streaming
-            output_queue.put(None)
-
-        # Démarrer le thread de collecte
         collector = threading.Thread(target=collect_chunks)
         collector.start()
+
         final_tool_calls: dict[int, ChoiceDeltaToolCall] = {}
         final_output = ""
 
         while True:
             if not output_queue.empty():
-                choices = output_queue.get()
+                item = output_queue.get()
 
-                # Vérifier si c'est la fin du streaming
-                if choices is None or len(choices) == 0:
+                if isinstance(item, Exception):
+                    logger.error(f"Exception in streaming thread: {item}")
                     break
 
-                # Yield le chunk
-                if choices and (content := choices[0].delta.content):
-                    final_output += content
+                if item is None:
+                    break
 
-                    yield stream_chunk(content, "text")
+                choices = item
+                if len(choices) == 0:
+                    continue
+
+                if choices[0].delta.content:
+                    chunk_str = choices[0].delta.content
+                    final_output += chunk_str
+                    yield stream_chunk(chunk_str, "text")
+
                 for tool_call in choices[0].delta.tool_calls or []:
                     index = tool_call.index
-
                     if index not in final_tool_calls:
                         final_tool_calls[index] = tool_call
+                    else:
+                        if (
+                            tool_call.function is not None
+                            and final_tool_calls[index].function is not None
+                        ):
+                            current_args = (
+                                final_tool_calls[index].function.arguments or ""
+                            )
+                            new_args = tool_call.function.arguments or ""
+                            final_tool_calls[index].function.arguments = (
+                                current_args + new_args
+                            )
 
-                    elif (
-                        tool_call.function is not None
-                        and final_tool_calls[index].function is not None
-                    ):
-                        current_args = final_tool_calls[index].function.arguments or ""
-                        new_args = tool_call.function.arguments or ""
-                        final_tool_calls[index].function.arguments = (
-                            current_args + new_args
-                        )
-
-            # Attendre 10ms avant le prochain check
             time.sleep(smooth_duration / 1000)
 
-        # Attendre que le thread de collecte se termine
         collector.join()
+
         return final_tool_calls, final_output
 
     def stream_output(
