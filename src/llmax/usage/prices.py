@@ -24,9 +24,11 @@ PROMPT_PRICES_PER_1K: dict[Model, float | dict[Provider, float]] = {
     "google/gemini-1.5-flash-002": 0.000075,
     "google/gemini-1.5-pro-002": 0.00125,
     "mistral-large-2411": 0.002,
+    "claude-3-7-sonnet": 0.003,
 }
 
 COMPLETION_PRICES_PER_1K: dict[Model, float | dict[Provider, float]] = {
+    "claude-3-7-sonnet": 0.015,
     "gpt-4o-mini": 0.00066,
     "o3-mini": 0.0044,
     "o3-mini-high": 0.011,
