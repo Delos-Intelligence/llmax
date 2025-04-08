@@ -14,7 +14,7 @@ from queue import Queue
 from typing import Any, Callable, Literal
 
 from openai import BadRequestError, RateLimitError
-from openai.types import Embedding
+from openai.types import CompletionUsage, Embedding
 from openai.types.audio import TranscriptionVerbose
 from openai.types.chat import ChatCompletion, ChatCompletionChunk
 from openai.types.chat.chat_completion_chunk import Choice, ChoiceDeltaToolCall
@@ -32,7 +32,7 @@ from llmax.models.models import (
     OPENAI_MODELS,
     Model,
 )
-from llmax.usage import ModelUsage, tokens
+from llmax.usage import ModelUsage
 from llmax.utils import logger
 
 
@@ -381,31 +381,40 @@ class MultiAIClient:
                     **kwargs,
                     stream=True,
                     reasoning_effort="high",
+                    stream_options={"include_usage": True},
                 )
                 model = "o3-mini"
             else:
-                response = self._create_chat(messages, model, **kwargs, stream=True)
+                response = self._create_chat(
+                    messages,
+                    model,
+                    **kwargs,
+                    stream=True,
+                    stream_options={"include_usage": True},
+                )
         except BadRequestError:
             return
         deployment = self.deployments[model]
-        usage = ModelUsage(deployment, self._increment_usage)
-        usage.add_messages(messages)
-        answer = ""
+        chunk_usage = CompletionUsage(
+            completion_tokens=0,
+            prompt_tokens=0,
+            total_tokens=0,
+        )
 
         for chunk in response:
+            if chunk.usage:
+                chunk_usage: CompletionUsage = chunk.usage
             try:
                 if len(chunk.choices) == 0:  # type: ignore
                     continue
-                if chunk.choices[0].delta.content:  # type: ignore
-                    if ttft is None:
-                        ttft = time.time() - start
-                    answer += str(chunk.choices[0].delta.content)  # type: ignore
+                if chunk.choices[0].delta.content and ttft is None:  # type: ignore
+                    ttft = time.time() - start
             except Exception as e:
                 logger.debug(f"Error in llmax streaming : {e}")
             yield chunk  # type: ignore
 
         duration = time.time() - start
-        usage.add_tokens(completion_tokens=tokens.count(answer))
+        usage = ModelUsage(deployment, self._increment_usage, chunk_usage)
 
         cost = usage.apply(operation=operation, ttft=ttft, duration=duration)
         self.total_usage += cost
