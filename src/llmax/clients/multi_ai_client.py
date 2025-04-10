@@ -13,7 +13,7 @@ from io import BufferedReader, BytesIO
 from queue import Queue
 from typing import Any, Callable, Literal
 
-from openai import BadRequestError, RateLimitError
+from openai import NOT_GIVEN, BadRequestError, RateLimitError
 from openai.types import CompletionUsage, Embedding
 from openai.types.audio import TranscriptionVerbose
 from openai.types.chat import ChatCompletion, ChatCompletionChunk
@@ -390,12 +390,15 @@ class MultiAIClient:
                     model,
                     **kwargs,
                     stream=True,
-                    stream_options={"include_usage": True},
+                    stream_options=NOT_GIVEN
+                    if model in MISTRAL_MODELS
+                    else {"include_usage": True},
                 )
         except BadRequestError:
             return
         deployment = self.deployments[model]
-        chunk_usage = CompletionUsage(
+
+        chunk_usage: CompletionUsage = CompletionUsage(
             completion_tokens=0,
             prompt_tokens=0,
             total_tokens=0,
@@ -403,7 +406,7 @@ class MultiAIClient:
 
         for chunk in response:
             if chunk.usage:
-                chunk_usage: CompletionUsage = chunk.usage
+                chunk_usage = chunk.usage
             try:
                 if len(chunk.choices) == 0:  # type: ignore
                     continue
@@ -413,8 +416,9 @@ class MultiAIClient:
                 logger.debug(f"Error in llmax streaming : {e}")
             yield chunk  # type: ignore
 
-        duration = time.time() - start
         usage = ModelUsage(deployment, self._increment_usage, chunk_usage)
+
+        duration = time.time() - start
 
         cost = usage.apply(operation=operation, ttft=ttft, duration=duration)
         self.total_usage += cost
