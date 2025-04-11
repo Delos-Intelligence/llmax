@@ -33,7 +33,13 @@ from llmax.models.models import (
     Model,
 )
 from llmax.usage import ModelUsage
-from llmax.utils import StreamItemContent, StreamItemOutput, logger
+from llmax.utils import (
+    StreamItemContent,
+    StreamItemOutput,
+    ToolItemContent,
+    ToolItem,
+    logger,
+)
 
 StreamedItem = StreamItemContent | StreamItemOutput
 
@@ -868,7 +874,7 @@ class MultiAIClient:
         self,
         messages: Messages,
         model: Model,
-        execute_tools: Callable[[str, str], AsyncGenerator[Any, None]],
+        execute_tools: Callable[[str, str], AsyncGenerator[ToolItem, None]],
         system: str | None = None,
         smooth_duration: int | None = None,
         beta: bool = True,
@@ -946,10 +952,10 @@ class MultiAIClient:
 
                 # Consume the async execute_tools generator.
                 async for res in execute_tools(function_name, function_args):
-                    if isinstance(res, tuple) and res[0] == "chunk":
-                        yield res[1]
-                    elif isinstance(res, tuple) and res[0] == "final":
-                        tool_result, tool_retrigger = res[1], res[2]
+                    if isinstance(res, ToolItemContent):
+                        yield res.content
+                    else:
+                        tool_result, tool_retrigger = res.output, res.redo
 
                 if not tool_retrigger:
                     retrigger_stream = False
