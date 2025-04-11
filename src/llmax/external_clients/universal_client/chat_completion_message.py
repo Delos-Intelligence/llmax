@@ -33,8 +33,27 @@ class ChatCompletionUserMessage(BaseModel):
     """The role of the messages author, in this case `user`."""
 
 
+class ToolCall(BaseModel):
+    function: FunctionCall
+    id: str
+    type: Literal["function"]
+    index: int = 0
+
+
+class FunctionCall(BaseModel):
+    arguments: str | None = None
+    name: str
+
+
+class ChatCompletionToolMessage(BaseModel):
+    content: str | None = None
+    role: Literal["tool"] = "tool"
+    tool_call_id: str
+
+
 ChatCompletionMessage = Union[
     ChatCompletionSystemMessage,
     ChatCompletionUserMessage,
     ChatCompletionAssistantMessage,
+    ChatCompletionToolMessage,
 ]
