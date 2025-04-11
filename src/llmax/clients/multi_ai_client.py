@@ -8,7 +8,7 @@ import asyncio
 import json
 import threading
 import time
-from collections.abc import Generator
+from collections.abc import AsyncGenerator, Generator
 from io import BufferedReader, BytesIO
 from queue import Queue
 from typing import Any, Callable, Literal
@@ -33,7 +33,9 @@ from llmax.models.models import (
     Model,
 )
 from llmax.usage import ModelUsage
-from llmax.utils import logger
+from llmax.utils import StreamItemContent, StreamItemOutput, logger
+
+StreamedItem = StreamItemContent | StreamItemOutput
 
 
 class MultiAIClient:
@@ -143,11 +145,19 @@ class MultiAIClient:
             ChatCompletion: The completion response from the API.
         """
         aclient = self.aclient(model)
-        result = await aclient.chat.completions.create(
-            messages=messages,
-            model=self.deployments[model].deployment_name,
-            **kwargs,
-        )
+        if model in ANTHROPIC_MODELS:
+            chat = await aclient.get_chat()
+            result = await chat.completions.create(
+                messages=messages,
+                model=self.deployments[model].deployment_name,
+                **kwargs,
+            )
+        else:
+            result = await aclient.chat.completions.create(
+                messages=messages,
+                model=self.deployments[model].deployment_name,
+                **kwargs,
+            )
         return result
 
     def invoke(
@@ -286,6 +296,9 @@ class MultiAIClient:
                     **kwargs,
                     stream=False,
                 )
+                if model in ANTHROPIC_MODELS:
+                    aclient = self.aclient(model)
+                    await aclient.close()
                 break
             except RateLimitError as e:
                 await asyncio.sleep(delay)
@@ -424,6 +437,89 @@ class MultiAIClient:
         self.total_usage += cost
         self.usages.append(usage)
 
+    async def astream(
+        self,
+        messages: Messages,
+        model: Model,
+        system: str | None = None,
+        **kwargs: Any,
+    ) -> AsyncGenerator[ChatCompletionChunk, None]:
+        """Streams chat completions, allowing responses to be received in chunks.
+
+        Args:
+            messages: The list of messages for the chat.
+            model: The model to use for generating the chat completions.
+            system: A string that will be passed as a system prompt.
+            kwargs: More args.
+
+        Yields:
+            ChatCompletionChunk: Individual chunks of the completion response.
+        """
+        start = time.time()
+        ttft = None
+        operation: str = kwargs.pop("operation", "")
+        if "temperature" in kwargs and model in {"o3-mini", "o3-mini-high"}:
+            kwargs.pop("temperature")
+        if system:
+            messages = add_system_message(
+                messages=messages,
+                model=model,
+                system=system,
+            )
+        try:
+            if model == "o3-mini-high":
+                response = await self._acreate_chat(
+                    messages,
+                    "o3-mini",
+                    **kwargs,
+                    stream=True,
+                    reasoning_effort="high",
+                    stream_options={"include_usage": True},
+                )
+                model = "o3-mini"
+            else:
+                response = await self._acreate_chat(
+                    messages,
+                    model,
+                    **kwargs,
+                    stream=True,
+                    stream_options=NOT_GIVEN
+                    if model in MISTRAL_MODELS
+                    else {"include_usage": True},
+                )
+        except BadRequestError:
+            return
+        deployment = self.deployments[model]
+
+        chunk_usage: CompletionUsage = CompletionUsage(
+            completion_tokens=0,
+            prompt_tokens=0,
+            total_tokens=0,
+        )
+
+        async for chunk in response:
+            if chunk.usage:
+                chunk_usage = chunk.usage
+            try:
+                if len(chunk.choices) == 0:  # type: ignore
+                    continue
+                if chunk.choices[0].delta.content and ttft is None:  # type: ignore
+                    ttft = time.time() - start
+            except Exception as e:
+                logger.debug(f"Error in llmax streaming : {e}")
+            yield chunk  # type: ignore
+        if model in ANTHROPIC_MODELS:
+            aclient = self.aclient(model)
+            await aclient.close()
+
+        usage = ModelUsage(deployment, self._increment_usage, chunk_usage)
+
+        duration = time.time() - start
+
+        cost = usage.apply(operation=operation, ttft=ttft, duration=duration)
+        self.total_usage += cost
+        self.usages.append(usage)
+
     def stream_output_smooth(
         self,
         messages: Messages,
@@ -502,24 +598,119 @@ class MultiAIClient:
                     index = tool_call.index
                     if index not in final_tool_calls:
                         final_tool_calls[index] = tool_call
-                    else:
-                        if (
-                            tool_call.function is not None
-                            and final_tool_calls[index].function is not None
-                        ):
-                            current_args = (
-                                final_tool_calls[index].function.arguments or ""
-                            )
-                            new_args = tool_call.function.arguments or ""
-                            final_tool_calls[index].function.arguments = (
-                                current_args + new_args
-                            )
+                    elif (
+                        tool_call.function is not None
+                        and final_tool_calls[index].function is not None
+                    ):
+                        current_args = final_tool_calls[index].function.arguments or ""
+                        new_args = tool_call.function.arguments or ""
+                        final_tool_calls[index].function.arguments = (
+                            current_args + new_args
+                        )
 
             time.sleep(smooth_duration / 1000)
 
         collector.join()
 
         return final_tool_calls, final_output
+
+    async def astream_output_smooth(
+        self,
+        messages: Messages,
+        model: Model,
+        smooth_duration: int,
+        system: str | None = None,
+        beta: bool = True,
+        **kwargs: Any,
+    ) -> AsyncGenerator[StreamedItem, None]:
+        """Streams formatted output from chat completions using an async generator.
+
+        This function yields two types of tuples:
+
+        - ("chunk", chunk_str): Individual streamed chunk.
+        - ("final", final_tool_calls, final_output): Final aggregated result.
+
+        Args:
+            messages: The list of messages for the chat.
+            model: The model to use for generating chat completions.
+            smooth_duration: Duration in ms to wait between chunks.
+            system: A string that will be passed as a system prompt.
+            beta: Whether to use the beta chat.
+            kwargs: More arguments.
+
+        Yields:
+            A tuple ("chunk", chunk_str) for each streamed chunk, and at the end,
+            a tuple ("final", final_tool_calls, final_output) as the final result.
+        """
+        output_queue: Queue[list[Choice] | Exception | None] = Queue()
+
+        # Yield initial output from fake_llm synchronously.
+        for chunk in fake_llm("", stream=False, send_empty=True, beta=beta):
+            yield StreamItemContent(content=chunk)
+
+        async def collect_chunks() -> None:
+            try:
+                async for completion_chunk in self.astream(
+                    messages,
+                    model,
+                    system=system,
+                    **kwargs,
+                ):
+                    output_queue.put(completion_chunk.choices)
+            except Exception as e:
+                output_queue.put(e)
+            finally:
+                output_queue.put(None)
+
+        def run_async_function_in_thread() -> None:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            loop.run_until_complete(collect_chunks())
+
+        collector = threading.Thread(target=run_async_function_in_thread)
+        collector.start()
+
+        final_tool_calls: dict[int, ChoiceDeltaToolCall] = {}
+        final_output = ""
+        loop = asyncio.get_running_loop()
+
+        while True:
+            # Using run_in_executor to wait on the blocking queue without blocking the event loop.
+            item = await loop.run_in_executor(None, output_queue.get)
+
+            if isinstance(item, Exception):
+                logger.error(f"Exception in streaming thread: {item}")
+                break
+
+            if item is None:
+                break
+
+            choices = item
+            if len(choices) == 0:
+                continue
+
+            if choices[0].delta.content:
+                chunk_str = choices[0].delta.content
+                final_output += chunk_str
+                yield StreamItemContent(content=stream_chunk(chunk_str, "text"))
+
+            for tool_call in choices[0].delta.tool_calls or []:
+                index = tool_call.index
+                if index not in final_tool_calls:
+                    final_tool_calls[index] = tool_call
+                elif (
+                    tool_call.function is not None
+                    and final_tool_calls[index].function is not None
+                ):
+                    current_args = final_tool_calls[index].function.arguments or ""
+                    new_args = tool_call.function.arguments or ""
+                    final_tool_calls[index].function.arguments = current_args + new_args
+
+            await asyncio.sleep(smooth_duration / 1000)
+
+        await loop.run_in_executor(None, collector.join)
+        # Yield the final aggregated result instead of returning it.
+        yield StreamItemOutput(tools=final_tool_calls, output=final_output)
 
     def stream_output(
         self,
@@ -554,6 +745,41 @@ class MultiAIClient:
             beta=beta,
             **kwargs,
         )
+
+    async def astream_output(
+        self,
+        messages: Messages,
+        model: Model,
+        system: str | None = None,
+        smooth_duration: int | None = None,
+        beta: bool = True,
+        **kwargs: Any,
+    ) -> AsyncGenerator[StreamedItem, None]:
+        """Streams formatted output from the chat completions.
+
+        This method formats each chunk received from `stream` into a specific
+        string format before yielding it.
+
+        Args:
+            messages: The list of messages for the chat.
+            model: The model to use for generating the chat completions.
+            system: A string that will be passed as a system prompt.
+            smooth_duration: The duration in ms to wait before trying to send another chunk.
+            beta: whether or not to use the new chat version of vercel.
+            kwargs: More args.
+
+        Yields:
+            str: Formatted output for each chunk.
+        """
+        async for chunk in self.astream_output_smooth(
+            messages=messages,
+            model=model,
+            system=system,
+            smooth_duration=smooth_duration or 0,
+            beta=beta,
+            **kwargs,
+        ):
+            yield chunk
 
     def stream_output_with_tools(  # noqa: PLR0913
         self,
@@ -634,6 +860,113 @@ class MultiAIClient:
                 )
 
             yield from fake_llm("\n")
+
+            if not retrigger_stream:
+                break
+
+    async def astream_output_with_tools(  # noqa: PLR0913
+        self,
+        messages: Messages,
+        model: Model,
+        execute_tools: Callable[[str, str], AsyncGenerator[Any, None]],
+        system: str | None = None,
+        smooth_duration: int | None = None,
+        beta: bool = True,
+        **kwargs: Any,
+    ) -> AsyncGenerator[str, None]:
+        """Streams formatted output from chat completions and executes any needed tools, as an async generator.
+
+        This method uses our new streaming protocol:
+        • Downstream streaming functions (such as self.stream_output and execute_tools)
+        yield tuples of the form ("chunk", chunk_str) for normal chunks, and at the very end,
+        a tuple ("final", final_tool_calls, output_str) or ("final", resultat, retrigger)
+        to provide final aggregated data.
+        • This function iterates those async generators via "async for" and yields out each
+        "chunk" immediately. Final results are used to decide whether to re-run the stream.
+
+        Args:
+            messages: The list of messages for the chat.
+            model: The model to use for generating chat completions.
+            execute_tools: A callable that, given a function name and arguments,
+                returns an async generator yielding tool execution chunks.
+            system: A string that will be passed as a system prompt.
+            smooth_duration: The duration in ms to wait between chunks.
+            beta: Whether to use the beta chat version.
+            kwargs: More arguments.
+
+        Yields:
+            str: Formatted output for each chunk.
+        """
+        tries = 0
+        max_tries = 4
+
+        while tries < max_tries:
+            tries += 1
+
+            # Consume the async stream_output generator.
+            final_tool_calls = {}
+            output_str = ""
+            async for item in self.astream_output(
+                messages=messages,
+                model=model,
+                system=system,
+                smooth_duration=smooth_duration,
+                beta=beta,
+                **kwargs,
+            ):
+                # Check the tag on the yielded item.
+                if isinstance(item, StreamItemContent):
+                    yield item.content
+                else:
+                    final_tool_calls, output_str = item.tools, item.output
+
+            finished = len(final_tool_calls) == 0
+            if finished:
+                break
+
+            retrigger_stream = True
+            messages.append({"role": "assistant", "content": output_str})
+
+            # Process each tool call.
+            for tool in final_tool_calls.values():
+                if tool.function is None:
+                    continue
+
+                function_name = tool.function.name
+                function_args = tool.function.arguments
+                if function_args is None or function_name is None:
+                    continue
+
+                logger.info(
+                    f"Tool called for function `{function_name}` with the args `{function_args}`",
+                )
+
+                tool_result = None
+                tool_retrigger = False
+
+                # Consume the async execute_tools generator.
+                async for res in execute_tools(function_name, function_args):
+                    if isinstance(res, tuple) and res[0] == "chunk":
+                        yield res[1]
+                    elif isinstance(res, tuple) and res[0] == "final":
+                        tool_result, tool_retrigger = res[1], res[2]
+
+                if not tool_retrigger:
+                    retrigger_stream = False
+
+                messages.append(parse_tool_call(tool))
+                messages.append(
+                    {
+                        "role": "tool",
+                        "tool_call_id": tool.id,
+                        "content": str(tool_result),
+                    },
+                )
+
+            # Yield the result from fake_llm for a newline.
+            for res in fake_llm("\n", stream=False):
+                # Assuming fake_llm yields plain string chunks.
+                yield res
 
             if not retrigger_stream:
                 break
