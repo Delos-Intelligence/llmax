@@ -28,7 +28,7 @@ def to_completion_chunk(message: str, model: str) -> ChatCompletionChunk:
     )
 
 
-def fake_llm(  # noqa: PLR0913, PLR0917
+def fake_llm(  # noqa: PLR0913
     message: str,
     model: Model = "gpt-4-turbo",
     stream: bool = True,
