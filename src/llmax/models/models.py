@@ -24,6 +24,7 @@ OpenAIModel = Literal[
     "gpt-4",
     "gpt-4-turbo",
     "gpt-4o",
+    "gpt-4.1-nano",
     "text-embedding-3-large",
     "text-embedding-3-small",
     "whisper-1",
