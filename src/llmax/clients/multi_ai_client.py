@@ -11,12 +11,16 @@ import time
 from collections.abc import Generator
 from io import BufferedReader, BytesIO
 from queue import Queue
-from typing import Any, Callable, Literal
+from typing import Any, Awaitable, Callable, Literal
 
 from openai import NOT_GIVEN, BadRequestError, RateLimitError
 from openai.types import CompletionUsage, Embedding
 from openai.types.audio import TranscriptionVerbose
-from openai.types.chat import ChatCompletion, ChatCompletionChunk
+from openai.types.chat import (
+    ChatCompletion,
+    ChatCompletionChunk,
+    ChatCompletionMessageToolCall,
+)
 from openai.types.chat.chat_completion_chunk import Choice, ChoiceDeltaToolCall
 
 from llmax.external_clients.clients import Client, get_aclient, get_client
@@ -343,6 +347,77 @@ class MultiAIClient:
             **kwargs,
         )
         return response.choices[0].message.content if response.choices else None
+
+    async def ainvoke_with_tools(
+        self,
+        messages: Messages,
+        model: Model,
+        execute_tools: Callable[[str, str], Awaitable[str]],
+        system: str | None = None,
+        delay: float = 0.0,
+        tries: int = 1,
+        **kwargs: Any,
+    ) -> str | None:
+        """Asynchronously invokes the API and returns the first response as a string.
+
+        Args:
+            messages: The list of messages for the chat.
+            model: The model to use for the chat completions.
+            system: A string that will be passed as a system prompt.
+            delay : How log to wait between each try (in s).
+            tries : How many tries we can endure with rate limits.
+            kwargs: More args.
+
+        Returns:
+            str | None: The content of the first choice in the response, if available.
+        """
+        output_str = None
+        tries = 0
+        max_tries = 4
+
+        while tries < max_tries:
+            tries += 1
+            response = await self.ainvoke(
+                messages,
+                model,
+                delay=delay,
+                tries=tries,
+                system=system,
+                **kwargs,
+            )
+            output_str = (
+                response.choices[0].message.content if response.choices else None
+            )
+            final_tool_calls = response.choices[0].message.tool_calls or []
+
+            if len(final_tool_calls) == 0:
+                return output_str
+
+            if output_str:
+                messages.append({"role": "assistant", "content": output_str})
+
+            for tool in final_tool_calls:
+                function_name = tool.function.name
+                function_args = tool.function.arguments
+                logger.info(
+                    f"Tool called for function `{function_name}` with the args `{function_args}`",
+                )
+
+                resultat = await execute_tools(
+                    function_name,
+                    function_args,
+                )
+
+                messages.append(parse_tool_call(tool))
+                messages.append(
+                    {
+                        "role": "tool",
+                        "tool_call_id": tool.id,
+                        "content": str(resultat),
+                    },
+                )
+
+        return output_str
 
     def stream(
         self,
@@ -922,7 +997,9 @@ def get_stream_part_code(stream_part_type: str) -> str:
     return stream_part_types[stream_part_type]
 
 
-def parse_tool_call(tool_call: ChoiceDeltaToolCall) -> dict[str, Any]:
+def parse_tool_call(
+    tool_call: ChoiceDeltaToolCall | ChatCompletionMessageToolCall,
+) -> dict[str, Any]:
     """Returns the tool and the correct format for the llm."""
     call_id = tool_call.id
     function_name = tool_call.function.name if tool_call.function else ""
