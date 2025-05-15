@@ -8,10 +8,10 @@ import asyncio
 import json
 import threading
 import time
-from collections.abc import Generator
+from collections.abc import AsyncGenerator, Awaitable, Generator
 from io import BufferedReader, BytesIO
 from queue import Queue
-from typing import Any, Awaitable, Callable, Literal
+from typing import Any, Callable, Literal
 
 from openai import NOT_GIVEN, BadRequestError, RateLimitError
 from openai.types import CompletionUsage, Embedding
@@ -37,7 +37,14 @@ from llmax.models.models import (
     Model,
 )
 from llmax.usage import ModelUsage
-from llmax.utils import logger
+from llmax.utils import (
+    StreamedItem,
+    StreamItemContent,
+    StreamItemOutput,
+    ToolItem,
+    ToolItemContent,
+    logger,
+)
 
 
 class MultiAIClient:
@@ -499,7 +506,7 @@ class MultiAIClient:
         self.total_usage += cost
         self.usages.append(usage)
 
-    def stream_output_smooth(
+    async def stream_output_smooth(
         self,
         messages: Messages,
         model: Model,
@@ -507,7 +514,7 @@ class MultiAIClient:
         system: str | None = None,
         beta: bool = True,
         **kwargs: Any,
-    ) -> Generator[str, None, tuple[dict[int, ChoiceDeltaToolCall], str]]:
+    ) -> AsyncGenerator[StreamedItem, None]:
         """Streams formatted output from the chat completions.
 
         This method formats each chunk received from `stream` into a specific
@@ -526,12 +533,13 @@ class MultiAIClient:
         """
         output_queue: Queue[list[Choice] | Exception | None] = Queue()
 
-        yield from fake_llm(
+        for chunk in fake_llm(
             "",
             stream=False,
             send_empty=True,
             beta=beta,
-        )
+        ):
+            yield StreamItemContent(content=chunk)
 
         def collect_chunks() -> None:
             try:
@@ -552,51 +560,50 @@ class MultiAIClient:
 
         final_tool_calls: dict[int, ChoiceDeltaToolCall] = {}
         final_output = ""
+        loop = asyncio.get_running_loop()
 
         while True:
-            if not output_queue.empty():
-                item = output_queue.get()
+            item = await loop.run_in_executor(None, output_queue.get)
 
-                if isinstance(item, Exception):
-                    logger.error(f"Exception in streaming thread: {item}")
-                    break
+            if isinstance(item, Exception):
+                logger.error(f"Exception in streaming thread: {item}")
+                break
 
-                if item is None:
-                    break
+            if item is None:
+                break
 
-                choices = item
-                if len(choices) == 0:
-                    continue
+            if isinstance(item, Exception):
+                logger.error(f"Exception in streaming thread: {item}")
+                break
 
-                if choices[0].delta.content:
-                    chunk_str = choices[0].delta.content
-                    final_output += chunk_str
-                    yield stream_chunk(chunk_str, "text")
+            choices = item
+            if len(choices) == 0:
+                continue
 
-                for tool_call in choices[0].delta.tool_calls or []:
-                    index = tool_call.index
-                    if index not in final_tool_calls:
-                        final_tool_calls[index] = tool_call
-                    else:
-                        if (
-                            tool_call.function is not None
-                            and final_tool_calls[index].function is not None
-                        ):
-                            current_args = (
-                                final_tool_calls[index].function.arguments or ""
-                            )
-                            new_args = tool_call.function.arguments or ""
-                            final_tool_calls[index].function.arguments = (
-                                current_args + new_args
-                            )
+            if choices[0].delta.content:
+                chunk_str = choices[0].delta.content
+                final_output += chunk_str
+                yield StreamItemContent(content=stream_chunk(chunk_str, "text"))
 
-            time.sleep(smooth_duration / 1000)
+            for tool_call in choices[0].delta.tool_calls or []:
+                index = tool_call.index
+                if index not in final_tool_calls:
+                    final_tool_calls[index] = tool_call
+                elif (
+                    tool_call.function is not None
+                    and final_tool_calls[index].function is not None
+                ):
+                    current_args = final_tool_calls[index].function.arguments or ""
+                    new_args = tool_call.function.arguments or ""
+                    final_tool_calls[index].function.arguments = current_args + new_args
 
-        collector.join()
+            await asyncio.sleep(smooth_duration / 1000)
 
-        return final_tool_calls, final_output
+        await loop.run_in_executor(None, collector.join)
 
-    def stream_output(
+        yield StreamItemOutput(tools=final_tool_calls, output=final_output)
+
+    async def stream_output(
         self,
         messages: Messages,
         model: Model,
@@ -604,7 +611,7 @@ class MultiAIClient:
         smooth_duration: int | None = None,
         beta: bool = True,
         **kwargs: Any,
-    ) -> Generator[str, None, tuple[dict[int, ChoiceDeltaToolCall], str]]:
+    ) -> AsyncGenerator[StreamedItem, None]:
         """Streams formatted output from the chat completions.
 
         This method formats each chunk received from `stream` into a specific
@@ -621,25 +628,26 @@ class MultiAIClient:
         Yields:
             str: Formatted output for each chunk.
         """
-        return self.stream_output_smooth(
+        async for chunk in self.stream_output_smooth(
             messages=messages,
             model=model,
             system=system,
             smooth_duration=smooth_duration or 0,
             beta=beta,
             **kwargs,
-        )
+        ):
+            yield chunk
 
-    def stream_output_with_tools(  # noqa: PLR0913
+    async def stream_output_with_tools(  # noqa: PLR0913
         self,
         messages: Messages,
         model: Model,
-        execute_tools: Callable[[str, str], Generator[str, None, tuple[str, bool]]],
+        execute_tools: Callable[[str, str], AsyncGenerator[ToolItem, None]],
         system: str | None = None,
         smooth_duration: int | None = None,
         beta: bool = True,
         **kwargs: Any,
-    ) -> Generator[str, None, None]:
+    ) -> AsyncGenerator[str, None]:
         """Streams formatted output from the chat completions.
 
         This method formats each chunk received from `stream` into a specific
@@ -662,16 +670,23 @@ class MultiAIClient:
 
         while tries < max_tries:
             tries += 1
-            final_tool_calls, output_str = yield from self.stream_output(
+            final_tool_calls = {}
+            output_str = ""
+            async for item in self.stream_output(
                 messages=messages,
                 model=model,
                 system=system,
                 smooth_duration=smooth_duration,
                 beta=beta,
                 **kwargs,
-            )
-            finished = len(final_tool_calls) == 0
+            ):
+                # Check the tag on the yielded item.
+                if isinstance(item, StreamItemContent):
+                    yield item.content
+                else:
+                    final_tool_calls, output_str = item.tools, item.output
 
+            finished = len(final_tool_calls) == 0
             if finished:
                 break
 
@@ -691,12 +706,17 @@ class MultiAIClient:
                     f"Tool called for function `{function_name}` with the args `{function_args}`",
                 )
 
-                resultat, retrigger = yield from execute_tools(
-                    function_name,
-                    function_args,
-                )
+                tool_result = None
+                tool_retrigger = False
 
-                if not retrigger:
+                # Consume the async execute_tools generator.
+                async for res in execute_tools(function_name, function_args):
+                    if isinstance(res, ToolItemContent):
+                        yield res.content
+                    else:
+                        tool_result, tool_retrigger = res.output, res.redo
+
+                if not tool_retrigger:
                     retrigger_stream = False
 
                 messages.append(parse_tool_call(tool))
@@ -704,11 +724,12 @@ class MultiAIClient:
                     {
                         "role": "tool",
                         "tool_call_id": tool.id,
-                        "content": str(resultat),
+                        "content": str(tool_result),
                     },
                 )
 
-            yield from fake_llm("\n")
+            for res in fake_llm("\n", stream=False):
+                yield res
 
             if not retrigger_stream:
                 break
