@@ -25,6 +25,7 @@ from openai.types.chat.chat_completion_chunk import Choice, ChoiceDeltaToolCall
 
 from llmax.external_clients.clients import Client, get_aclient, get_client
 from llmax.messages import Messages
+from llmax.messages.message import Message
 from llmax.models.deployment import Deployment
 from llmax.models.fake import fake_llm
 from llmax.models.models import (
@@ -415,7 +416,7 @@ class MultiAIClient:
                     function_args,
                 )
 
-                messages.append(parse_tool_call(tool))
+                messages.append(parse_tool_call(tool, model))
                 messages.append(
                     {
                         "role": "tool",
@@ -719,14 +720,7 @@ class MultiAIClient:
                 if not tool_retrigger:
                     retrigger_stream = False
 
-                messages.append(parse_tool_call(tool))
-                messages.append(
-                    {
-                        "role": "tool",
-                        "tool_call_id": tool.id,
-                        "content": str(tool_result),
-                    },
-                )
+                update_messages_tools(tool, tool_result, messages, model)
 
             for res in fake_llm("\n", stream=False):
                 yield res
@@ -1019,11 +1013,25 @@ def get_stream_part_code(stream_part_type: str) -> str:
 
 
 def parse_tool_call(
-    tool_call: ChoiceDeltaToolCall | ChatCompletionMessageToolCall,
+    tool_call: ChoiceDeltaToolCall | ChatCompletionMessageToolCall, model: Model
 ) -> dict[str, Any]:
     """Returns the tool and the correct format for the llm."""
     call_id = tool_call.id
     function_name = tool_call.function.name if tool_call.function else ""
+
+    if model in ANTHROPIC_MODELS:
+        formatted_call = {
+            "role": "assistant",
+            "content": [
+                {
+                    "type": "tool_use",
+                    "id": call_id,
+                    "name": function_name,
+                    "input": json.loads(str(tool_call.function.arguments)),
+                }
+            ],
+        }
+        return formatted_call
 
     formatted_call = {
         "role": "assistant",
@@ -1043,3 +1051,36 @@ def parse_tool_call(
     }
 
     return formatted_call
+
+
+def update_messages_tools(
+    tool_call: ChoiceDeltaToolCall | ChatCompletionMessageToolCall,
+    tool_result: str | None,
+    messages: list[Message],
+    model: Model,
+) -> None:
+    """Update the messages with the tool called."""
+    messages.append(parse_tool_call(tool_call, model))
+
+    if model in ANTHROPIC_MODELS:
+        messages.append(
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "tool_result",
+                        "tool_use_id": tool_call.id,  # This matches the tool_use.id from Claude
+                        "content": str(tool_result),
+                    }
+                ],
+            }
+        )
+        return
+
+    messages.append(
+        {
+            "role": "tool",
+            "tool_call_id": tool_call.id,
+            "content": str(tool_result),
+        },
+    )

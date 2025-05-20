@@ -1,7 +1,8 @@
 """Anthropic clients."""
 
 import json
-from typing import Any, Dict, Generator, List, Optional
+from collections.abc import Generator
+from typing import Any, Dict, List, Optional
 
 import boto3  # type: ignore
 from dateutil import parser
@@ -171,7 +172,7 @@ def anthropic_parsing_stream(
                             "index": current_tool_calls[current_tool_id]["index"],
                             "id": current_tool_id,
                             "function": {"arguments": json_fragment},
-                        }
+                        },
                     ]
 
         elif chunk_type == "content_block_stop":
@@ -181,15 +182,16 @@ def anthropic_parsing_stream(
         elif chunk_type == "message_delta":
             if "delta" in chunk and "stop_reason" in chunk["delta"]:
                 stop_reason = MAPPING_FINISH_REASON.get(
-                    chunk["delta"]["stop_reason"], "stop"
+                    chunk["delta"]["stop_reason"],
+                    "stop",
                 )
 
         elif chunk_type == "message_stop":
             prompt_tokens = chunk.get("amazon-bedrock-invocationMetrics", {}).get(
-                "inputTokenCount"
+                "inputTokenCount",
             )
             completion_tokens = chunk.get("amazon-bedrock-invocationMetrics", {}).get(
-                "outputTokenCount"
+                "outputTokenCount",
             )
 
         # Only yield if we have content or tool calls
@@ -237,7 +239,7 @@ def completion_call_anthropic(
     model: Model,
     stream: bool = False,
     *args: Any,  # noqa: ARG001
-    **kwargs: Any,  # noqa: ARG001
+    **kwargs: Any,
 ) -> Optional[ChatCompletion] | Optional[Generator[ChatCompletionChunk, None, None]]:
     """Anthropic call to make a completion."""
     system_message: List[str] = []
@@ -265,7 +267,6 @@ def completion_call_anthropic(
                 pass
         if counter < len(messages):
             logger.error("Incorrect message formatting")
-            raise  # noqa: PLE0704
     except Exception:
         return None
 
