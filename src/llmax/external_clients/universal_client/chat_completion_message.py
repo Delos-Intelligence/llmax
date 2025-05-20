@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Literal, Union
+from typing import Any, Literal, Union
 
 from pydantic import BaseModel
 
@@ -10,7 +10,7 @@ __all__ = ["ChatCompletionMessage"]
 
 
 class ChatCompletionAssistantMessage(BaseModel):
-    content: str
+    content: str | list[dict[str, Any]]
     """The contents of the assistant message."""
 
     role: Literal["assistant"] = "assistant"
@@ -26,7 +26,7 @@ class ChatCompletionSystemMessage(BaseModel):
 
 
 class ChatCompletionUserMessage(BaseModel):
-    content: list[str] | str
+    content: list[str] | str | list[dict[str, Any]]
     """The contents of the user message."""
 
     role: Literal["user"]
