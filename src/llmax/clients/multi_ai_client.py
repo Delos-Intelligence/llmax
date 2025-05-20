@@ -566,10 +566,6 @@ class MultiAIClient:
         while True:
             item = await loop.run_in_executor(None, output_queue.get)
 
-            if isinstance(item, Exception):
-                logger.error(f"Exception in streaming thread: {item}")
-                break
-
             if item is None:
                 break
 
@@ -588,6 +584,9 @@ class MultiAIClient:
 
             for tool_call in choices[0].delta.tool_calls or []:
                 index = tool_call.index
+                if index is None:
+                    index = 1
+
                 if index not in final_tool_calls:
                     final_tool_calls[index] = tool_call
                 elif (
@@ -693,7 +692,9 @@ class MultiAIClient:
 
             retrigger_stream = True
 
-            messages.append({"role": "assistant", "content": output_str})
+            if output_str:
+                # output_str = "I will call the relevant tool."
+                messages.append({"role": "assistant", "content": output_str})
 
             for tool in final_tool_calls.values():
                 if tool.function is None:
@@ -1033,6 +1034,23 @@ def parse_tool_call(
         }
         return formatted_call
 
+    if model in MISTRAL_MODELS:
+        formatted_call = {
+            "role": "assistant",
+            "content": "",
+            "tool_calls": [
+                {
+                    "id": tool_call.id,
+                    "type": "function",
+                    "function": {
+                        "name": tool_call.function.name,
+                        "arguments": str(tool_call.function.arguments),
+                    },
+                }
+            ],
+        }
+        return formatted_call
+
     formatted_call = {
         "role": "assistant",
         "content": None,
@@ -1074,6 +1092,16 @@ def update_messages_tools(
                     }
                 ],
             }
+        )
+        return
+
+    if model in MISTRAL_MODELS:
+        messages.append(
+            {
+                "role": "tool",
+                "tool_call_id": tool_call.id,
+                "content": str(tool_result),
+            },
         )
         return
 
