@@ -67,9 +67,9 @@ class MultiAIClient:
         deployments: dict[Model, Deployment],
         get_usage: Callable[[], float] = lambda: 0.0,
         increment_usage: Callable[
-            [float, Model, str, float, float | None, int, int, str, str, str],
+            [float, Model, str, float, float | None, int, int, str, str, str, int],
             bool,
-        ] = lambda _1, _2, _3, _4, _5, _6, _7, _8, _9, _10: True,
+        ] = lambda _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11: True,
     ) -> None:
         """Initializes the MultiAIClient class.
 
@@ -356,7 +356,7 @@ class MultiAIClient:
         )
         return response.choices[0].message.content if response.choices else None
 
-    async def ainvoke_with_tools(
+    async def ainvoke_with_tools(  # noqa: D417, PLR0913
         self,
         messages: Messages,
         model: Model,
@@ -507,7 +507,7 @@ class MultiAIClient:
         self.total_usage += cost
         self.usages.append(usage)
 
-    async def stream_output_smooth(
+    async def stream_output_smooth(  # noqa: C901
         self,
         messages: Messages,
         model: Model,
@@ -638,7 +638,7 @@ class MultiAIClient:
         ):
             yield chunk
 
-    async def stream_output_with_tools(  # noqa: PLR0913
+    async def stream_output_with_tools(  # noqa: C901, PLR0912, PLR0913
         self,
         messages: Messages,
         model: Model,
@@ -693,7 +693,6 @@ class MultiAIClient:
             retrigger_stream = True
 
             if output_str:
-                # output_str = "I will call the relevant tool."
                 messages.append({"role": "assistant", "content": output_str})
 
             for tool in final_tool_calls.values():
@@ -1014,7 +1013,8 @@ def get_stream_part_code(stream_part_type: str) -> str:
 
 
 def parse_tool_call(
-    tool_call: ChoiceDeltaToolCall | ChatCompletionMessageToolCall, model: Model
+    tool_call: ChoiceDeltaToolCall | ChatCompletionMessageToolCall,
+    model: Model,
 ) -> dict[str, Any]:
     """Returns the tool and the correct format for the llm."""
     call_id = tool_call.id
@@ -1029,7 +1029,7 @@ def parse_tool_call(
                     "id": call_id,
                     "name": function_name,
                     "input": json.loads(str(tool_call.function.arguments)),
-                }
+                },
             ],
         }
         return formatted_call
@@ -1046,7 +1046,7 @@ def parse_tool_call(
                         "name": tool_call.function.name,
                         "arguments": str(tool_call.function.arguments),
                     },
-                }
+                },
             ],
         }
         return formatted_call
@@ -1089,9 +1089,9 @@ def update_messages_tools(
                         "type": "tool_result",
                         "tool_use_id": tool_call.id,  # This matches the tool_use.id from Claude
                         "content": str(tool_result),
-                    }
+                    },
                 ],
-            }
+            },
         )
         return
 
