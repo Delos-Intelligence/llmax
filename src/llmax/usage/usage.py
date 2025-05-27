@@ -27,7 +27,7 @@ class ModelUsage:
 
     deployment: Deployment
     increment_usage: Callable[
-        [float, Model, str, float, float | None, int, int, str, str, str],
+        [float, Model, str, float, float | None, int, int, str, str, str, int],
         bool,
     ]
     tokens_usage: CompletionUsage = field(
@@ -134,7 +134,10 @@ class ModelUsage:
 
         if prompt_tokens := self.tokens_usage.prompt_tokens:
             price = prices.get_prompt_price(dep.model, dep.provider)
-            cost += price * prompt_tokens / 1000
+            cached_tokens = 0
+            if token_details := self.tokens_usage.prompt_tokens_details:
+                cached_tokens = token_details.cached_tokens or 0
+            cost += price * (prompt_tokens - cached_tokens // 2) / 1000
 
         if completion_tokens := self.tokens_usage.completion_tokens:
             price = prices.get_completion_price(dep.model, dep.provider)
@@ -156,6 +159,7 @@ class ModelUsage:
         cost_message = f"Total Cost (USD): ${cost:.6f}"
         input_tokens = 0
         output_tokens = 0
+        cached_tokens = 0
 
         if self.deployment.model in AUDIO:
             input_tokens = int(self.audio_duration)
@@ -163,11 +167,13 @@ class ModelUsage:
         elif self.deployment.model in IMAGE:
             input_tokens += int(self.image_information)
             message = (
-                f"Image generation : ~{self.image_information} images "
-                f"{cost_message}"
+                f"Image generation : ~{self.image_information} images {cost_message}"
             )
 
         else:
+            if token_details := self.tokens_usage.prompt_tokens_details:
+                cached_tokens = token_details.cached_tokens or 0
+
             input_tokens = self.tokens_usage.prompt_tokens
             output_tokens = self.tokens_usage.completion_tokens
             message = (
@@ -175,6 +181,8 @@ class ModelUsage:
                 f"({self.tokens_usage.prompt_tokens} + {self.tokens_usage.completion_tokens}) "
                 f"{cost_message}"
             )
+            if cached_tokens:
+                message += f" ({cached_tokens} saved!)"
 
         logger.debug(
             f"[bold purple][LLMAX][/bold purple] Applying usage for model '{self.deployment.model}'. {message}",
@@ -190,5 +198,6 @@ class ModelUsage:
             self.deployment.provider,
             self.deployment.project_id,
             self.deployment.region,
+            cached_tokens,
         )
         return cost
