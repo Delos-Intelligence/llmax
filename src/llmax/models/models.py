@@ -20,20 +20,22 @@ MistralModel = Literal[
 
 OpenAIModel = Literal[
     "ada-v2",
+    "dall-e-3",
     "gpt-3.5",
     "gpt-4",
     "gpt-4-turbo",
-    "gpt-4o",
+    "gpt-4.1",
     "gpt-4.1-nano",
-    "text-embedding-3-large",
-    "text-embedding-3-small",
-    "whisper-1",
+    "gpt-4.1-mini",
+    "gpt-4o",
     "gpt-4o-mini",
+    "o1-preview",
     "o3-mini",
     "o3-mini-high",
-    "o1-preview",
-    "dall-e-3",
+    "text-embedding-3-large",
+    "text-embedding-3-small",
     "tts-1",
+    "whisper-1",
 ]
 
 AnthropicModel = Literal[

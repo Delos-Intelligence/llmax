@@ -4,49 +4,63 @@ from llmax.models import Model, Provider
 
 from .exceptions import PriceNotFoundError
 
-PROMPT_PRICES_PER_1K: dict[Model, float | dict[Provider, float]] = {
-    "gpt-4o-mini": 0.000165,
-    "o3-mini": 0.0011,
-    "o3-mini-high": 0.0011,
-    "gpt-4o": 0.00275,
-    "gpt-4-turbo": 0.01,
-    "gpt-3.5": 0.0005,
-    "gpt-4.1-nano": 0.00011,
-    "text-embedding-3-small": 0.00002,
-    "text-embedding-3-large": 0.00013,
-    "ada-v2": 0.00010,
-    "mistral-large": 0.004,
-    "mistral-small": 0.001,
-    "command-r": 0.0005,
-    "command-r-plus": 0.003,
-    "llama-3-70b-instruct": 0.00378,
-    "claude-3.5-sonnet": 0.003,
-    "claude-3-haiku": 0.00025,
-    "google/gemini-1.5-flash-002": 0.000075,
-    "google/gemini-1.5-pro-002": 0.00125,
-    "mistral-large-2411": 0.002,
-    "claude-3.7-sonnet": 0.003,
+PROMPT_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
+    "gpt-4.1": 2.0,
+    "gpt-4.1-mini": 0.4,
+    "gpt-4.1-nano": 0.1,
+    "gpt-4o": {"openai": 2.5, "azure": 2.75},
+    "gpt-4o-mini": {"openai": 0.15, "azure": 0.165},
+    "o3-mini": {"openai": 1.10, "azure": 1.21},
+    "o3-mini-high": {"openai": 1.10, "azure": 1.21},
+    "ada-v2": 0.1,
+    "gpt-3.5": 0.5,
+    "gpt-4-turbo": 10.0,
+    "claude-3-haiku": 0.25,
+    "claude-3.5-sonnet": 3.0,
+    "claude-3.7-sonnet": 3.0,
+    "command-r": 0.5,
+    "command-r-plus": 3.0,
+    "google/gemini-1.5-flash-002": 0.075,
+    "google/gemini-1.5-pro-002": 1.25,
+    "llama-3-70b-instruct": 3.78,
+    "mistral-large": 4.0,
+    "mistral-large-2411": 2.0,
+    "mistral-small": 1.0,
+    "text-embedding-3-large": 0.13,
+    "text-embedding-3-small": 0.02,
 }
 
-COMPLETION_PRICES_PER_1K: dict[Model, float | dict[Provider, float]] = {
-    "claude-3.7-sonnet": 0.015,
-    "gpt-4o-mini": 0.00066,
-    "o3-mini": 0.0044,
-    "o3-mini-high": 0.011,
-    "gpt-4o": 0.011,
-    "gpt-4-turbo": 0.03,
-    "gpt-3.5": 0.0015,
-    "gpt-4.1-nano":0.00044,
-    "mistral-large": 0.012,
-    "mistral-small": 0.003,
-    "command-r": 0.0015,
-    "command-r-plus": 0.015,
-    "llama-3-70b-instruct": 0.01134,
-    "claude-3.5-sonnet": 0.015,
-    "claude-3-haiku": 0.00125,
-    "google/gemini-1.5-flash-002": 0.0003,
-    "google/gemini-1.5-pro-002": 0.005,
-    "mistral-large-2411": 0.006,
+CACHED_PROMPT_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
+    "gpt-4.1": 0.5,
+    "gpt-4.1-mini": 0.1,
+    "gpt-4.1-nano": 0.03,
+    "gpt-4o": {"openai": 1.25, "azure": 1.375},
+    "gpt-4o-mini": {"openai": 0.075, "azure": 0.083},
+    "o3-mini": {"openai": 0.55, "azure": 0.605},
+    "o3-mini-high": {"openai": 0.55, "azure": 0.605},
+}
+
+COMPLETION_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
+    "gpt-4.1": 8.0,
+    "gpt-4.1-mini": 1.6,
+    "gpt-4.1-nano": 0.4,
+    "gpt-4o": {"openai": 10.0, "azure": 11.0},
+    "gpt-4o-mini": {"openai": 0.60, "azure": 0.66},
+    "o3-mini": {"openai": 4.40, "azure": 4.84},
+    "o3-mini-high": {"openai": 4.40, "azure": 4.84},
+    "gpt-3.5": 1.5,
+    "gpt-4-turbo": 30.0,
+    "claude-3-haiku": 1.25,
+    "claude-3.5-sonnet": 15.0,
+    "claude-3.7-sonnet": 15.0,
+    "command-r": 1.5,
+    "command-r-plus": 15.0,
+    "google/gemini-1.5-flash-002": 0.3,
+    "google/gemini-1.5-pro-002": 5.0,
+    "llama-3-70b-instruct": 11.34,
+    "mistral-large": 12.0,
+    "mistral-large-2411": 6.0,
+    "mistral-small": 3.0,
 }
 
 TRANSCRIPTION_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
@@ -82,12 +96,20 @@ def _fetch_price(
 
 def get_prompt_price(model: Model, provider: Provider) -> float:
     """Get the prompt price for a model and provider."""
-    return _fetch_price(PROMPT_PRICES_PER_1K, model, provider)
+    return _fetch_price(PROMPT_PRICES_PER_1M, model, provider)
+
+
+def get_cached_prompt_price(model: Model, provider: Provider) -> float:
+    """Get the cached prompt price for a model and provider."""
+    try:
+        return _fetch_price(CACHED_PROMPT_PRICES_PER_1M, model, provider)
+    except PriceNotFoundError:
+        return _fetch_price(PROMPT_PRICES_PER_1M, model, provider)
 
 
 def get_completion_price(model: Model, provider: Provider) -> float:
     """Get the completion price for a model and provider."""
-    return _fetch_price(COMPLETION_PRICES_PER_1K, model, provider)
+    return _fetch_price(COMPLETION_PRICES_PER_1M, model, provider)
 
 
 def get_stt_price(model: Model, provider: Provider) -> float:

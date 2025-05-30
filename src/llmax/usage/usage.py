@@ -133,15 +133,19 @@ class ModelUsage:
             cost += price * math.ceil(self.audio_duration) / 60
 
         if prompt_tokens := self.tokens_usage.prompt_tokens:
-            price = prices.get_prompt_price(dep.model, dep.provider)
             cached_tokens = 0
             if token_details := self.tokens_usage.prompt_tokens_details:
                 cached_tokens = token_details.cached_tokens or 0
-            cost += price * (prompt_tokens - cached_tokens // 2) / 1000
+
+            prompt_price = prices.get_prompt_price(dep.model, dep.provider)
+            cost += prompt_price * (prompt_tokens - cached_tokens) / 1e6
+
+            cached_price = prices.get_cached_prompt_price(dep.model, dep.provider)
+            cost += cached_price * (cached_tokens) / 1e6
 
         if completion_tokens := self.tokens_usage.completion_tokens:
             price = prices.get_completion_price(dep.model, dep.provider)
-            cost += price * completion_tokens / 1000
+            cost += price * completion_tokens / 1e6
 
         if self.image_information:
             price = prices.get_tti_price(dep.model, dep.provider)
