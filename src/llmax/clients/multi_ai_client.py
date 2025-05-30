@@ -363,6 +363,7 @@ class MultiAIClient:
         execute_tools: Callable[[str, str], Awaitable[str]],
         system: str | None = None,
         delay: float = 0.0,
+        max_tool_calls: int = 4,
         tries: int = 1,
         **kwargs: Any,
     ) -> str | None:
@@ -374,6 +375,7 @@ class MultiAIClient:
             system: A string that will be passed as a system prompt.
             delay : How log to wait between each try (in s).
             tries : How many tries we can endure with rate limits.
+            max_tool_calls: Maximum number of tool call before stopping.
             kwargs: More args.
 
         Returns:
@@ -381,9 +383,8 @@ class MultiAIClient:
         """
         output_str = None
         tries = 0
-        max_tries = 4
 
-        while tries < max_tries:
+        while tries < max_tool_calls:
             tries += 1
             response = await self.ainvoke(
                 messages,
@@ -646,6 +647,7 @@ class MultiAIClient:
         system: str | None = None,
         smooth_duration: int | None = None,
         beta: bool = True,
+        max_tool_calls: int = 4,
         **kwargs: Any,
     ) -> AsyncGenerator[str, None]:
         """Streams formatted output from the chat completions.
@@ -660,15 +662,15 @@ class MultiAIClient:
             smooth_duration: The duration in ms to wait before trying to send another chunk.
             beta: whether or not to use the new chat version of vercel.
             execute_tools: how to execute the tools given.
+            max_tool_calls: maximum number of call to a tool before stopping.
             kwargs: More args.
 
         Yields:
             str: Formatted output for each chunk.
         """
         tries = 0
-        max_tries = 4
 
-        while tries < max_tries:
+        while tries < max_tool_calls:
             tries += 1
             final_tool_calls = {}
             output_str = ""
