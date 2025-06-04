@@ -356,6 +356,42 @@ class MultiAIClient:
         )
         return response.choices[0].message.content if response.choices else None
 
+    async def ainvoke_get_tools(
+        self,
+        messages: Messages,
+        model: Model,
+        system: str | None = None,
+        delay: float = 0.0,
+        tries: int = 1,
+        **kwargs: Any,
+    ) -> tuple[str | None, list[ChatCompletionMessageToolCall]]:
+        """Asynchronously invokes the API and returns the first response as a string.
+
+        Args:
+            messages: The list of messages for the chat.
+            model: The model to use for the chat completions.
+            system: A string that will be passed as a system prompt.
+            delay : How log to wait between each try (in s).
+            tries : How many tries we can endure with rate limits.
+            max_tool_calls: Maximum number of tool call before stopping.
+            kwargs: More args.
+
+        Returns:
+            str | None: The content of the first choice in the response, if available.
+        """
+        response = await self.ainvoke(
+            messages,
+            model,
+            delay=delay,
+            tries=tries,
+            system=system,
+            **kwargs,
+        )
+        output_str = response.choices[0].message.content if response.choices else None
+        final_tool_calls = response.choices[0].message.tool_calls or []
+
+        return output_str, final_tool_calls
+
     async def ainvoke_with_tools(  # noqa: D417, PLR0913
         self,
         messages: Messages,
