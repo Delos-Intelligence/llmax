@@ -37,7 +37,7 @@ from llmax.models.models import (
     OPENAI_MODELS,
     Model,
 )
-from llmax.usage import ModelUsage
+from llmax.usage import ModelUsage, tokens
 from llmax.utils import (
     StreamedItem,
     StreamItemContent,
@@ -684,6 +684,7 @@ class MultiAIClient:
         smooth_duration: int | None = None,
         beta: bool = True,
         max_tool_calls: int = 4,
+        max_tokens_before_tool_use: int | None = None,
         **kwargs: Any,
     ) -> AsyncGenerator[str, None]:
         """Streams formatted output from the chat completions.
@@ -699,26 +700,37 @@ class MultiAIClient:
             beta: whether or not to use the new chat version of vercel.
             execute_tools: how to execute the tools given.
             max_tool_calls: maximum number of call to a tool before stopping.
+            max_tokens_before_tool_use: To limit the usage of tools if there are too many tokens and force an answer
             kwargs: More args.
 
         Yields:
             str: Formatted output for each chunk.
         """
         tries = 0
+        tools = kwargs.pop("tools", None)
 
         while tries < max_tool_calls:
             tries += 1
             final_tool_calls = {}
             output_str = ""
+
+            token_count = sum(
+                tokens.count(m["content"]) for m in messages if "content" in m
+            )
+            allow_tools = (
+                max_tokens_before_tool_use is None
+                or token_count <= max_tokens_before_tool_use
+            )
+
             async for item in self.stream_output(
                 messages=messages,
                 model=model,
                 system=system,
                 smooth_duration=smooth_duration,
                 beta=beta,
+                tools=tools if allow_tools else None,
                 **kwargs,
             ):
-                # Check the tag on the yielded item.
                 if isinstance(item, StreamItemContent):
                     yield item.content
                 else:
@@ -742,13 +754,12 @@ class MultiAIClient:
                     continue
 
                 logger.info(
-                    f"Tool called for function `{function_name}` with the args `{function_args}`",
+                    f"Tool called for function `{function_name}` with the args `{function_args}`"
                 )
 
                 tool_result = None
                 tool_retrigger = False
 
-                # Consume the async execute_tools generator.
                 async for res in execute_tools(function_name, function_args):
                     if isinstance(res, ToolItemContent):
                         yield res.content
