@@ -15,7 +15,7 @@ from typing import Any, Callable, Literal
 
 from openai import NOT_GIVEN, BadRequestError, RateLimitError
 from openai.types import CompletionUsage, Embedding
-from openai.types.audio import TranscriptionVerbose
+from openai.types.audio import Transcription, TranscriptionVerbose
 from openai.types.chat import (
     ChatCompletion,
     ChatCompletionChunk,
@@ -863,8 +863,9 @@ class MultiAIClient:
         file: BytesIO,
         model: Model,
         response_format: Literal["json", "verbose_json"] = "verbose_json",
+        duration: float | None = None,
         **kwargs: Any,
-    ) -> TranscriptionVerbose:
+    ) -> TranscriptionVerbose | Transcription:
         """Asynchronously processes audio data for speech-to-text using the Whisper model.
 
         Args:
@@ -890,7 +891,17 @@ class MultiAIClient:
         duration = time.time() - start
 
         usage = ModelUsage(deployment, self._increment_usage)
-        usage.add_audio_duration(response.duration)
+        response_duration: float | None = None
+        if isinstance(response, TranscriptionVerbose):
+            response_duration = response.duration
+        if isinstance(response, Transcription) and duration:
+            response_duration = duration
+
+        if not response_duration:
+            message = "You need to specify the duration in json mode."
+            raise ValueError(message)
+
+        usage.add_audio_duration(response_duration)
 
         cost = usage.apply(
             operation=operation,
