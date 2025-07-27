@@ -862,6 +862,7 @@ class MultiAIClient:
         self,
         file: BytesIO,
         model: Model,
+        response_format: Literal["json", "verbose_json"] = "verbose_json",
         **kwargs: Any,
     ) -> TranscriptionVerbose:
         """Asynchronously processes audio data for speech-to-text using the Whisper model.
@@ -869,6 +870,7 @@ class MultiAIClient:
         Args:
             file: The audio data to process.
             model: The model to use for processing the audio.
+            response_format: for gpt-4o-transcribe, you cannot pass verbose_json.
             kwargs: Additional arguments to pass to the API.
 
         Returns:
@@ -882,7 +884,7 @@ class MultiAIClient:
         response = await aclient.audio.transcriptions.create(
             file=file,
             model=deployment.deployment_name,
-            response_format="verbose_json",
+            response_format=response_format,
             **kwargs,
         )
         duration = time.time() - start

@@ -32,6 +32,7 @@ OpenAIModel = Literal[
     "o1-preview",
     "o3-mini",
     "o3-mini-high",
+    "gpt-4o-transcribe",
     "text-embedding-3-large",
     "text-embedding-3-small",
     "tts-1",
@@ -54,7 +55,7 @@ LLModel = Union[
     GeminiModel,
 ]
 
-SpeechToTextModel = Literal["whisper-1",]
+SpeechToTextModel = Literal["whisper-1", "gpt-4o-transcribe"]
 
 ImageGenerationModel = Literal["dall-e-3",]
 

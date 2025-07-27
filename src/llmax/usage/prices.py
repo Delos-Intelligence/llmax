@@ -65,6 +65,7 @@ COMPLETION_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
 
 TRANSCRIPTION_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "whisper-1": 0.006,
+    "gpt-4o-transcribe": 0.006,
 }
 
 GENERATION_PRICE_BASE: dict[Model, float | dict[Provider, float]] = {
