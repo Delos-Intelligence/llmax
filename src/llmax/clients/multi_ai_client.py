@@ -679,7 +679,7 @@ class MultiAIClient:
         self,
         messages: Messages,
         model: Model,
-        execute_tools: Callable[[str, str], AsyncGenerator[ToolItem, None]],
+        execute_tools: Callable[[str, str, str], AsyncGenerator[ToolItem, None]],
         system: str | None = None,
         smooth_duration: int | None = None,
         beta: bool = True,
@@ -750,7 +750,8 @@ class MultiAIClient:
                     continue
                 function_name = tool.function.name
                 function_args = tool.function.arguments
-                if function_args is None or function_name is None:
+                tool_id = tool.id
+                if function_args is None or function_name is None or tool_id is None:
                     continue
 
                 logger.info(
@@ -760,7 +761,7 @@ class MultiAIClient:
                 tool_result = None
                 tool_retrigger = False
 
-                async for res in execute_tools(function_name, function_args):
+                async for res in execute_tools(function_name, function_args, tool_id):
                     if isinstance(res, ToolItemContent):
                         yield res.content
                     else:
