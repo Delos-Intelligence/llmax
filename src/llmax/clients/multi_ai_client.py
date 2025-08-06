@@ -439,6 +439,10 @@ class MultiAIClient:
                 return output_str
 
             if output_str:
+                await execute_tools(
+                    "llm_output",
+                    output_str,
+                )
                 messages.append({"role": "assistant", "content": output_str})
 
             for tool in final_tool_calls:
