@@ -28,6 +28,10 @@ PROMPT_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "mistral-small": 1.0,
     "text-embedding-3-large": 0.13,
     "text-embedding-3-small": 0.02,
+    "gpt-5": 1.25,
+    "gpt-5-chat": 1.25,
+    "gpt-5-mini": 0.25,
+    "gpt-5-nano": 0.05,
 }
 
 CACHED_PROMPT_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
@@ -38,6 +42,10 @@ CACHED_PROMPT_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "gpt-4o-mini": {"openai": 0.075, "azure": 0.083},
     "o3-mini": {"openai": 0.55, "azure": 0.605},
     "o3-mini-high": {"openai": 0.55, "azure": 0.605},
+    "gpt-5": 0.125,
+    "gpt-5-chat": 0.125,
+    "gpt-5-mini": 0.025,
+    "gpt-5-nano": 0.005,
 }
 
 COMPLETION_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
@@ -61,6 +69,10 @@ COMPLETION_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "mistral-large": 12.0,
     "mistral-large-2411": 6.0,
     "mistral-small": 3.0,
+    "gpt-5": 10.00,
+    "gpt-5-chat": 10.00,
+    "gpt-5-mini": 2.00,
+    "gpt-5-nano": 0.40,
 }
 
 TRANSCRIPTION_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
