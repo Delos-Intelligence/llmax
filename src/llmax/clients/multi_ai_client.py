@@ -392,6 +392,27 @@ class MultiAIClient:
 
         return output_str, final_tool_calls
 
+    async def call_tool_with_logs(
+        self,
+        tool: ChoiceDeltaToolCall,
+        execute_tools: Callable[[str, str], Awaitable[str]],
+        messages: Messages,
+        model: Model,
+    ) -> None:
+        """Call the tool with the execute_tools function and log the result."""
+        logger.info(
+            f"Tool called for function `{tool.function.name}` with the args `{tool.function.arguments}`",
+        )
+        result = await execute_tools(tool.function.name, tool.function.arguments)
+        messages.append(parse_tool_call(tool, model))
+        messages.append(
+            {
+                "role": "tool",
+                "tool_call_id": tool.id,
+                "content": str(result),
+            },
+        )
+
     async def ainvoke_with_tools(  # noqa: D417, PLR0913
         self,
         messages: Messages,
@@ -445,26 +466,18 @@ class MultiAIClient:
                 )
                 messages.append({"role": "assistant", "content": output_str})
 
+            tasks = []
             for tool in final_tool_calls:
-                function_name = tool.function.name
-                function_args = tool.function.arguments
-                logger.info(
-                    f"Tool called for function `{function_name}` with the args `{function_args}`",
+                task = asyncio.create_task(
+                    self.call_tool_with_logs(
+                        tool=tool,
+                        execute_tools=execute_tools,
+                        messages=messages,
+                        model=model,
+                    ),
                 )
-
-                resultat = await execute_tools(
-                    function_name,
-                    function_args,
-                )
-
-                messages.append(parse_tool_call(tool, model))
-                messages.append(
-                    {
-                        "role": "tool",
-                        "tool_call_id": tool.id,
-                        "content": str(resultat),
-                    },
-                )
+                tasks.append(task)
+            await asyncio.gather(*tasks)
 
         return output_str
 
