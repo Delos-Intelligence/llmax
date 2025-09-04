@@ -499,6 +499,8 @@ class MultiAIClient:
             )
         try:
             if model == "o3-mini-high":
+                if "reasoning_effort" in kwargs:
+                    kwargs.pop("reasoning_effort")
                 response = self._create_chat(
                     messages,
                     "o3-mini",
