@@ -445,18 +445,18 @@ class MultiAIClient:
                 )
                 messages.append({"role": "assistant", "content": output_str})
 
+            tool_coros = []
             for tool in final_tool_calls:
                 function_name = tool.function.name
                 function_args = tool.function.arguments
                 logger.info(
                     f"Tool called for function `{function_name}` with the args `{function_args}`",
                 )
+                tool_coros.append(execute_tools(function_name, function_args))
 
-                resultat = await execute_tools(
-                    function_name,
-                    function_args,
-                )
+            results = await asyncio.gather(*tool_coros)
 
+            for tool, resultat in zip(final_tool_calls, results):
                 messages.append(parse_tool_call(tool, model))
                 messages.append(
                     {
@@ -751,32 +751,40 @@ class MultiAIClient:
             if output_str:
                 messages.append({"role": "assistant", "content": output_str})
 
-            for tool in final_tool_calls.values():
-                if tool.function is None:
-                    continue
+            queue = asyncio.Queue()
+
+            async def run_tool(tool: ChoiceDeltaToolCall) -> None:
+                tool_id = tool.id
                 function_name = tool.function.name
                 function_args = tool.function.arguments
-                tool_id = tool.id
-                if function_args is None or function_name is None or tool_id is None:
+                if not all([tool_id, function_name, function_args]):
+                    return
+                logger.info(
+                    f"Tool called for function `{function_name}` with args `{function_args}`"
+                )
+                async for res in execute_tools(function_name, function_args, tool_id):
+                    await queue.put((tool, res))
+                await queue.put((tool, None))
+
+            tasks = [
+                asyncio.create_task(run_tool(tool))
+                for tool in final_tool_calls.values()
+            ]
+            finished_tools = 0
+
+            while finished_tools < len(tasks):
+                tool, res = await queue.get()
+                if res is None:
+                    finished_tools += 1
                     continue
 
-                logger.info(
-                    f"Tool called for function `{function_name}` with the args `{function_args}`"
-                )
-
-                tool_result = None
-                tool_retrigger = False
-
-                async for res in execute_tools(function_name, function_args, tool_id):
-                    if isinstance(res, ToolItemContent):
-                        yield res.content
-                    else:
-                        tool_result, tool_retrigger = res.output, res.redo
-
-                if not tool_retrigger:
-                    retrigger_stream = False
-
-                update_messages_tools(tool, tool_result, messages, model)
+                if isinstance(res, ToolItemContent):
+                    yield res.content
+                else:
+                    tool_result, tool_retrigger = res.output, res.redo
+                    update_messages_tools(tool, tool_result, messages, model)
+                    if not tool_retrigger:
+                        retrigger_stream = False
 
             for res in fake_llm("\n", stream=False):
                 yield res
