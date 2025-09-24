@@ -22,6 +22,7 @@ from openai.types.chat import (
     ChatCompletionMessageToolCall,
 )
 from openai.types.chat.chat_completion_chunk import Choice, ChoiceDeltaToolCall
+from openai.types.responses import ParsedResponse
 
 from llmax.external_clients.clients import Client, get_aclient, get_client
 from llmax.messages import Messages
@@ -113,12 +114,29 @@ class MultiAIClient:
             self._aclients[model] = get_aclient(self.deployments[model])
         return self._aclients[model]
 
+    def clean_kwargs(self, kwargs: dict[str, Any], deployment: Deployment) -> dict[str, Any]:
+        """Clean kwargs to avoid errors."""
+        if "temperature" in kwargs and deployment.model in {"o3-mini", "o3-mini-high"}:
+            logger.warning("Temperature is not supported for this model.")
+            kwargs.pop("temperature")
+        if "text_format" in kwargs and deployment.model not in {"gpt'4o", "gpt-4o-mini", "gpt-4.1", "gpt-4.1-mini", "gpt-5", "gpt-5-mini", "gpt-5-turbo"}:
+            logger.warning("Text format is not supported for this model.")
+            kwargs.pop("text_format")
+        if "text_format" in kwargs and deployment.api_version < "2025-03-01-preview":
+            logger.warning("Text format is not supported for this API version.")
+            kwargs.pop("text_format")
+        if "reasoning_effort" in kwargs and deployment.model == "o3-mini-high":
+            logger.warning("Reasoning effort is not supported for this model.")
+            kwargs.pop("reasoning_effort")
+        return kwargs
+
+
     def _create_chat(
         self,
         messages: Messages,
         model: Model,
         **kwargs: Any,
-    ) -> ChatCompletion:
+    ) -> ChatCompletion | ParsedResponse[Any]:
         """Synchronously creates chat completions for the given messages and model.
 
         Args:
@@ -132,6 +150,15 @@ class MultiAIClient:
         client = self.client(model)
         deployment = self.deployments[model]
 
+        kwargs = self.clean_kwargs(kwargs, deployment)
+
+        if "text_format" in kwargs:
+            return client.responses.parse(
+                input=messages,
+                model=deployment.deployment_name,
+                **kwargs,
+            )
+
         return client.chat.completions.create(
             messages=messages,
             model=deployment.deployment_name,
@@ -143,7 +170,7 @@ class MultiAIClient:
         messages: Messages,
         model: Model,
         **kwargs: Any,
-    ) -> ChatCompletion:
+    ) -> ChatCompletion | ParsedResponse[Any]:
         """Asynchronously creates chat completions for the given messages and model.
 
         Args:
@@ -155,12 +182,23 @@ class MultiAIClient:
             ChatCompletion: The completion response from the API.
         """
         aclient = self.aclient(model)
-        result = await aclient.chat.completions.create(
+        deployment = self.deployments[model]
+
+        kwargs = self.clean_kwargs(kwargs, deployment)
+
+        if "text_format" in kwargs:
+            return await aclient.responses.parse(
+                input=messages,
+                model=deployment.deployment_name,
+                **kwargs,
+            )
+
+
+        return await aclient.chat.completions.create(
             messages=messages,
-            model=self.deployments[model].deployment_name,
+            model=deployment.deployment_name,
             **kwargs,
         )
-        return result
 
     def invoke(
         self,
@@ -170,7 +208,7 @@ class MultiAIClient:
         delay: float = 0.0,
         tries: int = 1,
         **kwargs: Any,
-    ) -> ChatCompletion:
+    ) -> ChatCompletion | ParsedResponse[Any]:
         """Synchronously invokes the API to get chat completions, tracking usage.
 
         Args:
@@ -186,15 +224,13 @@ class MultiAIClient:
         """
         start_time = time.time()
         operation: str = kwargs.pop("operation", "")
-        if "temperature" in kwargs and model in {"o3-mini", "o3-mini-high"}:
-            kwargs.pop("temperature")
         if system:
             messages = add_system_message(
                 messages=messages,
                 model=model,
                 system=system,
             )
-        response: ChatCompletion | None = None
+        response: ChatCompletion | ParsedResponse[Any] | None = None
         for _ in range(tries):
             try:
                 response = self._create_chat(messages, model, **kwargs, stream=False)
@@ -212,7 +248,16 @@ class MultiAIClient:
             message = "No usage for this request"
             raise ValueError(message)
         deployment = self.deployments[model]
-        usage = ModelUsage(deployment, self._increment_usage, response.usage)
+        response_usage = (
+            response.usage
+            if isinstance(response, ChatCompletion)
+            else CompletionUsage(
+                completion_tokens=response.usage.output_tokens,
+                prompt_tokens=response.usage.input_tokens,
+                total_tokens=response.usage.total_tokens,
+            )
+        )
+        usage = ModelUsage(deployment, self._increment_usage, response_usage)
 
         cost = usage.apply(
             operation=operation,
@@ -264,7 +309,7 @@ class MultiAIClient:
         delay: float = 0.0,
         tries: int = 1,
         **kwargs: Any,
-    ) -> ChatCompletion:
+    ) -> ChatCompletion | ParsedResponse[Any]:
         """Asynchronously invokes the API to get chat completions, tracking usage.
 
         Args:
@@ -280,8 +325,6 @@ class MultiAIClient:
         """
         start_time = time.time()
         operation: str = kwargs.pop("operation", "")
-        if "temperature" in kwargs and model in {"o3-mini", "o3-mini-high"}:
-            kwargs.pop("temperature")
         if system:
             messages = add_system_message(
                 messages=messages,
@@ -289,7 +332,7 @@ class MultiAIClient:
                 system=system,
             )
 
-        response: ChatCompletion | None = None
+        response: ChatCompletion | ParsedResponse[Any] | None = None
         for _ in range(tries):
             try:
                 response = await self._acreate_chat(
@@ -312,7 +355,16 @@ class MultiAIClient:
             message = "No usage for this request"
             raise ValueError(message)
         deployment = self.deployments[model]
-        usage = ModelUsage(deployment, self._increment_usage, response.usage)
+        response_usage = (
+            response.usage
+            if isinstance(response, ChatCompletion)
+            else CompletionUsage(
+                completion_tokens=response.usage.output_tokens,
+                prompt_tokens=response.usage.input_tokens,
+                total_tokens=response.usage.total_tokens,
+            )
+        )
+        usage = ModelUsage(deployment, self._increment_usage, response_usage)
 
         cost = usage.apply(
             operation=operation,
@@ -489,8 +541,6 @@ class MultiAIClient:
         start = time.time()
         ttft = None
         operation: str = kwargs.pop("operation", "")
-        if "temperature" in kwargs and model in {"o3-mini", "o3-mini-high"}:
-            kwargs.pop("temperature")
         if system:
             messages = add_system_message(
                 messages=messages,
@@ -499,8 +549,6 @@ class MultiAIClient:
             )
         try:
             if model == "o3-mini-high":
-                if "reasoning_effort" in kwargs:
-                    kwargs.pop("reasoning_effort")
                 response = self._create_chat(
                     messages,
                     "o3-mini",
@@ -959,8 +1007,6 @@ class MultiAIClient:
         """
         start = time.time()
         operation: str = kwargs.pop("operation", "")
-        if "temperature" in kwargs and model in {"o3-mini", "o3-mini-high"}:
-            kwargs.pop("temperature")
         client = self.client(model)
         deployment = self.deployments[model]
 
