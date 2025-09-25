@@ -299,7 +299,11 @@ class MultiAIClient:
             tries=tries,
             **kwargs,
         )
-        return response.choices[0].message.content if response.choices else None
+        if isinstance(response, ChatCompletion):
+            return response.choices[0].message.content if response.choices else None
+        if not response :
+            return None
+        return response.output[0].content[0].text if response.output else None
 
     async def ainvoke(
         self,
@@ -406,7 +410,9 @@ class MultiAIClient:
             system=system,
             **kwargs,
         )
-        return response.choices[0].message.content if response.choices else None
+        if isinstance(response, ChatCompletion):
+            return response.choices[0].message.content if response.choices else None
+        return response.output[0].content[0].text if response.output else None
 
     async def ainvoke_get_tools(
         self,
