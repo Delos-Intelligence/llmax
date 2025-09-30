@@ -48,6 +48,7 @@ AnthropicModel = Literal[
     "claude-3-haiku",
     "claude-3.7-sonnet",
     "claude-4-sonnet",
+    "claude-4.5-sonnet",
 ]
 
 
