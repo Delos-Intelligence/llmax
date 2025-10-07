@@ -21,6 +21,7 @@ MistralModel = Literal[
 OpenAIModel = Literal[
     "ada-v2",
     "dall-e-3",
+    "gpt-image-1",
     "gpt-3.5",
     "gpt-4",
     "gpt-4-turbo",
@@ -63,7 +64,7 @@ LLModel = Union[
 
 SpeechToTextModel = Literal["whisper-1", "gpt-4o-transcribe"]
 
-ImageGenerationModel = Literal["dall-e-3",]
+ImageGenerationModel = Literal["dall-e-3", "gpt-image-1"]
 
 TextToSpeechModel = Literal["tts-1",]
 
