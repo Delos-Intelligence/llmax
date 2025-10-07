@@ -998,7 +998,7 @@ class MultiAIClient:
         self,
         model: Model,
         prompt: str,
-        size: Literal["1024x1024", "1024x1792", "1792x1024"] = "1024x1024",
+        size: Literal["1024x1024", "1024x1536", "1536x1024"] = "1024x1024",
         quality: Literal["low", "medium", "high", "auto"] = "medium",
         n: int = 1,
         **kwargs: Any,

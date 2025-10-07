@@ -94,7 +94,7 @@ class ModelUsage:
     def add_image(
         self,
         quality: Literal["low", "medium", "high", "auto"],
-        size: Literal["1024x1024", "1024x1792", "1792x1024"],
+        size: Literal["1024x1024", "1024x1536", "1536x1024"],
         n: int = 1,
     ) -> None:
         """Adds image pricing to the usage statistics for image generation models.
