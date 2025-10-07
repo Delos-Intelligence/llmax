@@ -93,7 +93,7 @@ class ModelUsage:
 
     def add_image(
         self,
-        quality: Literal["standard", "hd"],
+        quality: Literal["low", "medium", "high", "auto"],
         size: Literal["1024x1024", "1024x1792", "1792x1024"],
         n: int = 1,
     ) -> None:
@@ -105,7 +105,7 @@ class ModelUsage:
             n: The number of generated images.
         """
         count = 1
-        if quality == "hd":
+        if quality == "high":
             count += 1
         if size != "1024x1024":
             count += 1

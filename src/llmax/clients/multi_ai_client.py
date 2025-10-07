@@ -5,6 +5,7 @@ synchronous and asynchronous operations.
 """
 
 import asyncio
+import base64
 import json
 import threading
 import time
@@ -114,12 +115,24 @@ class MultiAIClient:
             self._aclients[model] = get_aclient(self.deployments[model])
         return self._aclients[model]
 
-    def clean_kwargs(self, kwargs: dict[str, Any], deployment: Deployment) -> dict[str, Any]:
+    def clean_kwargs(
+        self,
+        kwargs: dict[str, Any],
+        deployment: Deployment,
+    ) -> dict[str, Any]:
         """Clean kwargs to avoid errors."""
         if "temperature" in kwargs and deployment.model in {"o3-mini", "o3-mini-high"}:
             logger.warning("Temperature is not supported for this model.")
             kwargs.pop("temperature")
-        if "text_format" in kwargs and deployment.model not in {"gpt'4o", "gpt-4o-mini", "gpt-4.1", "gpt-4.1-mini", "gpt-5", "gpt-5-mini", "gpt-5-turbo"}:
+        if "text_format" in kwargs and deployment.model not in {
+            "gpt'4o",
+            "gpt-4o-mini",
+            "gpt-4.1",
+            "gpt-4.1-mini",
+            "gpt-5",
+            "gpt-5-mini",
+            "gpt-5-turbo",
+        }:
             logger.warning("Text format is not supported for this model.")
             kwargs.pop("text_format")
         if "text_format" in kwargs and deployment.api_version < "2025-03-01-preview":
@@ -129,7 +142,6 @@ class MultiAIClient:
             logger.warning("Reasoning effort is not supported for this model.")
             kwargs.pop("reasoning_effort")
         return kwargs
-
 
     def _create_chat(
         self,
@@ -192,7 +204,6 @@ class MultiAIClient:
                 model=deployment.deployment_name,
                 **kwargs,
             )
-
 
         return await aclient.chat.completions.create(
             messages=messages,
@@ -301,7 +312,7 @@ class MultiAIClient:
         )
         if isinstance(response, ChatCompletion):
             return response.choices[0].message.content if response.choices else None
-        if not response :
+        if not response:
             return None
         return response.output[0].content[0].text if response.output else None
 
@@ -814,7 +825,7 @@ class MultiAIClient:
                 if not all([tool_id, function_name, function_args]):
                     return
                 logger.info(
-                    f"Tool called for function `{function_name}` with args `{function_args}`"
+                    f"Tool called for function `{function_name}` with args `{function_args}`",
                 )
                 async for res in execute_tools(function_name, function_args, tool_id):
                     await queue.put((tool, res))
@@ -941,6 +952,7 @@ class MultiAIClient:
             file: The audio data to process.
             model: The model to use for processing the audio.
             response_format: for gpt-4o-transcribe, you cannot pass verbose_json.
+            duration: duration of the audio, if known.
             kwargs: Additional arguments to pass to the API.
 
         Returns:
@@ -982,15 +994,15 @@ class MultiAIClient:
 
         return response
 
-    def text_to_image(
+    async def text_to_image(
         self,
         model: Model,
         prompt: str,
         size: Literal["1024x1024", "1024x1792", "1792x1024"] = "1024x1024",
-        quality: Literal["standard", "hd"] = "standard",
+        quality: Literal["low", "medium", "high", "auto"] = "medium",
         n: int = 1,
         **kwargs: Any,
-    ) -> str:
+    ) -> bytes:
         """Generate images from a text prompt using the specified model.
 
         Parameters:
@@ -1013,10 +1025,10 @@ class MultiAIClient:
         """
         start = time.time()
         operation: str = kwargs.pop("operation", "")
-        client = self.client(model)
+        client = self.aclient(model)
         deployment = self.deployments[model]
 
-        response = client.images.generate(
+        response = await client.images.generate(
             model=deployment.deployment_name,
             prompt=prompt,
             size=size,
@@ -1040,7 +1052,8 @@ class MultiAIClient:
         self.total_usage += cost
         self.usages.append(usage)
 
-        return response.data[0].url
+        image_base64 = response.data[0].b64_json
+        return base64.b64decode(image_base64)
 
     def text_to_speech(
         self,
