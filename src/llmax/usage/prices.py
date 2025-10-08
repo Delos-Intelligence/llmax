@@ -86,7 +86,7 @@ TRANSCRIPTION_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
 
 GENERATION_PRICE_BASE: dict[Model, float | dict[Provider, float]] = {
     "dall-e-3": 0.04,
-    "gpt-image-1": 0.04,
+    "gpt-image-1": 0.08,
 }
 
 GENERATION_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {

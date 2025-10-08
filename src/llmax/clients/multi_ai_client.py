@@ -1003,26 +1003,7 @@ class MultiAIClient:
         n: int = 1,
         **kwargs: Any,
     ) -> bytes:
-        """Generate images from a text prompt using the specified model.
-
-        Parameters:
-        - model (Model): The model to be used for generating images.
-        - prompt (str): The text prompt that describes the image to be generated.
-        - size (Literal["1024x1024", "1024x1792", "1792x1024"]): The size of the generated image.
-        Default is "1024x1024".
-        - quality (Literal["standard", "hd"]): The quality of the generated image.
-        Default is "hd".
-        - n (int): The number of images to generate. Default is 1.
-        - **kwargs (Any): Additional keyword arguments for further customization.
-
-        Returns:
-        - None: This function does not return any value. It performs the image generation
-        operation and may handle side effects like saving or displaying the generated
-        images based on the implementation.
-
-        Raises:
-        - Any relevant exceptions that may occur during the image generation process.
-        """
+        """Generate images from a text prompt using the specified model."""
         start = time.time()
         operation: str = kwargs.pop("operation", "")
         client = self.aclient(model)
@@ -1052,6 +1033,50 @@ class MultiAIClient:
         self.total_usage += cost
         self.usages.append(usage)
 
+        image_base64 = response.data[0].b64_json
+        return base64.b64decode(image_base64)
+
+    async def edit_image(  # noqa: PLR0913
+        self,
+        model: Model,
+        prompt: str,
+        image: tuple[str, bytes, str],
+        size: Literal["1024x1024", "1024x1536", "1536x1024"] = "1024x1024",
+        quality: Literal["low", "medium", "high", "auto"] = "medium",
+        n: int = 1,
+        **kwargs: Any,
+    ) -> bytes:
+        """Edit an image using the specified model and a text prompt."""
+        start = time.time()
+        operation: str = kwargs.pop("operation", "")
+        client = self.aclient(model)
+        deployment = self.deployments[model]
+
+        response = await client.images.edit(
+            model=deployment.deployment_name,
+            prompt=prompt,
+            image=image,
+            size=size,
+            quality=quality,
+            n=n,
+        )
+        duration = time.time() - start
+
+        usage = ModelUsage(deployment, self._increment_usage)
+        usage.add_image(
+            quality=quality,
+            size=size,
+            n=n,
+        )
+        cost = usage.apply(
+            operation=operation,
+            duration=duration,
+            ttft=None,
+        )
+        self.total_usage += cost
+        self.usages.append(usage)
+
+        # --- Récupération de l'image ---
         image_base64 = response.data[0].b64_json
         return base64.b64decode(image_base64)
 
