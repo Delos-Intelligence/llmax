@@ -24,7 +24,9 @@ PROMPT_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "command-r-plus": 3.0,
     "google/gemini-1.5-flash-002": 0.075,
     "google/gemini-1.5-pro-002": 1.25,
-    "llama-3-70b-instruct": 3.78,
+    "llama-3-70b-instruct": 3.78,                           # To be checked
+    "llama-4-scout-17b-16e-instruct": 0.275,                # To be checked
+    "llama-4-maverick-17b-128e-instruct-fp8": 0.275,        # To be checked
     "mistral-large": 4.0,
     "mistral-large-2411": 2.0,
     "mistral-small": 1.0,
@@ -34,6 +36,7 @@ PROMPT_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "gpt-5-chat": 1.25,
     "gpt-5-mini": 0.25,
     "gpt-5-nano": 0.05,
+    "gpt-oss-120b": 0.85,
 }
 
 CACHED_PROMPT_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
@@ -48,6 +51,7 @@ CACHED_PROMPT_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "gpt-5-chat": 0.125,
     "gpt-5-mini": 0.025,
     "gpt-5-nano": 0.005,
+    "gpt-oss-120b": 0.85,
 }
 
 COMPLETION_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
@@ -70,6 +74,8 @@ COMPLETION_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "google/gemini-1.5-flash-002": 0.3,
     "google/gemini-1.5-pro-002": 5.0,
     "llama-3-70b-instruct": 11.34,
+    "llama-4-scout-17b-16e-instruct": 1.1,                # To be checked
+    "llama-4-maverick-17b-128e-instruct-fp8": 1.1,        # To be checked
     "mistral-large": 12.0,
     "mistral-large-2411": 6.0,
     "mistral-small": 3.0,
@@ -77,6 +83,7 @@ COMPLETION_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "gpt-5-chat": 10.00,
     "gpt-5-mini": 2.00,
     "gpt-5-nano": 0.40,
+    "gpt-oss-120b": 0.85,
 }
 
 TRANSCRIPTION_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
