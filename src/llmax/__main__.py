@@ -59,6 +59,20 @@ def main(model: Model, question: str, file_path: str) -> None:
             api_key=os.getenv("LLMAX_AZURE_LLAMA_3_70B_INSTRUCT_KEY", ""),
             endpoint=os.getenv("LLMAX_AZURE_LLAMA_3_70B_INSTRUCT_ENDPOINT", ""),
         ),
+        "llama-4-scout-17b-16e-instruct": Deployment(
+            model="llama-4-scout-17b-16e-instruct",
+            provider="azure",
+            deployment_name="llama-4-scout-17b-16e-instruct",
+            api_key=os.getenv("LLMAX_AZURE_LLAMA_4_SCOUT_17B_16E_INSTRUCT_KEY", ""),
+            endpoint=os.getenv("LLMAX_AZURE_LLAMA_4_SCOUT_17B_16E_INSTRUCT_ENDPOINT", ""),
+        ),
+        "llama-4-maverick-17b-128e-instruct-fp8": Deployment(
+            model="llama-4-maverick-17b-128e-instruct-fp8",
+            provider="azure",
+            deployment_name="llama-4-maverick-17b-128e-instruct-fp8",
+            api_key=os.getenv("LLMAX_AZURE_LLAMA_4_MAVERICK_17B_128E_INSTRUCT_KEY", ""),
+            endpoint=os.getenv("LLMAX_AZURE_LLAMA_4_MAVERICK_17B_128E_INSTRUCT_ENDPOINT", ""),
+        ),
         "whisper-1": Deployment(
             model="whisper-1",
             provider="azure",
