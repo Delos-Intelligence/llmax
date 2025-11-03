@@ -793,6 +793,14 @@ class MultiAIClient:
                 or token_count <= max_tokens_before_tool_use
             )
 
+            if not allow_tools:
+                messages.append(
+                    {
+                        "role": "user",
+                        "content": "You can no longer call any tools due to the size of the context. With the curent information, answer the user question directly.",
+                    },
+                )
+
             async for item in self.stream_output(
                 messages=messages,
                 model=model,
