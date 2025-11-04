@@ -865,6 +865,46 @@ class MultiAIClient:
             if not retrigger_stream:
                 break
 
+    async def aembedder(
+        self,
+        texts: list[str],
+        model: Model,
+        **kwargs: Any,
+    ) -> list[Embedding]:
+        """Asynchronously obtains vector embeddings for a list of texts.
+
+        Args:
+            texts: The texts to generate embeddings for.
+            model: The embedding model.
+            kwargs: Additional arguments.
+
+        Returns:
+            List[Embedding]: The embeddings for each text.
+        """
+        start = time.time()
+        operation: str = kwargs.pop("operation", "")
+        texts = [text.replace("\n", " ") for text in texts]
+
+        client = self.aclient(model)
+        deployment = self.deployments[model]
+
+        response = await client.embeddings.create(
+            input=texts,
+            model=deployment.deployment_name,
+        )
+
+        duration = time.time() - start
+
+        usage = ModelUsage(deployment, self._increment_usage)
+        usage.add_tokens(prompt_tokens=response.usage.prompt_tokens)
+
+        cost = usage.apply(operation=operation, duration=duration, ttft=None)
+        self.total_usage += cost
+        self.usages.append(usage)
+
+        embeddings = response.data
+        return embeddings
+
     def embedder(
         self,
         texts: list[str],
