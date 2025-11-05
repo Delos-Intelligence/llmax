@@ -50,6 +50,26 @@ from llmax.utils import (
 )
 
 
+async def _default_get_usage() -> float:
+    return 0.0
+
+
+async def _default_increment_usage(
+    _usage: float,
+    _model: Model,
+    _user_id: str,
+    _cost: float,
+    _limit: float | None,
+    _retries: int,
+    _window: int,
+    _context: str,
+    _action: str,
+    _mode: str,
+    _code: int,
+) -> bool:
+    return True
+
+
 class MultiAIClient:
     """Class to interface with multiple LLMs and AI models.
 
@@ -67,11 +87,11 @@ class MultiAIClient:
     def __init__(
         self,
         deployments: dict[Model, Deployment],
-        get_usage: Callable[[], float] = lambda: 0.0,
+        get_usage: Callable[[], Awaitable[float]] = _default_get_usage,
         increment_usage: Callable[
             [float, Model, str, float, float | None, int, int, str, str, str, int],
-            bool,
-        ] = lambda _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11: True,
+            Awaitable[bool],
+        ] = _default_increment_usage,
     ) -> None:
         """Initializes the MultiAIClient class.
 
@@ -233,8 +253,10 @@ class MultiAIClient:
         Returns:
             ChatCompletion: The API response containing the chat completions.
         """
-        start_time = time.time()
-        operation: str = kwargs.pop("operation", "")
+        logger.error(
+            "[bold purple][LLMAX][/bold purple] Deprecated function `invoke`, use the async one instead.",
+        )
+        kwargs.pop("operation", "")
         if system:
             messages = add_system_message(
                 messages=messages,
@@ -253,30 +275,6 @@ class MultiAIClient:
         if response is None:
             message = "Rate Limit error"
             raise ValueError(message)
-
-        duration = time.time() - start_time
-        if not response.usage:
-            message = "No usage for this request"
-            raise ValueError(message)
-        deployment = self.deployments[model]
-        response_usage = (
-            response.usage
-            if isinstance(response, ChatCompletion)
-            else CompletionUsage(
-                completion_tokens=response.usage.output_tokens,
-                prompt_tokens=response.usage.input_tokens,
-                total_tokens=response.usage.total_tokens,
-            )
-        )
-        usage = ModelUsage(deployment, self._increment_usage, response_usage)
-
-        cost = usage.apply(
-            operation=operation,
-            duration=duration,
-            ttft=None,
-        )
-        self.total_usage += cost
-        self.usages.append(usage)
 
         return response
 
@@ -381,7 +379,7 @@ class MultiAIClient:
         )
         usage = ModelUsage(deployment, self._increment_usage, response_usage)
 
-        cost = usage.apply(
+        cost = await usage.apply(
             operation=operation,
             duration=duration,
             ttft=None,
@@ -543,7 +541,7 @@ class MultiAIClient:
         model: Model,
         system: str | None = None,
         **kwargs: Any,
-    ) -> Generator[ChatCompletionChunk, None, None]:
+    ) -> Generator[ChatCompletionChunk | CompletionUsage, None, None]:
         """Streams chat completions, allowing responses to be received in chunks.
 
         Args:
@@ -555,9 +553,6 @@ class MultiAIClient:
         Yields:
             ChatCompletionChunk: Individual chunks of the completion response.
         """
-        start = time.time()
-        ttft = None
-        operation: str = kwargs.pop("operation", "")
         if system:
             messages = add_system_message(
                 messages=messages,
@@ -587,35 +582,18 @@ class MultiAIClient:
                 )
         except BadRequestError:
             return
-        deployment = self.deployments[model]
-
-        chunk_usage: CompletionUsage = CompletionUsage(
-            completion_tokens=0,
-            prompt_tokens=0,
-            total_tokens=0,
-        )
 
         for chunk in response:
-            if chunk.usage:
-                chunk_usage = chunk.usage
+            if isinstance(chunk.usage, CompletionUsage):
+                yield chunk.usage
             try:
                 if len(chunk.choices) == 0:  # type: ignore
                     continue
-                if chunk.choices[0].delta.content and ttft is None:  # type: ignore
-                    ttft = time.time() - start
             except Exception as e:
                 logger.debug(f"Error in llmax streaming : {e}")
             yield chunk  # type: ignore
 
-        usage = ModelUsage(deployment, self._increment_usage, chunk_usage)
-
-        duration = time.time() - start
-
-        cost = usage.apply(operation=operation, ttft=ttft, duration=duration)
-        self.total_usage += cost
-        self.usages.append(usage)
-
-    async def stream_output_smooth(  # noqa: C901
+    async def stream_output_smooth(  # noqa: C901, PLR0915
         self,
         messages: Messages,
         model: Model,
@@ -641,6 +619,16 @@ class MultiAIClient:
             str: Formatted output for each chunk.
         """
         output_queue: Queue[list[Choice] | Exception | None] = Queue()
+        chunk_usage: CompletionUsage = CompletionUsage(
+            completion_tokens=0,
+            prompt_tokens=0,
+            total_tokens=0,
+        )
+
+        # Track timing for usage
+        start = time.time()
+        ttft = None
+        operation: str = kwargs.pop("operation", "")
 
         for chunk in fake_llm(
             "",
@@ -651,6 +639,7 @@ class MultiAIClient:
             yield StreamItemContent(content=chunk)
 
         def collect_chunks() -> None:
+            nonlocal chunk_usage, ttft
             try:
                 for completion_chunk in self.stream(
                     messages,
@@ -658,7 +647,17 @@ class MultiAIClient:
                     system=system,
                     **kwargs,
                 ):
-                    output_queue.put(completion_chunk.choices)
+                    if isinstance(completion_chunk, CompletionUsage):
+                        chunk_usage = completion_chunk
+                    else:
+                        # Track time to first token
+                        if (
+                            ttft is None
+                            and len(completion_chunk.choices) > 0
+                            and completion_chunk.choices[0].delta.content
+                        ):
+                            ttft = time.time() - start
+                        output_queue.put(completion_chunk.choices)
             except Exception as e:
                 output_queue.put(e)
             finally:
@@ -708,6 +707,15 @@ class MultiAIClient:
             await asyncio.sleep(smooth_duration / 1000)
 
         await loop.run_in_executor(None, collector.join)
+
+        deployment = self.deployments[model]
+        usage = ModelUsage(deployment, self._increment_usage, chunk_usage)
+
+        duration = time.time() - start
+
+        cost = await usage.apply(operation=operation, ttft=ttft, duration=duration)
+        self.total_usage += cost
+        self.usages.append(usage)
 
         yield StreamItemOutput(tools=final_tool_calls, output=final_output)
 
@@ -898,7 +906,7 @@ class MultiAIClient:
         usage = ModelUsage(deployment, self._increment_usage)
         usage.add_tokens(prompt_tokens=response.usage.prompt_tokens)
 
-        cost = usage.apply(operation=operation, duration=duration, ttft=None)
+        cost = await usage.apply(operation=operation, duration=duration, ttft=None)
         self.total_usage += cost
         self.usages.append(usage)
 
@@ -921,8 +929,10 @@ class MultiAIClient:
         Returns:
             list[Embedding]: The embeddings for each text.
         """
-        start = time.time()
-        operation: str = kwargs.pop("operation", "")
+        logger.error(
+            "[bold purple][LLMAX][/bold purple] Deprecated function `embedder`, use the async one instead.",
+        )
+        kwargs.pop("operation", "")
         texts = [text.replace("\n", " ") for text in texts]
 
         client = self.client(model)
@@ -932,14 +942,6 @@ class MultiAIClient:
             input=texts,
             model=deployment.deployment_name,
         )
-        duration = time.time() - start
-
-        usage = ModelUsage(deployment, self._increment_usage)
-        usage.add_tokens(prompt_tokens=response.usage.prompt_tokens)
-
-        cost = usage.apply(operation=operation, duration=duration, ttft=None)
-        self.total_usage += cost
-        self.usages.append(usage)
 
         embeddings = response.data
         return embeddings
@@ -960,8 +962,10 @@ class MultiAIClient:
         Returns:
             Any: The response from the API.
         """
-        start = time.time()
-        operation: str = kwargs.pop("operation", "")
+        logger.error(
+            "[bold purple][LLMAX][/bold purple] Deprecated function `speech_to_text`, use the async one instead.",
+        )
+        kwargs.pop("operation", "")
         client = self.client(model)
         deployment = self.deployments[model]
 
@@ -971,18 +975,6 @@ class MultiAIClient:
             response_format="verbose_json",
             **kwargs,
         )
-        duration = time.time() - start
-
-        usage = ModelUsage(deployment, self._increment_usage)
-        usage.add_audio_duration(response.duration)
-
-        cost = usage.apply(
-            operation=operation,
-            duration=duration,
-            ttft=None,
-        )
-        self.total_usage += cost
-        self.usages.append(usage)
 
         return response
 
@@ -1032,7 +1024,7 @@ class MultiAIClient:
 
         usage.add_audio_duration(response_duration)
 
-        cost = usage.apply(
+        cost = await usage.apply(
             operation=operation,
             duration=duration,
             ttft=None,
@@ -1073,7 +1065,7 @@ class MultiAIClient:
             n=n,
         )
 
-        cost = usage.apply(
+        cost = await usage.apply(
             operation=operation,
             duration=duration,
             ttft=None,
@@ -1116,7 +1108,7 @@ class MultiAIClient:
             size=size,
             n=n,
         )
-        cost = usage.apply(
+        cost = await usage.apply(
             operation=operation,
             duration=duration,
             ttft=None,
@@ -1148,8 +1140,10 @@ class MultiAIClient:
         Raises:
         - Any relevant exceptions that may occur during the audio generation process.
         """
-        operation: str = kwargs.pop("operation", "")
-        start = time.time()
+        logger.error(
+            "[bold purple][LLMAX][/bold purple] Deprecated function `text_to_speech`, create the async one instead.",
+        )
+        kwargs.pop("operation", "")
         client = self.client(model)
         deployment = self.deployments[model]
         response = client.audio.speech.create(
@@ -1159,12 +1153,7 @@ class MultiAIClient:
             **kwargs,
         )
         response.stream_to_file(path)
-        duration = time.time() - start
-        usage = ModelUsage(deployment, self._increment_usage)
-        usage.add_tts(text)
-        cost = usage.apply(operation=operation, duration=duration, ttft=None)
-        self.total_usage += cost
-        self.usages.append(usage)
+
         return path
 
 
