@@ -634,7 +634,6 @@ class MultiAIClient:
             "",
             stream=False,
             send_empty=True,
-            beta=beta,
         ):
             yield StreamItemContent(content=chunk)
 

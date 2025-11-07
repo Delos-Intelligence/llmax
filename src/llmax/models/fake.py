@@ -3,12 +3,11 @@
 import json
 import random
 import time
-from typing import Generator
+from collections.abc import Generator
+from typing import Any
 
 from openai.types.chat import ChatCompletionChunk
 from openai.types.chat.chat_completion_chunk import Choice, ChoiceDelta
-
-from llmax.models.models import Model
 
 
 def to_completion_chunk(message: str, model: str) -> ChatCompletionChunk:
@@ -28,40 +27,35 @@ def to_completion_chunk(message: str, model: str) -> ChatCompletionChunk:
     )
 
 
-def fake_llm(  # noqa: PLR0913, PLR0917
+def fake_llm(
     message: str,
-    model: Model = "gpt-4-turbo",
     stream: bool = True,
-    done: bool = False,
     send_empty: bool = False,
-    beta: bool = True,
 ) -> Generator[str, None, None]:
     """Generate fake LLM messages."""
-    if beta:
-        if send_empty:
-            yield f"0: {json.dumps('', separators=(',', ':'))}\n\n"
-            return
-
-        if stream:
-            for word in message.split(" "):
-                yield f"0: {json.dumps(word, separators=(',', ':'))}\n\n"
-                time.sleep(0.1 * random.random())
-        else:
-            yield f"0: {json.dumps(message, separators=(',', ':'))}\n\n"
-        return
-
     if send_empty:
-        completion_chunk = to_completion_chunk("", model)
-        yield f"data: {completion_chunk.model_dump_json(exclude_unset=True)}\n\n"
+        yield f"0: {json.dumps('', separators=(',', ':'))}\n\n"
         return
 
     if stream:
         for word in message.split(" "):
-            completion_chunk = to_completion_chunk(word, model)
-            yield f"data: {completion_chunk.model_dump_json(exclude_unset=True)}\n\n"
+            yield f"0: {json.dumps(word, separators=(',', ':'))}\n\n"
             time.sleep(0.1 * random.random())
     else:
-        completion_chunk = to_completion_chunk(message, model)
-        yield f"data: {completion_chunk.model_dump_json(exclude_unset=True)}\n\n"
-    if done:
-        yield "data: [DONE]\n\n"
+        yield f"0: {json.dumps(message, separators=(',', ':'))}\n\n"
+    return
+
+
+def fake_tool_llm(
+    tool_name: str,
+    tool_id: str,
+    args: dict[str, Any],
+) -> str:
+    """Generate fake LLM messages compatible with useChat."""
+    tool_call = {
+        "toolCallId": tool_id,
+        "toolName": tool_name,
+        "args": args,
+    }
+
+    return f"9:{json.dumps(tool_call, separators=(',', ':'))}\n\n"
