@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Callable, Generator, Iterable
+from typing import TYPE_CHECKING, Any, Callable
 
 if TYPE_CHECKING:
+    from collections.abc import Generator, Iterable
+
     from openai.types.chat import ChatCompletion, ChatCompletionChunk
 
     from llmax.external_clients.universal_client.chat_completion_message import (

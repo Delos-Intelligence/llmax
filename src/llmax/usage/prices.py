@@ -24,9 +24,9 @@ PROMPT_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "command-r-plus": 3.0,
     "google/gemini-1.5-flash-002": 0.075,
     "google/gemini-1.5-pro-002": 1.25,
-    "llama-3-70b-instruct": 3.78,                           # To be checked
-    "llama-4-scout-17b-16e-instruct": 0.275,                # To be checked
-    "llama-4-maverick-17b-128e-instruct-fp8": 0.275,        # To be checked
+    "llama-3-70b-instruct": 3.78,  # To be checked
+    "llama-4-scout-17b-16e-instruct": 0.275,  # To be checked
+    "llama-4-maverick-17b-128e-instruct-fp8": 0.275,  # To be checked
     "mistral-large": 4.0,
     "mistral-large-2411": 2.0,
     "mistral-small": 1.0,
@@ -74,8 +74,8 @@ COMPLETION_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "google/gemini-1.5-flash-002": 0.3,
     "google/gemini-1.5-pro-002": 5.0,
     "llama-3-70b-instruct": 11.34,
-    "llama-4-scout-17b-16e-instruct": 1.1,                # To be checked
-    "llama-4-maverick-17b-128e-instruct-fp8": 1.1,        # To be checked
+    "llama-4-scout-17b-16e-instruct": 1.1,  # To be checked
+    "llama-4-maverick-17b-128e-instruct-fp8": 1.1,  # To be checked
     "mistral-large": 12.0,
     "mistral-large-2411": 6.0,
     "mistral-small": 3.0,
