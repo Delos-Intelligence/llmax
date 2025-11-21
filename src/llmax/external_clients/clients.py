@@ -2,6 +2,8 @@
 
 from typing import Any
 
+import httpx
+
 from llmax.external_clients.exceptions import ClientNotFoundError
 from llmax.models import Deployment
 from llmax.models.models import (
@@ -18,37 +20,61 @@ from . import anthropic, cohere, gemini, meta, mistral, openai
 Client = Any
 
 
-def get_client(deployment: Deployment) -> Client:
-    """Get a client for the given deployment."""
+def get_client(
+    deployment: Deployment,
+    http_client: httpx.Client | None = None,
+) -> Client:
+    """Get a client for the given deployment.
+
+    Args:
+        deployment: The deployment configuration
+        http_client: Optional httpx client for OpenAI/Azure providers
+
+    Returns:
+        The client for the deployment
+    """
     deployment.validate()
     match deployment.model:
         case model if model in OPENAI_MODELS:
-            return openai.get_client(deployment)
+            return openai.get_client(deployment, http_client=http_client)
         case model if model in MISTRAL_MODELS:
-            return mistral.get_client(deployment)
+            return mistral.get_client(deployment, http_client=http_client)
         case model if model in COHERE_MODELS:
-            return cohere.get_client(deployment)
+            return cohere.get_client(deployment, http_client=http_client)
         case model if model in META_MODELS:
-            return meta.get_client(deployment)
+            return meta.get_client(deployment, http_client=http_client)
         case model if model in ANTHROPIC_MODELS:
             return anthropic.get_client(deployment)
         case model if model in GEMINI_MODELS:
-            return gemini.get_client(deployment)
+            return gemini.get_client(deployment, http_client=http_client)
         case _:
             raise ClientNotFoundError(deployment)
 
 
-def get_aclient(deployment: Deployment) -> Client:
-    """Get an async client for the given deployment."""
+def get_aclient(
+    deployment: Deployment,
+    http_client: httpx.AsyncClient | None = None,
+) -> Client:
+    """Get an async client for the given deployment.
+
+    Args:
+        deployment: The deployment configuration
+        http_client: Optional async httpx client for OpenAI/Azure providers
+
+    Returns:
+        The async client for the deployment
+    """
     deployment.validate()
     match deployment.model:
         case model if model in OPENAI_MODELS:
-            return openai.get_aclient(deployment)
+            return openai.get_aclient(deployment, http_client=http_client)
         case model if model in MISTRAL_MODELS:
-            return mistral.get_aclient(deployment)
+            return mistral.get_aclient(deployment, http_client=http_client)
         case model if model in COHERE_MODELS:
-            return cohere.get_aclient(deployment)
+            return cohere.get_aclient(deployment, http_client=http_client)
         case model if model in META_MODELS:
-            return meta.get_aclient(deployment)
+            return meta.get_aclient(deployment, http_client=http_client)
+        case model if model in GEMINI_MODELS:
+            return gemini.get_aclient(deployment, http_client=http_client)
         case _:
             raise ClientNotFoundError(deployment)

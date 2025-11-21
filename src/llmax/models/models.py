@@ -10,7 +10,8 @@ CohereModel = Literal[
 MetaModel = Literal[
     "llama-3-70b-instruct",
     "llama-4-scout-17b-16e-instruct",
-    "llama-4-maverick-17b-128e-instruct-fp8",]
+    "llama-4-maverick-17b-128e-instruct-fp8",
+]
 
 GeminiModel = Literal["google/gemini-1.5-flash-002", "google/gemini-1.5-pro-002"]
 

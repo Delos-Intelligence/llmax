@@ -14,6 +14,7 @@ from io import BufferedReader, BytesIO
 from queue import Queue
 from typing import Any, Callable, Literal
 
+import httpx
 from openai import NOT_GIVEN, BadRequestError, RateLimitError
 from openai.types import CompletionUsage, Embedding
 from openai.types.audio import Transcription, TranscriptionVerbose
@@ -92,6 +93,8 @@ class MultiAIClient:
             [float, Model, str, float, float | None, int, int, str, str, str, int],
             Awaitable[bool],
         ] = _default_increment_usage,
+        httpx_client: httpx.Client | None = None,
+        httpx_aclient: httpx.AsyncClient | None = None,
     ) -> None:
         """Initializes the MultiAIClient class.
 
@@ -99,10 +102,14 @@ class MultiAIClient:
             deployments: A mapping from models to their deployment objects.
             get_usage: A function to get the current usage.
             increment_usage: A function to increment usage.
+            httpx_client: Optional shared sync httpx client to prevent OpenAI SDK memory leaks.
+            httpx_aclient: Optional shared async httpx client to prevent OpenAI SDK memory leaks.
         """
         self.deployments = deployments
         self._get_usage = get_usage
         self._increment_usage = increment_usage
+        self._httpx_client = httpx_client
+        self._httpx_aclient = httpx_aclient
         self.total_usage: float = 0
         self.usages: list[ModelUsage] = []
 
@@ -119,7 +126,10 @@ class MultiAIClient:
             The client object for the specified model.
         """
         if model not in self._clients:
-            self._clients[model] = get_client(self.deployments[model])
+            self._clients[model] = get_client(
+                self.deployments[model],
+                http_client=self._httpx_client,
+            )
         return self._clients[model]
 
     def aclient(self, model: Model) -> Client:
@@ -132,7 +142,10 @@ class MultiAIClient:
             The asynchronous client object for the specified model.
         """
         if model not in self._aclients:
-            self._aclients[model] = get_aclient(self.deployments[model])
+            self._aclients[model] = get_aclient(
+                self.deployments[model],
+                http_client=self._httpx_aclient,
+            )
         return self._aclients[model]
 
     def clean_kwargs(
@@ -599,7 +612,6 @@ class MultiAIClient:
         model: Model,
         smooth_duration: int,
         system: str | None = None,
-        beta: bool = True,
         **kwargs: Any,
     ) -> AsyncGenerator[StreamedItem, None]:
         """Streams formatted output from the chat completions.
@@ -612,7 +624,6 @@ class MultiAIClient:
             model: The model to use for generating the chat completions.
             system: A string that will be passed as a system prompt.
             smooth_duration: The duration in ms to wait before trying to send another chunk.
-            beta: Whether to use the beta chat for vercel streaming
             kwargs: More args.
 
         Yields:
@@ -724,7 +735,6 @@ class MultiAIClient:
         model: Model,
         system: str | None = None,
         smooth_duration: int | None = None,
-        beta: bool = True,
         **kwargs: Any,
     ) -> AsyncGenerator[StreamedItem, None]:
         """Streams formatted output from the chat completions.
@@ -737,7 +747,6 @@ class MultiAIClient:
             model: The model to use for generating the chat completions.
             system: A string that will be passed as a system prompt.
             smooth_duration: The duration in ms to wait before trying to send another chunk.
-            beta: whether or not to use the new chat version of vercel.
             kwargs: More args.
 
         Yields:
@@ -748,7 +757,6 @@ class MultiAIClient:
             model=model,
             system=system,
             smooth_duration=smooth_duration or 0,
-            beta=beta,
             **kwargs,
         ):
             yield chunk
@@ -760,7 +768,6 @@ class MultiAIClient:
         execute_tools: Callable[[str, str, str], AsyncGenerator[ToolItem, None]],
         system: str | None = None,
         smooth_duration: int | None = None,
-        beta: bool = True,
         max_tool_calls: int = 4,
         max_tokens_before_tool_use: int | None = None,
         **kwargs: Any,
@@ -775,7 +782,6 @@ class MultiAIClient:
             model: The model to use for generating the chat completions.
             system: A string that will be passed as a system prompt.
             smooth_duration: The duration in ms to wait before trying to send another chunk.
-            beta: whether or not to use the new chat version of vercel.
             execute_tools: how to execute the tools given.
             max_tool_calls: maximum number of call to a tool before stopping.
             max_tokens_before_tool_use: To limit the usage of tools if there are too many tokens and force an answer
@@ -813,7 +819,6 @@ class MultiAIClient:
                 model=model,
                 system=system,
                 smooth_duration=smooth_duration,
-                beta=beta,
                 tools=tools if allow_tools else None,
                 **kwargs,
             ):
