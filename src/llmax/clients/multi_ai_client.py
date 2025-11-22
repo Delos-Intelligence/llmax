@@ -654,27 +654,53 @@ class MultiAIClient:  # noqa: PLR0904
                 )
                 model = "o3-mini"
             else:
+                # Scaleway models may not support stream_options
+                # Use NOT_GIVEN for Scaleway to avoid potential issues
+                stream_opts = (
+                    NOT_GIVEN
+                    if model in MISTRAL_MODELS or model in SCALEWAY_MODELS
+                    else {"include_usage": True}
+                )
                 response = self._create_chat(
                     messages,
                     model,
                     **kwargs,
                     stream=True,
-                    stream_options=NOT_GIVEN
-                    if model in MISTRAL_MODELS
-                    else {"include_usage": True},
+                    stream_options=stream_opts,
                 )
-        except BadRequestError:
+        except BadRequestError as e:
+            logger.error(
+                f"[bold purple][LLMAX][/bold purple] BadRequestError in stream for model {model}: {e}",
+            )
+            return
+        except Exception as e:
+            logger.error(
+                f"[bold purple][LLMAX][/bold purple] Unexpected error in stream for model {model}: {e}",
+            )
             return
 
-        for chunk in response:
-            if isinstance(chunk.usage, CompletionUsage):
-                yield chunk.usage
-            try:
-                if len(chunk.choices) == 0:  # type: ignore
+        if response is None:
+            logger.warning(
+                f"[bold purple][LLMAX][/bold purple] Stream response is None for model {model}",
+            )
+            return
+
+        try:
+            for chunk in response:
+                if isinstance(chunk.usage, CompletionUsage):
+                    yield chunk.usage
+                try:
+                    if len(chunk.choices) == 0:  # type: ignore
+                        continue
+                except Exception as e:
+                    logger.debug(f"Error in llmax streaming : {e}")
                     continue
-            except Exception as e:
-                logger.debug(f"Error in llmax streaming : {e}")
-            yield chunk  # type: ignore
+                yield chunk  # type: ignore
+        except Exception as e:
+            logger.error(
+                f"[bold purple][LLMAX][/bold purple] Error iterating stream chunks for model {model}: {e}",
+            )
+            return
 
     async def stream_output_smooth(  # noqa: C901, PLR0914, PLR0915
         self,
@@ -720,13 +746,18 @@ class MultiAIClient:  # noqa: PLR0904
 
         def collect_chunks() -> None:
             nonlocal chunk_usage, ttft
+            chunk_count = 0
             try:
+                logger.debug(
+                    f"[bold purple][LLMAX][/bold purple] Starting stream collection for model {model}",
+                )
                 for completion_chunk in self.stream(
                     messages,
                     model,
                     system=system,
                     **kwargs,
                 ):
+                    chunk_count += 1
                     if isinstance(completion_chunk, CompletionUsage):
                         chunk_usage = completion_chunk
                     else:
@@ -738,9 +769,20 @@ class MultiAIClient:  # noqa: PLR0904
                         ):
                             ttft = time.time() - start
                         output_queue.put(completion_chunk.choices)
+                logger.debug(
+                    f"[bold purple][LLMAX][/bold purple] Stream collection finished for model {model}, "
+                    f"received {chunk_count} chunks",
+                )
             except Exception as e:
+                logger.error(
+                    f"[bold purple][LLMAX][/bold purple] Exception in stream collection for model {model}: {e}",
+                )
                 output_queue.put(e)
             finally:
+                if chunk_count == 0:
+                    logger.warning(
+                        f"[bold purple][LLMAX][/bold purple] No chunks received for model {model}",
+                    )
                 output_queue.put(None)
 
         collector = threading.Thread(target=collect_chunks)

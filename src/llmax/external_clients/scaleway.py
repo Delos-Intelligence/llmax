@@ -3,8 +3,7 @@
 Note: Scaleway uses an OpenAI-compatible API, so we use the OpenAI client
 to interact with Scaleway models.
 
-According to the Scaleway OpenAPI specification, the base URL should be:
-https://api.scaleway.ai/v1/{project_id}
+The base URL is: https://api.scaleway.ai/v1
 """
 
 from typing import Any
@@ -18,11 +17,11 @@ from llmax.models import Deployment
 Client = Any
 
 # Base URL for Scaleway Generative APIs
-SCALEWAY_BASE_URL = "https://api.scaleway.ai"
+SCALEWAY_BASE_URL = "https://api.scaleway.ai/v1"
 
 
 def _build_scaleway_url(deployment: Deployment) -> str:
-    """Build the Scaleway API URL with project_id.
+    """Build the Scaleway API URL.
 
     Args:
         deployment: The deployment configuration
@@ -34,17 +33,9 @@ def _build_scaleway_url(deployment: Deployment) -> str:
     if deployment.endpoint:
         return deployment.endpoint
 
-    # Otherwise, construct the URL from base URL and project_id
-    if not deployment.project_id:
-        url_template = f"{SCALEWAY_BASE_URL}/v1/{{project_id}}"
-        message = (
-            "Scaleway deployments require either an 'endpoint' or a 'project_id'. "
-            "If using project_id, the URL will be constructed as: "
-            f"{url_template}",
-        )
-        raise ValueError(message)
-
-    return f"{SCALEWAY_BASE_URL}/v1/{deployment.project_id}"
+    # The base URL is always https://api.scaleway.ai/v1
+    # project_id is not part of the URL path
+    return SCALEWAY_BASE_URL
 
 
 def get_client(
