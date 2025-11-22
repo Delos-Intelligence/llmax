@@ -9,10 +9,10 @@ import base64
 import json
 import threading
 import time
-from collections.abc import AsyncGenerator, Awaitable, Generator
+from collections.abc import AsyncGenerator, Awaitable, Callable, Generator
 from io import BufferedReader, BytesIO
 from queue import Queue
-from typing import Any, Callable, Literal
+from typing import Any, Literal
 
 import httpx
 from openai import NOT_GIVEN, BadRequestError, RateLimitError
@@ -38,6 +38,8 @@ from llmax.models.models import (
     META_MODELS,
     MISTRAL_MODELS,
     OPENAI_MODELS,
+    QWEN_SCALEWAY_MODELS,
+    SCALEWAY_MODELS,
     Model,
 )
 from llmax.usage import ModelUsage, tokens
@@ -51,11 +53,11 @@ from llmax.utils import (
 )
 
 
-async def _default_get_usage() -> float:
+async def _default_get_usage() -> float:  # noqa: RUF029
     return 0.0
 
 
-async def _default_increment_usage(
+async def _default_increment_usage(  # noqa: RUF029
     _usage: float,
     _model: Model,
     _user_id: str,
@@ -71,7 +73,7 @@ async def _default_increment_usage(
     return True
 
 
-class MultiAIClient:
+class MultiAIClient:  # noqa: PLR0904
     """Class to interface with multiple LLMs and AI models.
 
     This class supports both synchronous and asynchronous operations for obtaining
@@ -148,12 +150,80 @@ class MultiAIClient:
             )
         return self._aclients[model]
 
+    def _transform_response_format_for_qwen(  # noqa: PLR6301
+        self,
+        kwargs: dict[str, Any],
+        model: Model,
+    ) -> dict[str, Any]:
+        """Transform response_format for Qwen models on Scaleway.
+
+        Qwen models on Scaleway require response_format with type "json_schema"
+        instead of OpenAI's standard "json_object" format.
+
+        This function automatically transforms:
+        - response_format={"type": "json_object"} -> {"type": "json_schema"}
+        - Preserves any json_schema provided separately or in response_format
+
+        Example:
+            # User code (OpenAI format):
+            response = await client.ainvoke(
+                messages=[...],
+                model="scaleway/qwen3-235b-a22b-instruct-2507",
+                response_format={"type": "json_object"}
+            )
+
+            # Automatically transformed to:
+            # response_format={"type": "json_schema"}
+
+        Args:
+            kwargs: The kwargs dictionary that may contain response_format
+            model: The model being used
+
+        Returns:
+            Modified kwargs with transformed response_format if needed
+        """
+        if model not in QWEN_SCALEWAY_MODELS:
+            return kwargs
+
+        if "response_format" not in kwargs:
+            return kwargs
+
+        response_format = kwargs["response_format"]
+
+        # If it's OpenAI's standard json_object format
+        if isinstance(response_format, dict) and response_format.get("type") == "json_object":
+            # Transform to Scaleway's json_schema format
+            new_format: dict[str, Any] = {"type": "json_schema"}
+
+            # If a JSON schema is provided separately, include it
+            if "json_schema" in kwargs:
+                new_format["json_schema"] = kwargs.pop("json_schema")
+            # If schema is in response_format, preserve it
+            elif "json_schema" in response_format:
+                new_format["json_schema"] = response_format["json_schema"]
+
+            kwargs["response_format"] = new_format
+            logger.debug(
+                "[bold purple][LLMAX][/bold purple] Transformed response_format for Qwen model: "
+                "json_object -> json_schema",
+            )
+        # If it's already json_schema, ensure it has the correct structure
+        elif isinstance(response_format, dict) and response_format.get("type") == "json_schema":
+            # Already in correct format, but check if json_schema needs to be moved
+            if "json_schema" in kwargs and "json_schema" not in response_format:
+                response_format["json_schema"] = kwargs.pop("json_schema")
+                kwargs["response_format"] = response_format
+
+        return kwargs
+
     def clean_kwargs(
         self,
         kwargs: dict[str, Any],
         deployment: Deployment,
     ) -> dict[str, Any]:
         """Clean kwargs to avoid errors."""
+        # Transform response_format for Qwen models first
+        kwargs = self._transform_response_format_for_qwen(kwargs, deployment.model)
         if "temperature" in kwargs and deployment.model in {"o3-mini", "o3-mini-high"}:
             logger.warning("Temperature is not supported for this model.")
             kwargs.pop("temperature")
@@ -472,7 +542,7 @@ class MultiAIClient:
 
         return output_str, final_tool_calls
 
-    async def ainvoke_with_tools(  # noqa: D417, PLR0913
+    async def ainvoke_with_tools(  # noqa: D417, PLR0913, PLR0917
         self,
         messages: Messages,
         model: Model,
@@ -536,7 +606,7 @@ class MultiAIClient:
 
             results = await asyncio.gather(*tool_coros)
 
-            for tool, resultat in zip(final_tool_calls, results):
+            for tool, resultat in zip(final_tool_calls, results, strict=True):
                 messages.append(parse_tool_call(tool, model))
                 messages.append(
                     {
@@ -606,7 +676,7 @@ class MultiAIClient:
                 logger.debug(f"Error in llmax streaming : {e}")
             yield chunk  # type: ignore
 
-    async def stream_output_smooth(  # noqa: C901, PLR0915
+    async def stream_output_smooth(  # noqa: C901, PLR0914, PLR0915
         self,
         messages: Messages,
         model: Model,
@@ -761,7 +831,7 @@ class MultiAIClient:
         ):
             yield chunk
 
-    async def stream_output_with_tools(  # noqa: C901, PLR0912, PLR0913
+    async def stream_output_with_tools(  # noqa: C901, PLR0912, PLR0913, PLR0917
         self,
         messages: Messages,
         model: Model,
@@ -838,7 +908,7 @@ class MultiAIClient:
 
             queue = asyncio.Queue()
 
-            async def run_tool(tool: ChoiceDeltaToolCall) -> None:
+            async def run_tool(tool: ChoiceDeltaToolCall, queue: asyncio.Queue) -> None:
                 tool_id = tool.id
                 function_name = tool.function.name
                 function_args = tool.function.arguments
@@ -852,7 +922,7 @@ class MultiAIClient:
                 await queue.put((tool, None))
 
             tasks = [
-                asyncio.create_task(run_tool(tool))
+                asyncio.create_task(run_tool(tool, queue))
                 for tool in final_tool_calls.values()
             ]
             finished_tools = 0
@@ -1080,7 +1150,7 @@ class MultiAIClient:
         image_base64 = response.data[0].b64_json
         return base64.b64decode(image_base64)
 
-    async def edit_image(  # noqa: PLR0913
+    async def edit_image(  # noqa: PLR0913, PLR0917
         self,
         model: Model,
         prompt: str,
@@ -1190,6 +1260,8 @@ def add_system_message(
         case model if model in MISTRAL_MODELS:
             messages.insert(0, {"role": "system", "content": system})
         case model if model in ANTHROPIC_MODELS:
+            messages.insert(0, {"role": "system", "content": system})
+        case model if model in SCALEWAY_MODELS:
             messages.insert(0, {"role": "system", "content": system})
         case _:
             logger.debug(

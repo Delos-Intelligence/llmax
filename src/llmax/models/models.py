@@ -1,6 +1,6 @@
 """Supported models."""
 
-from typing import Literal, Union, get_args
+from typing import Literal, get_args
 
 CohereModel = Literal[
     "command-r",
@@ -57,23 +57,39 @@ AnthropicModel = Literal[
     "claude-4.5-sonnet",
 ]
 
-
-LLModel = Union[
-    CohereModel,
-    MetaModel,
-    MistralModel,
-    OpenAIModel,
-    AnthropicModel,
-    GeminiModel,
+ScalewayModel = Literal[
+    "scaleway/qwen3-235b-a22b-instruct-2507",
+    "scaleway/gpt-oss-120b",
+    "scaleway/gemma-3-27b-it",
+    "scaleway/whisper-large-v3",
+    "scaleway/voxtral-small-24b-2507",
+    "scaleway/mistral-small-3.2-24b-instruct-2506",
+    "scaleway/llama-3.3-70b-instruct",
+    "scaleway/deepseek-r1-distill-llama-70b",
 ]
 
-SpeechToTextModel = Literal["whisper-1", "gpt-4o-transcribe"]
+
+LLModel = (
+    CohereModel
+    | MetaModel
+    | MistralModel
+    | OpenAIModel
+    | AnthropicModel
+    | GeminiModel
+    | ScalewayModel
+)
+
+SpeechToTextModel = Literal[
+    "whisper-1",
+    "gpt-4o-transcribe",
+    "scaleway/whisper-large-v3",
+]
 
 ImageGenerationModel = Literal["dall-e-3", "gpt-image-1"]
 
 TextToSpeechModel = Literal["tts-1",]
 
-Model = Union[LLModel, SpeechToTextModel, ImageGenerationModel]
+Model = LLModel | SpeechToTextModel | ImageGenerationModel
 
 COHERE_MODELS: tuple[CohereModel, ...] = get_args(CohereModel)
 META_MODELS: tuple[MetaModel, ...] = get_args(MetaModel)
@@ -81,6 +97,10 @@ GEMINI_MODELS: tuple[GeminiModel, ...] = get_args(GeminiModel)
 MISTRAL_MODELS: tuple[MistralModel, ...] = get_args(MistralModel)
 OPENAI_MODELS: tuple[OpenAIModel, ...] = get_args(OpenAIModel)
 ANTHROPIC_MODELS: tuple[AnthropicModel, ...] = get_args(AnthropicModel)
+SCALEWAY_MODELS: tuple[ScalewayModel, ...] = get_args(ScalewayModel)
+
+# Models that require special JSON format handling
+QWEN_SCALEWAY_MODELS: tuple[str, ...] = ("scaleway/qwen3-235b-a22b-instruct-2507",)
 
 LLMS: tuple[LLModel, ...] = get_args(LLModel)
 AUDIO: tuple[SpeechToTextModel, ...] = get_args(SpeechToTextModel)

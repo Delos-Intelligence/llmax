@@ -1,9 +1,9 @@
 """Defines the ModelUsage class for tracking usage statistics for a model."""
 
 import math
-from collections.abc import Awaitable
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from typing import Callable, Literal
+from typing import Literal
 
 from openai.types import CompletionUsage
 

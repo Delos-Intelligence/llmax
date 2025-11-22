@@ -2,7 +2,7 @@
 
 import json
 from collections.abc import Generator
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import boto3  # type: ignore
 from dateutil import parser
@@ -41,7 +41,7 @@ def client_creation_anthropic(
     ).client("bedrock-runtime")
 
 
-def anthropic_parsing(response: Dict[str, Any]) -> Optional[ChatCompletion]:
+def anthropic_parsing(response: dict[str, Any]) -> ChatCompletion | None:
     """The parsing from anthropic to openAi."""
     try:
         data = json.loads(response["body"].read())
@@ -79,9 +79,9 @@ def anthropic_parsing(response: Dict[str, Any]) -> Optional[ChatCompletion]:
         return None
 
 
-def anthropic_parsing_stream(
-    response: Dict[str, Any],
-) -> Optional[Generator[ChatCompletionChunk, None, None]]:
+def anthropic_parsing_stream(  # noqa: C901, PLR0912, PLR0914, PLR0915
+    response: dict[str, Any],
+) -> Generator[ChatCompletionChunk, None, None] | None:
     """The parsing from anthropic to openAi in streaming mode."""
     try:
         request_id = response["ResponseMetadata"]["RequestId"]
@@ -233,17 +233,17 @@ def anthropic_parsing_stream(
     return None
 
 
-def completion_call_anthropic(
+def completion_call_anthropic(  # noqa: C901, PLR0912
     client: Any,
     messages: Messages,
     model: Model,
     stream: bool = False,
     *args: Any,  # noqa: ARG001
     **kwargs: Any,
-) -> Optional[ChatCompletion] | Optional[Generator[ChatCompletionChunk, None, None]]:
+) -> ChatCompletion | None | Generator[ChatCompletionChunk, None, None]:
     """Anthropic call to make a completion."""
-    system_message: List[str] = []
-    to_remove: List[int] = []
+    system_message: list[str] = []
+    to_remove: list[int] = []
 
     try:
         counter = 0

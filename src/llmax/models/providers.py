@@ -9,6 +9,7 @@ Provider = Literal[
     "mistral",
     "aws-bedrock",
     "gcp-vertexai",
+    "scaleway",
 ]
 
 
