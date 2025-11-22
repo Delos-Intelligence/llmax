@@ -38,6 +38,8 @@ from llmax.models.models import (
     META_MODELS,
     MISTRAL_MODELS,
     OPENAI_MODELS,
+    QWEN_SCALEWAY_MODELS,
+    SCALEWAY_MODELS,
     Model,
 )
 from llmax.usage import ModelUsage, tokens
@@ -148,12 +150,80 @@ class MultiAIClient:
             )
         return self._aclients[model]
 
+    def _transform_response_format_for_qwen(
+        self,
+        kwargs: dict[str, Any],
+        model: Model,
+    ) -> dict[str, Any]:
+        """Transform response_format for Qwen models on Scaleway.
+
+        Qwen models on Scaleway require response_format with type "json_schema"
+        instead of OpenAI's standard "json_object" format.
+
+        This function automatically transforms:
+        - response_format={"type": "json_object"} -> {"type": "json_schema"}
+        - Preserves any json_schema provided separately or in response_format
+
+        Example:
+            # User code (OpenAI format):
+            response = await client.ainvoke(
+                messages=[...],
+                model="scaleway/qwen3-235b-a22b-instruct-2507",
+                response_format={"type": "json_object"}
+            )
+
+            # Automatically transformed to:
+            # response_format={"type": "json_schema"}
+
+        Args:
+            kwargs: The kwargs dictionary that may contain response_format
+            model: The model being used
+
+        Returns:
+            Modified kwargs with transformed response_format if needed
+        """
+        if model not in QWEN_SCALEWAY_MODELS:
+            return kwargs
+
+        if "response_format" not in kwargs:
+            return kwargs
+
+        response_format = kwargs["response_format"]
+
+        # If it's OpenAI's standard json_object format
+        if isinstance(response_format, dict) and response_format.get("type") == "json_object":
+            # Transform to Scaleway's json_schema format
+            new_format: dict[str, Any] = {"type": "json_schema"}
+
+            # If a JSON schema is provided separately, include it
+            if "json_schema" in kwargs:
+                new_format["json_schema"] = kwargs.pop("json_schema")
+            # If schema is in response_format, preserve it
+            elif "json_schema" in response_format:
+                new_format["json_schema"] = response_format["json_schema"]
+
+            kwargs["response_format"] = new_format
+            logger.debug(
+                "[bold purple][LLMAX][/bold purple] Transformed response_format for Qwen model: "
+                f"json_object -> json_schema",
+            )
+        # If it's already json_schema, ensure it has the correct structure
+        elif isinstance(response_format, dict) and response_format.get("type") == "json_schema":
+            # Already in correct format, but check if json_schema needs to be moved
+            if "json_schema" in kwargs and "json_schema" not in response_format:
+                response_format["json_schema"] = kwargs.pop("json_schema")
+                kwargs["response_format"] = response_format
+
+        return kwargs
+
     def clean_kwargs(
         self,
         kwargs: dict[str, Any],
         deployment: Deployment,
     ) -> dict[str, Any]:
         """Clean kwargs to avoid errors."""
+        # Transform response_format for Qwen models first
+        kwargs = self._transform_response_format_for_qwen(kwargs, deployment.model)
         if "temperature" in kwargs and deployment.model in {"o3-mini", "o3-mini-high"}:
             logger.warning("Temperature is not supported for this model.")
             kwargs.pop("temperature")
@@ -1190,6 +1260,8 @@ def add_system_message(
         case model if model in MISTRAL_MODELS:
             messages.insert(0, {"role": "system", "content": system})
         case model if model in ANTHROPIC_MODELS:
+            messages.insert(0, {"role": "system", "content": system})
+        case model if model in SCALEWAY_MODELS:
             messages.insert(0, {"role": "system", "content": system})
         case _:
             logger.debug(

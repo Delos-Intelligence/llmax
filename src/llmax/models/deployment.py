@@ -6,7 +6,7 @@ from google.oauth2.service_account import Credentials
 
 from llmax.models.providers import Provider
 
-from .models import OPENAI_MODELS, Model
+from .models import OPENAI_MODELS, SCALEWAY_MODELS, Model
 
 
 @dataclass
@@ -35,3 +35,14 @@ class Deployment:
         ):
             message = "Please provide a deployment name for Azure OpenAI deployments."
             raise ValueError(message)
+        if self.provider == "scaleway":
+            # Scaleway requires either an endpoint or a project_id
+            # If endpoint is provided, it will be used as-is
+            # If not, project_id is required to construct the URL
+            if not self.endpoint and not self.project_id:
+                message = (
+                    "Scaleway deployments require either an 'endpoint' or a 'project_id'. "
+                    "If using project_id, the URL will be automatically constructed as: "
+                    "https://api.scaleway.ai/v1/{project_id}"
+                )
+                raise ValueError(message)
