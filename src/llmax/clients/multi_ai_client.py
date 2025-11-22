@@ -53,11 +53,11 @@ from llmax.utils import (
 )
 
 
-async def _default_get_usage() -> float: # noqa: RUF029
+async def _default_get_usage() -> float:  # noqa: RUF029
     return 0.0
 
 
-async def _default_increment_usage( # noqa: RUF029
+async def _default_increment_usage(  # noqa: RUF029
     _usage: float,
     _model: Model,
     _user_id: str,
@@ -73,7 +73,7 @@ async def _default_increment_usage( # noqa: RUF029
     return True
 
 
-class MultiAIClient: # noqa: PLR0904
+class MultiAIClient:  # noqa: PLR0904
     """Class to interface with multiple LLMs and AI models.
 
     This class supports both synchronous and asynchronous operations for obtaining
@@ -150,7 +150,7 @@ class MultiAIClient: # noqa: PLR0904
             )
         return self._aclients[model]
 
-    def _transform_response_format_for_qwen(
+    def _transform_response_format_for_qwen(  # noqa: PLR6301
         self,
         kwargs: dict[str, Any],
         model: Model,
@@ -542,7 +542,7 @@ class MultiAIClient: # noqa: PLR0904
 
         return output_str, final_tool_calls
 
-    async def ainvoke_with_tools(  # noqa: D417, PLR0913
+    async def ainvoke_with_tools(  # noqa: D417, PLR0913, PLR0917
         self,
         messages: Messages,
         model: Model,
@@ -676,7 +676,7 @@ class MultiAIClient: # noqa: PLR0904
                 logger.debug(f"Error in llmax streaming : {e}")
             yield chunk  # type: ignore
 
-    async def stream_output_smooth(  # noqa: C901, PLR0915
+    async def stream_output_smooth(  # noqa: C901, PLR0914, PLR0915
         self,
         messages: Messages,
         model: Model,
@@ -831,7 +831,7 @@ class MultiAIClient: # noqa: PLR0904
         ):
             yield chunk
 
-    async def stream_output_with_tools(  # noqa: C901, PLR0912, PLR0913
+    async def stream_output_with_tools(  # noqa: C901, PLR0912, PLR0913, PLR0917
         self,
         messages: Messages,
         model: Model,
@@ -1150,7 +1150,7 @@ class MultiAIClient: # noqa: PLR0904
         image_base64 = response.data[0].b64_json
         return base64.b64decode(image_base64)
 
-    async def edit_image(  # noqa: PLR0913
+    async def edit_image(  # noqa: PLR0913, PLR0917
         self,
         model: Model,
         prompt: str,
