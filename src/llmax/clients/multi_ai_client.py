@@ -53,11 +53,12 @@ from llmax.utils import (
 )
 
 
-async def _default_get_usage() -> float:
+async def _default_get_usage() -> float:  # noqa: RUF029
+    """Default async function for getting usage."""
     return 0.0
 
 
-async def _default_increment_usage(
+async def _default_increment_usage(  # noqa: RUF029
     _usage: float,
     _model: Model,
     _user_id: str,
@@ -73,7 +74,7 @@ async def _default_increment_usage(
     return True
 
 
-class MultiAIClient:
+class MultiAIClient:  # noqa: PLR0904
     """Class to interface with multiple LLMs and AI models.
 
     This class supports both synchronous and asynchronous operations for obtaining
@@ -150,8 +151,8 @@ class MultiAIClient:
             )
         return self._aclients[model]
 
+    @staticmethod
     def _transform_response_format_for_qwen(
-        self,
         kwargs: dict[str, Any],
         model: Model,
     ) -> dict[str, Any]:
@@ -205,7 +206,7 @@ class MultiAIClient:
             kwargs["response_format"] = new_format
             logger.debug(
                 "[bold purple][LLMAX][/bold purple] Transformed response_format for Qwen model: "
-                f"json_object -> json_schema",
+                "json_object -> json_schema",
             )
         # If it's already json_schema, ensure it has the correct structure
         elif isinstance(response_format, dict) and response_format.get("type") == "json_schema":
@@ -223,7 +224,7 @@ class MultiAIClient:
     ) -> dict[str, Any]:
         """Clean kwargs to avoid errors."""
         # Transform response_format for Qwen models first
-        kwargs = self._transform_response_format_for_qwen(kwargs, deployment.model)
+        kwargs = MultiAIClient._transform_response_format_for_qwen(kwargs, deployment.model)
         if "temperature" in kwargs and deployment.model in {"o3-mini", "o3-mini-high"}:
             logger.warning("Temperature is not supported for this model.")
             kwargs.pop("temperature")
@@ -542,7 +543,7 @@ class MultiAIClient:
 
         return output_str, final_tool_calls
 
-    async def ainvoke_with_tools(  # noqa: D417, PLR0913
+    async def ainvoke_with_tools(  # noqa: D417, PLR0913, PLR0917
         self,
         messages: Messages,
         model: Model,
@@ -676,7 +677,7 @@ class MultiAIClient:
                 logger.debug(f"Error in llmax streaming : {e}")
             yield chunk  # type: ignore
 
-    async def stream_output_smooth(  # noqa: C901, PLR0915
+    async def stream_output_smooth(  # noqa: C901, PLR0914, PLR0915
         self,
         messages: Messages,
         model: Model,
@@ -831,7 +832,7 @@ class MultiAIClient:
         ):
             yield chunk
 
-    async def stream_output_with_tools(  # noqa: C901, PLR0912, PLR0913
+    async def stream_output_with_tools(  # noqa: C901, PLR0912, PLR0913, PLR0917
         self,
         messages: Messages,
         model: Model,
@@ -908,7 +909,7 @@ class MultiAIClient:
 
             queue = asyncio.Queue()
 
-            async def run_tool(tool: ChoiceDeltaToolCall) -> None:
+            async def run_tool(tool: ChoiceDeltaToolCall, queue_ref: asyncio.Queue) -> None:
                 tool_id = tool.id
                 function_name = tool.function.name
                 function_args = tool.function.arguments
@@ -918,11 +919,14 @@ class MultiAIClient:
                     f"Tool called for function `{function_name}` with args `{function_args}`",
                 )
                 async for res in execute_tools(function_name, function_args, tool_id):
-                    await queue.put((tool, res))
-                await queue.put((tool, None))
+                    await queue_ref.put((tool, res))
+                await queue_ref.put((tool, None))
+
+            async def run_tool_bound(tool: ChoiceDeltaToolCall) -> None:
+                await run_tool(tool, queue)
 
             tasks = [
-                asyncio.create_task(run_tool(tool))
+                asyncio.create_task(run_tool_bound(tool))
                 for tool in final_tool_calls.values()
             ]
             finished_tools = 0
@@ -1150,7 +1154,7 @@ class MultiAIClient:
         image_base64 = response.data[0].b64_json
         return base64.b64decode(image_base64)
 
-    async def edit_image(  # noqa: PLR0913
+    async def edit_image(  # noqa: PLR0913, PLR0917
         self,
         model: Model,
         prompt: str,

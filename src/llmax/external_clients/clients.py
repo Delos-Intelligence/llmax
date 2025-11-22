@@ -21,7 +21,7 @@ from . import anthropic, cohere, gemini, meta, mistral, openai, scaleway
 Client = Any
 
 
-def get_client(
+def get_client(  # noqa: PLR0911
     deployment: Deployment,
     http_client: httpx.Client | None = None,
 ) -> Client:

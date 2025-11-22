@@ -36,11 +36,13 @@ def _build_scaleway_url(deployment: Deployment) -> str:
 
     # Otherwise, construct the URL from base URL and project_id
     if not deployment.project_id:
-        raise ValueError(
+        url_template = f"{SCALEWAY_BASE_URL}/v1/{{project_id}}"
+        message = (
             "Scaleway deployments require either an 'endpoint' or a 'project_id'. "
             "If using project_id, the URL will be constructed as: "
-            f"{SCALEWAY_BASE_URL}/v1/{{project_id}}"
+            f"{url_template}",
         )
+        raise ValueError(message)
 
     return f"{SCALEWAY_BASE_URL}/v1/{deployment.project_id}"
 
@@ -103,4 +105,3 @@ def get_aclient(
             )
         case _:
             raise ProviderNotFoundError(deployment)
-

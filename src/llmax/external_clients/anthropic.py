@@ -79,7 +79,7 @@ def anthropic_parsing(response: Dict[str, Any]) -> Optional[ChatCompletion]:
         return None
 
 
-def anthropic_parsing_stream(
+def anthropic_parsing_stream(  # noqa: C901, PLR0912, PLR0914, PLR0915
     response: Dict[str, Any],
 ) -> Optional[Generator[ChatCompletionChunk, None, None]]:
     """The parsing from anthropic to openAi in streaming mode."""
@@ -233,7 +233,7 @@ def anthropic_parsing_stream(
     return None
 
 
-def completion_call_anthropic(
+def completion_call_anthropic(  # noqa: C901, PLR0912
     client: Any,
     messages: Messages,
     model: Model,
