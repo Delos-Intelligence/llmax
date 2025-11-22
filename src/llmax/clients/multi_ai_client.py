@@ -808,8 +808,10 @@ class MultiAIClient:  # noqa: PLR0904
 
             if choices[0].delta.content:
                 chunk_str = choices[0].delta.content
-                final_output += chunk_str
-                yield StreamItemContent(content=stream_chunk(chunk_str, "text"))
+                # Skip empty chunks to avoid parsing errors
+                if chunk_str:
+                    final_output += chunk_str
+                    yield StreamItemContent(content=stream_chunk(chunk_str, "text"))
 
             for tool_call in choices[0].delta.tool_calls or []:
                 index = tool_call.index
@@ -1313,9 +1315,41 @@ def add_system_message(
 
 
 def stream_chunk(chunk: str, stream_part_type: str = "text") -> str:
-    """Format the chunk to the correct format for vercel sdk."""
+    """Format the chunk to the correct format for vercel sdk.
+    
+    The format is: code:json_encoded_content\n\n
+    where json_encoded_content is the JSON-encoded string (with quotes).
+    
+    Args:
+        chunk: The content chunk to format
+        stream_part_type: The type of stream part (default: "text")
+    
+    Returns:
+        Formatted stream chunk string
+    """
     code = get_stream_part_code(stream_part_type)
-    formatted_stream_part = f"{code}:{json.dumps(chunk, separators=(',', ':'))}\n\n"
+    # Ensure chunk is a string and handle None/empty cases
+    if chunk is None:
+        chunk = ""
+    chunk_str = str(chunk)
+    
+    # Skip empty chunks to avoid parsing errors
+    if not chunk_str:
+        return f"{code}:\"\"\n\n"
+    
+    # Use json.dumps to properly escape special characters and ensure valid JSON
+    # ensure_ascii=True ensures compatibility with parsers that expect ASCII
+    # This handles quotes, newlines, unicode (as \uXXXX), etc. correctly
+    try:
+        json_encoded = json.dumps(chunk_str, separators=(",", ":"), ensure_ascii=True)
+    except (TypeError, ValueError) as e:
+        # Fallback: if json.dumps fails, use a safe representation
+        logger.warning(
+            f"[bold purple][LLMAX][/bold purple] Failed to JSON encode chunk: {e}, using fallback",
+        )
+        json_encoded = json.dumps(repr(chunk_str), separators=(",", ":"), ensure_ascii=True)
+    
+    formatted_stream_part = f"{code}:{json_encoded}\n\n"
     return formatted_stream_part
 
 
