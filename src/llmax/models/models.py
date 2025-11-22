@@ -1,6 +1,6 @@
 """Supported models."""
 
-from typing import Literal, Union, get_args
+from typing import Literal, get_args
 
 CohereModel = Literal[
     "command-r",
@@ -69,15 +69,15 @@ ScalewayModel = Literal[
 ]
 
 
-LLModel = Union[
-    CohereModel,
-    MetaModel,
-    MistralModel,
-    OpenAIModel,
-    AnthropicModel,
-    GeminiModel,
-    ScalewayModel,
-]
+LLModel = (
+    CohereModel
+    | MetaModel
+    | MistralModel
+    | OpenAIModel
+    | AnthropicModel
+    | GeminiModel
+    | ScalewayModel
+)
 
 SpeechToTextModel = Literal[
     "whisper-1",
@@ -89,7 +89,7 @@ ImageGenerationModel = Literal["dall-e-3", "gpt-image-1"]
 
 TextToSpeechModel = Literal["tts-1",]
 
-Model = Union[LLModel, SpeechToTextModel, ImageGenerationModel]
+Model = LLModel | SpeechToTextModel | ImageGenerationModel
 
 COHERE_MODELS: tuple[CohereModel, ...] = get_args(CohereModel)
 META_MODELS: tuple[MetaModel, ...] = get_args(MetaModel)

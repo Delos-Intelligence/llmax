@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Literal, Union
+from typing import Any, Literal
 
 from pydantic import BaseModel
 
@@ -51,9 +51,9 @@ class ChatCompletionToolMessage(BaseModel):
     tool_call_id: str
 
 
-ChatCompletionMessage = Union[
-    ChatCompletionSystemMessage,
-    ChatCompletionUserMessage,
-    ChatCompletionAssistantMessage,
-    ChatCompletionToolMessage,
-]
+ChatCompletionMessage = (
+    ChatCompletionSystemMessage
+    | ChatCompletionUserMessage
+    | ChatCompletionAssistantMessage
+    | ChatCompletionToolMessage
+)

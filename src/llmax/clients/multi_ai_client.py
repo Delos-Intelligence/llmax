@@ -9,10 +9,10 @@ import base64
 import json
 import threading
 import time
-from collections.abc import AsyncGenerator, Awaitable, Generator
+from collections.abc import AsyncGenerator, Awaitable, Callable, Generator
 from io import BufferedReader, BytesIO
 from queue import Queue
-from typing import Any, Callable, Literal
+from typing import Any, Literal
 
 import httpx
 from openai import NOT_GIVEN, BadRequestError, RateLimitError
@@ -205,7 +205,7 @@ class MultiAIClient:
             kwargs["response_format"] = new_format
             logger.debug(
                 "[bold purple][LLMAX][/bold purple] Transformed response_format for Qwen model: "
-                f"json_object -> json_schema",
+                "json_object -> json_schema",
             )
         # If it's already json_schema, ensure it has the correct structure
         elif isinstance(response_format, dict) and response_format.get("type") == "json_schema":
@@ -606,7 +606,7 @@ class MultiAIClient:
 
             results = await asyncio.gather(*tool_coros)
 
-            for tool, resultat in zip(final_tool_calls, results):
+            for tool, resultat in zip(final_tool_calls, results, strict=True):
                 messages.append(parse_tool_call(tool, model))
                 messages.append(
                     {
@@ -908,7 +908,7 @@ class MultiAIClient:
 
             queue = asyncio.Queue()
 
-            async def run_tool(tool: ChoiceDeltaToolCall) -> None:
+            async def run_tool(tool: ChoiceDeltaToolCall, queue: asyncio.Queue) -> None:
                 tool_id = tool.id
                 function_name = tool.function.name
                 function_args = tool.function.arguments
@@ -922,7 +922,7 @@ class MultiAIClient:
                 await queue.put((tool, None))
 
             tasks = [
-                asyncio.create_task(run_tool(tool))
+                asyncio.create_task(run_tool(tool, queue))
                 for tool in final_tool_calls.values()
             ]
             finished_tools = 0
