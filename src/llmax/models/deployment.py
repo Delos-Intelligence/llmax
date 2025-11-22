@@ -39,9 +39,9 @@ class Deployment:
         # If endpoint is provided, it will be used as-is
         # If not, project_id is required to construct the URL
         if self.provider == "scaleway" and not self.endpoint and not self.project_id:
-                message = (
-                    "Scaleway deployments require either an 'endpoint' or a 'project_id'. "
-                    "If using project_id, the URL will be automatically constructed as: "
-                    "https://api.scaleway.ai/v1/{project_id}"
-                )
-                raise ValueError(message)
+            message = (
+                "Scaleway deployments require either an 'endpoint' or a 'project_id'. "
+                "If using project_id, the URL will be automatically constructed as: "
+                "https://api.scaleway.ai/v1/{project_id}"
+            )
+            raise ValueError(message)

@@ -217,8 +217,8 @@ class MultiAIClient:  # noqa: PLR0904
 
         return kwargs
 
+    @staticmethod
     def clean_kwargs(
-        self,
         kwargs: dict[str, Any],
         deployment: Deployment,
     ) -> dict[str, Any]:
@@ -266,7 +266,7 @@ class MultiAIClient:  # noqa: PLR0904
         client = self.client(model)
         deployment = self.deployments[model]
 
-        kwargs = self.clean_kwargs(kwargs, deployment)
+        kwargs = MultiAIClient.clean_kwargs(kwargs, deployment)
 
         if "text_format" in kwargs:
             return client.responses.parse(
@@ -300,7 +300,7 @@ class MultiAIClient:  # noqa: PLR0904
         aclient = self.aclient(model)
         deployment = self.deployments[model]
 
-        kwargs = self.clean_kwargs(kwargs, deployment)
+        kwargs = MultiAIClient.clean_kwargs(kwargs, deployment)
 
         if "text_format" in kwargs:
             return await aclient.responses.parse(
@@ -909,24 +909,25 @@ class MultiAIClient:  # noqa: PLR0904
 
             queue = asyncio.Queue()
 
-            async def run_tool(tool: ChoiceDeltaToolCall, queue_ref: asyncio.Queue) -> None:
-                tool_id = tool.id
-                function_name = tool.function.name
-                function_args = tool.function.arguments
-                if not all([tool_id, function_name, function_args]):
-                    return
-                logger.info(
-                    f"Tool called for function `{function_name}` with args `{function_args}`",
-                )
-                async for res in execute_tools(function_name, function_args, tool_id):
-                    await queue_ref.put((tool, res))
-                await queue_ref.put((tool, None))
+            def make_run_tool(queue_ref: asyncio.Queue) -> Callable[[ChoiceDeltaToolCall], Awaitable[None]]:
+                async def run_tool(tool: ChoiceDeltaToolCall) -> None:
+                    tool_id = tool.id
+                    function_name = tool.function.name
+                    function_args = tool.function.arguments
+                    if not all([tool_id, function_name, function_args]):
+                        return
+                    logger.info(
+                        f"Tool called for function `{function_name}` with args `{function_args}`",
+                    )
+                    async for res in execute_tools(function_name, function_args, tool_id):
+                        await queue_ref.put((tool, res))
+                    await queue_ref.put((tool, None))
+                return run_tool
 
-            async def run_tool_bound(tool: ChoiceDeltaToolCall) -> None:
-                await run_tool(tool, queue)
+            run_tool = make_run_tool(queue)
 
             tasks = [
-                asyncio.create_task(run_tool_bound(tool))
+                asyncio.create_task(run_tool(tool))
                 for tool in final_tool_calls.values()
             ]
             finished_tools = 0
