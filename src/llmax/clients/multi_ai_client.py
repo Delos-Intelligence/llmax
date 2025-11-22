@@ -53,11 +53,11 @@ from llmax.utils import (
 )
 
 
-async def _default_get_usage() -> float:
+async def _default_get_usage() -> float: # noqa: RUF029
     return 0.0
 
 
-async def _default_increment_usage(
+async def _default_increment_usage( # noqa: RUF029
     _usage: float,
     _model: Model,
     _user_id: str,
@@ -73,7 +73,7 @@ async def _default_increment_usage(
     return True
 
 
-class MultiAIClient:
+class MultiAIClient: # noqa: PLR0904
     """Class to interface with multiple LLMs and AI models.
 
     This class supports both synchronous and asynchronous operations for obtaining
