@@ -58,14 +58,14 @@ AnthropicModel = Literal[
 ]
 
 ScalewayModel = Literal[
-    "scaleway/qwen3-235b-a22b-instruct-2507",
-    "scaleway/gpt-oss-120b",
-    "scaleway/gemma-3-27b-it",
-    "scaleway/whisper-large-v3",
-    "scaleway/voxtral-small-24b-2507",
-    "scaleway/mistral-small-3.2-24b-instruct-2506",
-    "scaleway/llama-3.3-70b-instruct",
-    "scaleway/deepseek-r1-distill-llama-70b",
+    "qwen3-235b-a22b-instruct-2507",
+    "gpt-oss-120b",
+    "gemma-3-27b-it",
+    "whisper-large-v3",
+    "voxtral-small-24b-2507",
+    "mistral-small-3.2-24b-instruct-2506",
+    "llama-3.3-70b-instruct",
+    "deepseek-r1-distill-llama-70b",
 ]
 
 
@@ -82,7 +82,7 @@ LLModel = (
 SpeechToTextModel = Literal[
     "whisper-1",
     "gpt-4o-transcribe",
-    "scaleway/whisper-large-v3",
+    "whisper-large-v3",
 ]
 
 ImageGenerationModel = Literal["dall-e-3", "gpt-image-1"]
@@ -100,7 +100,7 @@ ANTHROPIC_MODELS: tuple[AnthropicModel, ...] = get_args(AnthropicModel)
 SCALEWAY_MODELS: tuple[ScalewayModel, ...] = get_args(ScalewayModel)
 
 # Models that require special JSON format handling
-QWEN_SCALEWAY_MODELS: tuple[str, ...] = ("scaleway/qwen3-235b-a22b-instruct-2507",)
+QWEN_SCALEWAY_MODELS: tuple[str, ...] = ("qwen3-235b-a22b-instruct-2507",)
 
 LLMS: tuple[LLModel, ...] = get_args(LLModel)
 AUDIO: tuple[SpeechToTextModel, ...] = get_args(SpeechToTextModel)
