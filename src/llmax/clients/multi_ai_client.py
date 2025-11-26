@@ -33,13 +33,8 @@ from llmax.models.deployment import Deployment
 from llmax.models.fake import fake_llm
 from llmax.models.models import (
     ANTHROPIC_MODELS,
-    COHERE_MODELS,
-    GEMINI_MODELS,
-    META_MODELS,
     MISTRAL_MODELS,
-    OPENAI_MODELS,
     QWEN_SCALEWAY_MODELS,
-    SCALEWAY_MODELS,
     Model,
 )
 from llmax.usage import ModelUsage, tokens
@@ -118,37 +113,47 @@ class MultiAIClient:
         self._clients: dict[Model, Client] = {}
         self._aclients: dict[Model, Client] = {}
 
-    def client(self, model: Model) -> Client:
+    def client(self, models: list[Model]) -> Client:
         """Returns the client for the given model, creating it if necessary.
 
         Args:
-            model: The model for which to get the client.
+            models: The models for which to get the client.
 
         Returns:
             The client object for the specified model.
         """
-        if model not in self._clients:
-            self._clients[model] = get_client(
-                self.deployments[model],
-                http_client=self._httpx_client,
-            )
-        return self._clients[model]
+        for model in models:
+            if model in self.deployments:
+                if model not in self._clients:
+                    self._clients[model] = get_client(
+                        self.deployments[model],
+                        http_client=self._httpx_client,
+                    )
+                return self._clients[model], model
 
-    def aclient(self, model: Model) -> Client:
+        message = "No model deployments are available from the provided list."
+        raise ValueError(message)
+
+    def aclient(self, models: list[Model]) -> Client:
         """Returns the asynchronous client for the given model, creating it if necessary.
 
         Args:
-            model: The model for which to get the client.
+            models: The model for which to get the client.
 
         Returns:
             The asynchronous client object for the specified model.
         """
-        if model not in self._aclients:
-            self._aclients[model] = get_aclient(
-                self.deployments[model],
-                http_client=self._httpx_aclient,
-            )
-        return self._aclients[model]
+        for model in models:
+            if model in self.deployments:
+                if model not in self._aclients:
+                    self._aclients[model] = get_aclient(
+                        self.deployments[model],
+                        http_client=self._httpx_aclient,
+                    )
+                return self._aclients[model], model
+
+        message = "No model deployments are available from the provided list."
+        raise ValueError(message)
 
     def _transform_response_format_for_qwen(
         self,
@@ -248,20 +253,20 @@ class MultiAIClient:
     def _create_chat(
         self,
         messages: Messages,
-        model: Model,
+        models: list[Model],
         **kwargs: Any,
-    ) -> ChatCompletion | ParsedResponse[Any]:
+    ) -> tuple[ChatCompletion | ParsedResponse[Any], Model]:
         """Synchronously creates chat completions for the given messages and model.
 
         Args:
             messages: The list of messages to process.
-            model: The model to use for generating completions.
+            models: The model to use for generating completions.
             kwargs: More args.
 
         Returns:
             ChatCompletion: The completion response from the API.
         """
-        client = self.client(model)
+        client, model = self.client(models)
         deployment = self.deployments[model]
 
         kwargs = self.clean_kwargs(kwargs, deployment)
@@ -277,25 +282,25 @@ class MultiAIClient:
             messages=messages,
             model=deployment.deployment_name,
             **kwargs,
-        )
+        ), model
 
     async def _acreate_chat(
         self,
         messages: Messages,
-        model: Model,
+        models: list[Model],
         **kwargs: Any,
-    ) -> ChatCompletion | ParsedResponse[Any]:
+    ) -> tuple[ChatCompletion | ParsedResponse[Any], Model]:
         """Asynchronously creates chat completions for the given messages and model.
 
         Args:
             messages: The list of messages to process.
-            model: The model to use for generating completions.
+            models: The model to use for generating completions.
             kwargs: More args.
 
         Returns:
             ChatCompletion: The completion response from the API.
         """
-        aclient = self.aclient(model)
+        aclient, model = self.aclient(models)
         deployment = self.deployments[model]
 
         kwargs = self.clean_kwargs(kwargs, deployment)
@@ -307,16 +312,17 @@ class MultiAIClient:
                 **kwargs,
             )
 
-        return await aclient.chat.completions.create(
+        response = await aclient.chat.completions.create(
             messages=messages,
             model=deployment.deployment_name,
             **kwargs,
         )
+        return response, model
 
     def invoke(
         self,
         messages: Messages,
-        model: Model,
+        models: list[Model],
         system: str | None = None,
         delay: float = 0.0,
         tries: int = 1,
@@ -326,7 +332,7 @@ class MultiAIClient:
 
         Args:
             messages: The list of messages for the chat.
-            model: The model to use for generating the chat completions.
+            models: The model to use for generating the chat completions.
             system: A string that will be passed as a system prompt.
             delay : How log to wait between each try (in s).
             tries : How many tries we can endure with rate limits.
@@ -342,13 +348,17 @@ class MultiAIClient:
         if system:
             messages = add_system_message(
                 messages=messages,
-                model=model,
                 system=system,
             )
         response: ChatCompletion | ParsedResponse[Any] | None = None
         for _ in range(tries):
             try:
-                response = self._create_chat(messages, model, **kwargs, stream=False)
+                response, _model_used = self._create_chat(
+                    messages,
+                    models,
+                    **kwargs,
+                    stream=False,
+                )
                 break
             except RateLimitError as e:
                 time.sleep(delay)
@@ -363,7 +373,7 @@ class MultiAIClient:
     def invoke_to_str(
         self,
         messages: Messages,
-        model: Model,
+        model: Model | list[Model],
         system: str | None = None,
         delay: float = 0.0,
         tries: int = 1,
@@ -384,7 +394,7 @@ class MultiAIClient:
         """
         response = self.invoke(
             messages,
-            model,
+            model if isinstance(model, list) else [model],
             system=system,
             delay=delay,
             tries=tries,
@@ -399,7 +409,7 @@ class MultiAIClient:
     async def ainvoke(
         self,
         messages: Messages,
-        model: Model,
+        models: list[Model],
         system: str | None = None,
         delay: float = 0.0,
         tries: int = 1,
@@ -409,7 +419,7 @@ class MultiAIClient:
 
         Args:
             messages: The list of messages for the chat.
-            model: The model to use for generating the chat completions.
+            models: The model to use for generating the chat completions.
             system: A string that will be passed as a system prompt.
             delay : How log to wait between each try (in s).
             tries : How many tries we can endure with rate limits.
@@ -423,16 +433,16 @@ class MultiAIClient:
         if system:
             messages = add_system_message(
                 messages=messages,
-                model=model,
                 system=system,
             )
 
         response: ChatCompletion | ParsedResponse[Any] | None = None
+        model = models[0]
         for _ in range(tries):
             try:
-                response = await self._acreate_chat(
+                response, model = await self._acreate_chat(
                     messages,
-                    model,
+                    models,
                     **kwargs,
                     stream=False,
                 )
@@ -474,7 +484,7 @@ class MultiAIClient:
     async def ainvoke_to_str(
         self,
         messages: Messages,
-        model: Model,
+        model: Model | list[Model],
         system: str | None = None,
         delay: float = 0.0,
         tries: int = 1,
@@ -495,7 +505,7 @@ class MultiAIClient:
         """
         response = await self.ainvoke(
             messages,
-            model,
+            model if isinstance(model, list) else [model],
             delay=delay,
             tries=tries,
             system=system,
@@ -508,7 +518,7 @@ class MultiAIClient:
     async def ainvoke_get_tools(
         self,
         messages: Messages,
-        model: Model,
+        model: list[Model] | Model,
         system: str | None = None,
         delay: float = 0.0,
         tries: int = 1,
@@ -530,7 +540,7 @@ class MultiAIClient:
         """
         response = await self.ainvoke(
             messages,
-            model,
+            model if isinstance(model, list) else [model],
             delay=delay,
             tries=tries,
             system=system,
@@ -544,7 +554,7 @@ class MultiAIClient:
     async def ainvoke_with_tools(  # noqa: D417, PLR0913
         self,
         messages: Messages,
-        model: Model,
+        model: Model | list[Model],
         execute_tools: Callable[[str, str], Awaitable[str]],
         system: str | None = None,
         delay: float = 0.0,
@@ -573,7 +583,7 @@ class MultiAIClient:
             tries += 1
             response = await self.ainvoke(
                 messages,
-                model,
+                model if isinstance(model, list) else [model],
                 delay=delay,
                 tries=tries,
                 system=system,
@@ -606,7 +616,12 @@ class MultiAIClient:
             results = await asyncio.gather(*tool_coros)
 
             for tool, resultat in zip(final_tool_calls, results, strict=True):
-                messages.append(parse_tool_call(tool, model))  # type: ignore
+                messages.append(
+                    parse_tool_call(
+                        tool,  # type: ignore
+                        model[0] if isinstance(model, list) else model,
+                    ),
+                )
                 messages.append(
                     {
                         "role": "tool",
@@ -620,15 +635,15 @@ class MultiAIClient:
     def stream(
         self,
         messages: Messages,
-        model: Model,
+        models: Model | list[Model],
         system: str | None = None,
         **kwargs: Any,
-    ) -> Generator[ChatCompletionChunk | CompletionUsage, None, None]:
+    ) -> Generator[ChatCompletionChunk | CompletionUsage | Model, None, None]:
         """Streams chat completions, allowing responses to be received in chunks.
 
         Args:
             messages: The list of messages for the chat.
-            model: The model to use for generating the chat completions.
+            models: The model to use for generating the chat completions.
             system: A string that will be passed as a system prompt.
             kwargs: More args.
 
@@ -638,38 +653,38 @@ class MultiAIClient:
         if system:
             messages = add_system_message(
                 messages=messages,
-                model=model,
                 system=system,
             )
         try:
-            if model == "o3-mini-high":
-                response = self._create_chat(
+            if models == "o3-mini-high":
+                response, model = self._create_chat(
                     messages,
-                    "o3-mini",
+                    ["o3-mini"],
                     **kwargs,
                     stream=True,
                     reasoning_effort="high",
                     stream_options={"include_usage": True},
                 )
-                model = "o3-mini"
             else:
-                response = self._create_chat(
+                response, model = self._create_chat(
                     messages,
-                    model,
+                    models if isinstance(models, list) else [models],
                     **kwargs,
                     stream=True,
                     stream_options={"include_usage": True},
                 )
         except BadRequestError as e:
             logger.error(
-                f"[bold purple][LLMAX][/bold purple] BadRequestError in stream for model {model}: {e}",
+                f"[bold purple][LLMAX][/bold purple] BadRequestError in stream for model {models}: {e}",
             )
             return
         except Exception as e:
             logger.error(
-                f"[bold purple][LLMAX][/bold purple] Unexpected error in stream for model {model}: {e}",
+                f"[bold purple][LLMAX][/bold purple] Unexpected error in stream for model {models}: {e}",
             )
             return
+
+        yield model
 
         try:
             for chunk in response:
@@ -691,7 +706,7 @@ class MultiAIClient:
     async def stream_output_smooth(  # noqa: C901, PLR0915
         self,
         messages: Messages,
-        model: Model,
+        model: list[Model] | Model,
         smooth_duration: int,
         system: str | None = None,
         **kwargs: Any,
@@ -721,6 +736,8 @@ class MultiAIClient:
         # Track timing for usage
         start = time.time()
         ttft = None
+        model_used = model[0] if isinstance(model, list) else model
+
         operation: str = kwargs.pop("operation", "")
 
         for chunk in fake_llm(
@@ -731,7 +748,7 @@ class MultiAIClient:
             yield StreamItemContent(content=chunk)
 
         def collect_chunks() -> None:
-            nonlocal chunk_usage, ttft
+            nonlocal chunk_usage, ttft, model_used
             chunk_count = 0
             try:
                 logger.debug(
@@ -746,8 +763,7 @@ class MultiAIClient:
                     chunk_count += 1
                     if isinstance(completion_chunk, CompletionUsage):
                         chunk_usage = completion_chunk
-                    else:
-                        # Track time to first token
+                    elif isinstance(completion_chunk, ChatCompletionChunk):
                         if (
                             ttft is None
                             and len(completion_chunk.choices) > 0
@@ -755,6 +771,9 @@ class MultiAIClient:
                         ):
                             ttft = time.time() - start
                         output_queue.put(completion_chunk.choices)
+                    else:
+                        model_used = completion_chunk
+
                 logger.debug(
                     f"[bold purple][LLMAX][/bold purple] Stream collection finished for model {model}, "
                     f"received {chunk_count} chunks",
@@ -816,7 +835,7 @@ class MultiAIClient:
 
         await loop.run_in_executor(None, collector.join)
 
-        deployment = self.deployments[model]
+        deployment = self.deployments[model_used]
         usage = ModelUsage(deployment, self._increment_usage, chunk_usage)
 
         duration = time.time() - start
@@ -830,7 +849,7 @@ class MultiAIClient:
     async def stream_output(
         self,
         messages: Messages,
-        model: Model,
+        model: list[Model] | Model,
         system: str | None = None,
         smooth_duration: int | None = None,
         **kwargs: Any,
@@ -862,7 +881,7 @@ class MultiAIClient:
     async def stream_output_with_tools(  # noqa: C901, PLR0912, PLR0913
         self,
         messages: Messages,
-        model: Model,
+        model: list[Model] | Model,
         execute_tools: Callable[[str, str, str], AsyncGenerator[ToolItem, None]],
         system: str | None = None,
         smooth_duration: int | None = None,
@@ -914,7 +933,7 @@ class MultiAIClient:
 
             async for item in self.stream_output(
                 messages=messages,
-                model=model,
+                model=model if isinstance(model, list) else [model],
                 system=system,
                 smooth_duration=smooth_duration,
                 tools=tools if allow_tools else None,
@@ -965,7 +984,12 @@ class MultiAIClient:
                     yield res.content
                 else:
                     tool_result, tool_retrigger = res.output, res.redo
-                    update_messages_tools(tool, tool_result, messages, model)
+                    update_messages_tools(
+                        tool,
+                        tool_result,
+                        messages,
+                        model[0] if isinstance(model, list) else model,
+                    )
                     if not tool_retrigger:
                         retrigger_stream = False
 
@@ -978,7 +1002,7 @@ class MultiAIClient:
     async def aembedder(
         self,
         texts: list[str],
-        model: Model,
+        model: Model | list[Model],
         **kwargs: Any,
     ) -> list[Embedding]:
         """Asynchronously obtains vector embeddings for a list of texts.
@@ -995,8 +1019,8 @@ class MultiAIClient:
         operation: str = kwargs.pop("operation", "")
         texts = [text.replace("\n", " ") for text in texts]
 
-        client = self.aclient(model)
-        deployment = self.deployments[model]
+        client, model_used = self.aclient(model if isinstance(model, list) else [model])
+        deployment = self.deployments[model_used]
 
         response = await client.embeddings.create(
             input=texts,
@@ -1018,7 +1042,7 @@ class MultiAIClient:
     def embedder(
         self,
         texts: list[str],
-        model: Model,
+        model: Model | list[Model],
         **kwargs: Any,
     ) -> list[Embedding]:
         """Obtains vector embeddings for a list of texts asynchronously.
@@ -1037,8 +1061,8 @@ class MultiAIClient:
         kwargs.pop("operation", "")
         texts = [text.replace("\n", " ") for text in texts]
 
-        client = self.client(model)
-        deployment = self.deployments[model]
+        client, model_used = self.client(model if isinstance(model, list) else [model])
+        deployment = self.deployments[model_used]
 
         response = client.embeddings.create(
             input=texts,
@@ -1068,7 +1092,7 @@ class MultiAIClient:
             "[bold purple][LLMAX][/bold purple] Deprecated function `speech_to_text`, use the async one instead.",
         )
         kwargs.pop("operation", "")
-        client = self.client(model)
+        client, model = self.client([model])
         deployment = self.deployments[model]
 
         response = client.audio.transcriptions.create(
@@ -1102,7 +1126,7 @@ class MultiAIClient:
         """
         start = time.time()
         operation: str = kwargs.pop("operation", "")
-        aclient = self.aclient(model)
+        aclient, model = self.aclient([model])
         deployment = self.deployments[model]
 
         response = await aclient.audio.transcriptions.create(
@@ -1148,7 +1172,7 @@ class MultiAIClient:
         """Generate images from a text prompt using the specified model."""
         start = time.time()
         operation: str = kwargs.pop("operation", "")
-        client = self.aclient(model)
+        client, model = self.aclient([model])
         deployment = self.deployments[model]
 
         response = await client.images.generate(
@@ -1191,7 +1215,7 @@ class MultiAIClient:
         """Edit an image using the specified model and a text prompt."""
         start = time.time()
         operation: str = kwargs.pop("operation", "")
-        client = self.aclient(model)
+        client, model = self.aclient([model])
         deployment = self.deployments[model]
 
         response = await client.images.edit(
@@ -1246,7 +1270,7 @@ class MultiAIClient:
             "[bold purple][LLMAX][/bold purple] Deprecated function `text_to_speech`, create the async one instead.",
         )
         kwargs.pop("operation", "")
-        client = self.client(model)
+        client, model = self.client([model])
         deployment = self.deployments[model]
         response = client.audio.speech.create(
             model=deployment.deployment_name,
@@ -1261,7 +1285,6 @@ class MultiAIClient:
 
 def add_system_message(
     messages: Messages,
-    model: Model,
     system: str,
 ) -> Messages:
     """Adds a system message at the start of the messages.
@@ -1276,25 +1299,7 @@ def add_system_message(
     Returns:
         Messages: The same initial list with the system message inserted at index 0.
     """
-    match model:
-        case model if model in OPENAI_MODELS:
-            messages.insert(0, {"role": "system", "content": system})
-        case model if model in COHERE_MODELS:
-            messages.insert(0, {"role": "system", "content": system})
-        case model if model in META_MODELS:
-            messages.insert(0, {"role": "system", "content": system})
-        case model if model in GEMINI_MODELS:
-            messages.insert(0, {"role": "system", "content": system})
-        case model if model in MISTRAL_MODELS:
-            messages.insert(0, {"role": "system", "content": system})
-        case model if model in ANTHROPIC_MODELS:
-            messages.insert(0, {"role": "system", "content": system})
-        case model if model in SCALEWAY_MODELS:
-            messages.insert(0, {"role": "system", "content": system})
-        case _:
-            logger.debug(
-                f"[bold purple][LLMAX][/bold purple] The model specified, {model}, does not understand system mode.",
-            )
+    messages.insert(0, {"role": "system", "content": system})
     return messages
 
 
