@@ -15,7 +15,7 @@ from queue import Queue
 from typing import Any, Literal
 
 import httpx
-from openai import NOT_GIVEN, BadRequestError, RateLimitError
+from openai import BadRequestError, RateLimitError
 from openai.types import CompletionUsage, Embedding
 from openai.types.audio import Transcription, TranscriptionVerbose
 from openai.types.chat import (
@@ -653,17 +653,12 @@ class MultiAIClient:
                 )
                 model = "o3-mini"
             else:
-                stream_opts = (
-                    NOT_GIVEN
-                    if model in MISTRAL_MODELS or model in SCALEWAY_MODELS
-                    else {"include_usage": True}
-                )
                 response = self._create_chat(
                     messages,
                     model,
                     **kwargs,
                     stream=True,
-                    stream_options=stream_opts,
+                    stream_options={"include_usage": True},
                 )
         except BadRequestError as e:
             logger.error(
@@ -678,6 +673,7 @@ class MultiAIClient:
 
         try:
             for chunk in response:
+                print(chunk)
                 if isinstance(chunk.usage, CompletionUsage):  # type: ignore
                     yield chunk.usage  # type: ignore
                 try:

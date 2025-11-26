@@ -36,14 +36,13 @@ PROMPT_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "gpt-5-chat": 1.25,
     "gpt-5-mini": 0.25,
     "gpt-5-nano": 0.05,
-    "gpt-oss-120b": 0.85,
-    "scaleway/qwen3-235b-a22b-instruct-2507": {"scaleway": 0.825},  # €0.75 → ~$0.825
-    "scaleway/gpt-oss-120b": {"scaleway": 0.165},  # €0.15 → ~$0.165
-    "scaleway/gemma-3-27b-it": {"scaleway": 0.275},  # €0.25 → ~$0.275
-    "scaleway/voxtral-small-24b-2507": {"scaleway": 0.165},  # €0.15 → ~$0.165
-    "scaleway/mistral-small-3.2-24b-instruct-2506": {"scaleway": 0.165},  # €0.15 → ~$0.165
-    "scaleway/llama-3.3-70b-instruct": {"scaleway": 0.99},  # €0.90 → ~$0.99
-    "scaleway/deepseek-r1-distill-llama-70b": {"scaleway": 0.99},  # €0.90 → ~$0.99
+    "qwen3-235b-a22b-instruct-2507": {"scaleway": 0.825},  # €0.75 → ~$0.825
+    "gpt-oss-120b": {"scaleway": 0.165},  # €0.15 → ~$0.165
+    "gemma-3-27b-it": {"scaleway": 0.275},  # €0.25 → ~$0.275
+    "voxtral-small-24b-2507": {"scaleway": 0.165},  # €0.15 → ~$0.165
+    "mistral-small-3.2-24b-instruct-2506": {"scaleway": 0.165},  # €0.15 → ~$0.165
+    "llama-3.3-70b-instruct": {"scaleway": 0.99},  # €0.90 → ~$0.99
+    "deepseek-r1-distill-llama-70b": {"scaleway": 0.99},  # €0.90 → ~$0.99
 }
 
 CACHED_PROMPT_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
@@ -90,20 +89,19 @@ COMPLETION_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "gpt-5-chat": 10.00,
     "gpt-5-mini": 2.00,
     "gpt-5-nano": 0.40,
-    "gpt-oss-120b": 0.85,
-    "scaleway/qwen3-235b-a22b-instruct-2507": {"scaleway": 2.475},  # €2.25 → ~$2.475
-    "scaleway/gpt-oss-120b": {"scaleway": 0.66},  # €0.60 → ~$0.66
-    "scaleway/gemma-3-27b-it": {"scaleway": 0.55},  # €0.50 → ~$0.55
-    "scaleway/voxtral-small-24b-2507": {"scaleway": 0.385},  # €0.35 → ~$0.385
-    "scaleway/mistral-small-3.2-24b-instruct-2506": {"scaleway": 0.385},  # €0.35 → ~$0.385
-    "scaleway/llama-3.3-70b-instruct": {"scaleway": 0.99},  # €0.90 → ~$0.99
-    "scaleway/deepseek-r1-distill-llama-70b": {"scaleway": 0.99},  # €0.90 → ~$0.99
+    "qwen3-235b-a22b-instruct-2507": {"scaleway": 2.475},  # €2.25 → ~$2.475
+    "gpt-oss-120b": {"scaleway": 0.66},  # €0.60 → ~$0.66
+    "gemma-3-27b-it": {"scaleway": 0.55},  # €0.50 → ~$0.55
+    "voxtral-small-24b-2507": {"scaleway": 0.385},  # €0.35 → ~$0.385
+    "mistral-small-3.2-24b-instruct-2506": {"scaleway": 0.385},  # €0.35 → ~$0.385
+    "llama-3.3-70b-instruct": {"scaleway": 0.99},  # €0.90 → ~$0.99
+    "deepseek-r1-distill-llama-70b": {"scaleway": 0.99},  # €0.90 → ~$0.99
 }
 
 TRANSCRIPTION_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "whisper-1": 0.006,
     "gpt-4o-transcribe": 0.006,
-    "scaleway/whisper-large-v3": {"scaleway": 0.0033},  # €0.003/minute → ~$0.0033/minute
+    "whisper-large-v3": {"scaleway": 0.0033},  # €0.003/minute → ~$0.0033/minute
 }
 
 GENERATION_PRICE_BASE: dict[Model, float | dict[Provider, float]] = {
