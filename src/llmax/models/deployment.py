@@ -35,7 +35,3 @@ class Deployment:
         ):
             message = "Please provide a deployment name for Azure OpenAI deployments."
             raise ValueError(message)
-        # Scaleway base URL is https://api.scaleway.ai/v1
-        # project_id is optional and not part of the URL path
-        # If endpoint is provided, it will be used as-is
-        # Otherwise, the default base URL will be used

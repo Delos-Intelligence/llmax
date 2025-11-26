@@ -16,7 +16,6 @@ from llmax.models import Deployment
 
 Client = Any
 
-# Base URL for Scaleway Generative APIs
 SCALEWAY_BASE_URL = "https://api.scaleway.ai/v1"
 
 
@@ -29,12 +28,9 @@ def _build_scaleway_url(deployment: Deployment) -> str:
     Returns:
         The complete base URL for Scaleway API calls
     """
-    # If endpoint is explicitly provided, use it (for backward compatibility)
     if deployment.endpoint:
         return deployment.endpoint
 
-    # The base URL is always https://api.scaleway.ai/v1
-    # project_id is not part of the URL path
     return SCALEWAY_BASE_URL
 
 

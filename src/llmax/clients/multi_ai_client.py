@@ -191,7 +191,10 @@ class MultiAIClient:  # noqa: PLR0904
         response_format = kwargs["response_format"]
 
         # If it's OpenAI's standard json_object format
-        if isinstance(response_format, dict) and response_format.get("type") == "json_object":
+        if (
+            isinstance(response_format, dict)
+            and response_format.get("type") == "json_object"
+        ):
             # Transform to Scaleway's json_schema format
             new_format: dict[str, Any] = {"type": "json_schema"}
 
@@ -208,7 +211,10 @@ class MultiAIClient:  # noqa: PLR0904
                 "json_object -> json_schema",
             )
         # If it's already json_schema, ensure it has the correct structure
-        elif isinstance(response_format, dict) and response_format.get("type") == "json_schema":
+        elif (
+            isinstance(response_format, dict)
+            and response_format.get("type") == "json_schema"
+        ):
             # Already in correct format, but check if json_schema needs to be moved
             if "json_schema" in kwargs and "json_schema" not in response_format:
                 response_format["json_schema"] = kwargs.pop("json_schema")
@@ -654,8 +660,6 @@ class MultiAIClient:  # noqa: PLR0904
                 )
                 model = "o3-mini"
             else:
-                # Scaleway models may not support stream_options
-                # Use NOT_GIVEN for Scaleway to avoid potential issues
                 stream_opts = (
                     NOT_GIVEN
                     if model in MISTRAL_MODELS or model in SCALEWAY_MODELS
@@ -679,16 +683,10 @@ class MultiAIClient:  # noqa: PLR0904
             )
             return
 
-        if response is None:
-            logger.warning(
-                f"[bold purple][LLMAX][/bold purple] Stream response is None for model {model}",
-            )
-            return
-
         try:
             for chunk in response:
-                if isinstance(chunk.usage, CompletionUsage):
-                    yield chunk.usage
+                if isinstance(chunk.usage, CompletionUsage):  # type: ignore
+                    yield chunk.usage  # type: ignore
                 try:
                     if len(chunk.choices) == 0:  # type: ignore
                         continue
@@ -702,7 +700,7 @@ class MultiAIClient:  # noqa: PLR0904
             )
             return
 
-    async def stream_output_smooth(  # noqa: C901, PLR0914, PLR0915
+    async def stream_output_smooth(  # noqa: C901, PLR0915
         self,
         messages: Messages,
         model: Model,
