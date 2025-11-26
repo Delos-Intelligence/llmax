@@ -673,7 +673,6 @@ class MultiAIClient:
 
         try:
             for chunk in response:
-                print(chunk)
                 if isinstance(chunk.usage, CompletionUsage):  # type: ignore
                     yield chunk.usage  # type: ignore
                 try:
