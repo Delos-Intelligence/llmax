@@ -190,18 +190,14 @@ class MultiAIClient:
 
         response_format = kwargs["response_format"]
 
-        # If it's OpenAI's standard json_object format
         if (
             isinstance(response_format, dict)
             and response_format.get("type") == "json_object"
         ):
-            # Transform to Scaleway's json_schema format
             new_format: dict[str, Any] = {"type": "json_schema"}
 
-            # If a JSON schema is provided separately, include it
             if "json_schema" in kwargs:
                 new_format["json_schema"] = kwargs.pop("json_schema")
-            # If schema is in response_format, preserve it
             elif "json_schema" in response_format:
                 new_format["json_schema"] = response_format["json_schema"]
 
@@ -210,12 +206,10 @@ class MultiAIClient:
                 "[bold purple][LLMAX][/bold purple] Transformed response_format for Qwen model: "
                 "json_object -> json_schema",
             )
-        # If it's already json_schema, ensure it has the correct structure
         elif (
             isinstance(response_format, dict)
             and response_format.get("type") == "json_schema"
         ):
-            # Already in correct format, but check if json_schema needs to be moved
             if "json_schema" in kwargs and "json_schema" not in response_format:
                 response_format["json_schema"] = kwargs.pop("json_schema")
                 kwargs["response_format"] = response_format
@@ -228,7 +222,6 @@ class MultiAIClient:
         deployment: Deployment,
     ) -> dict[str, Any]:
         """Clean kwargs to avoid errors."""
-        # Transform response_format for Qwen models first
         kwargs = self._transform_response_format_for_qwen(kwargs, deployment.model)
         if "temperature" in kwargs and deployment.model in {"o3-mini", "o3-mini-high"}:
             logger.warning("Temperature is not supported for this model.")

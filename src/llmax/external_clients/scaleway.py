@@ -16,23 +16,6 @@ from llmax.models import Deployment
 
 Client = Any
 
-SCALEWAY_BASE_URL = "https://api.scaleway.ai/v1"
-
-
-def _build_scaleway_url(deployment: Deployment) -> str:
-    """Build the Scaleway API URL.
-
-    Args:
-        deployment: The deployment configuration
-
-    Returns:
-        The complete base URL for Scaleway API calls
-    """
-    if deployment.endpoint:
-        return deployment.endpoint
-
-    return SCALEWAY_BASE_URL
-
 
 def get_client(
     deployment: Deployment,
@@ -49,16 +32,15 @@ def get_client(
     """
     match deployment.provider:
         case "scaleway":
-            base_url = _build_scaleway_url(deployment)
             if http_client:
                 return OpenAI(
                     api_key=deployment.api_key,
-                    base_url=base_url,
+                    base_url=deployment.endpoint,
                     http_client=http_client,
                 )
             return OpenAI(
                 api_key=deployment.api_key,
-                base_url=base_url,
+                base_url=deployment.endpoint,
             )
         case _:
             raise ProviderNotFoundError(deployment)
@@ -79,16 +61,15 @@ def get_aclient(
     """
     match deployment.provider:
         case "scaleway":
-            base_url = _build_scaleway_url(deployment)
             if http_client:
                 return AsyncOpenAI(
                     api_key=deployment.api_key,
-                    base_url=base_url,
+                    base_url=deployment.endpoint,
                     http_client=http_client,
                 )
             return AsyncOpenAI(
                 api_key=deployment.api_key,
-                base_url=base_url,
+                base_url=deployment.endpoint,
             )
         case _:
             raise ProviderNotFoundError(deployment)
