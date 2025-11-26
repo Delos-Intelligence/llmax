@@ -394,7 +394,7 @@ class MultiAIClient:
             return response.choices[0].message.content if response.choices else None
         if not response:
             return None
-        return response.output[0].content[0].text if response.output else None
+        return response.output[0].content[0].text if response.output else None  # type: ignore
 
     async def ainvoke(
         self,
@@ -503,7 +503,7 @@ class MultiAIClient:
         )
         if isinstance(response, ChatCompletion):
             return response.choices[0].message.content if response.choices else None
-        return response.output[0].content[0].text if response.output else None
+        return response.output[0].content[0].text if response.output else None  # type: ignore
 
     async def ainvoke_get_tools(
         self,
@@ -536,10 +536,10 @@ class MultiAIClient:
             system=system,
             **kwargs,
         )
-        output_str = response.choices[0].message.content if response.choices else None
-        final_tool_calls = response.choices[0].message.tool_calls or []
+        output_str = response.choices[0].message.content if response.choices else None  # type: ignore
+        final_tool_calls = response.choices[0].message.tool_calls or []  # type: ignore
 
-        return output_str, final_tool_calls
+        return output_str, final_tool_calls  # type: ignore
 
     async def ainvoke_with_tools(  # noqa: D417, PLR0913
         self,
@@ -580,9 +580,9 @@ class MultiAIClient:
                 **kwargs,
             )
             output_str = (
-                response.choices[0].message.content if response.choices else None
+                response.choices[0].message.content if response.choices else None  # type: ignore
             )
-            final_tool_calls = response.choices[0].message.tool_calls or []
+            final_tool_calls = response.choices[0].message.tool_calls or []  # type: ignore
 
             if len(final_tool_calls) == 0:
                 return output_str
@@ -596,8 +596,8 @@ class MultiAIClient:
 
             tool_coros = []
             for tool in final_tool_calls:
-                function_name = tool.function.name
-                function_args = tool.function.arguments
+                function_name = tool.function.name  # type: ignore
+                function_args = tool.function.arguments  # type: ignore
                 logger.info(
                     f"Tool called for function `{function_name}` with the args `{function_args}`",
                 )
@@ -606,7 +606,7 @@ class MultiAIClient:
             results = await asyncio.gather(*tool_coros)
 
             for tool, resultat in zip(final_tool_calls, results, strict=True):
-                messages.append(parse_tool_call(tool, model))
+                messages.append(parse_tool_call(tool, model))  # type: ignore
                 messages.append(
                     {
                         "role": "tool",
@@ -804,7 +804,7 @@ class MultiAIClient:
 
             for tool_call in choices[0].delta.tool_calls or []:
                 index = tool_call.index
-                if index is None:
+                if index is None:  # type: ignore
                     index = 1
 
                 if index not in final_tool_calls:
@@ -813,9 +813,9 @@ class MultiAIClient:
                     tool_call.function is not None
                     and final_tool_calls[index].function is not None
                 ):
-                    current_args = final_tool_calls[index].function.arguments or ""
+                    current_args = final_tool_calls[index].function.arguments or ""  # type: ignore
                     new_args = tool_call.function.arguments or ""
-                    final_tool_calls[index].function.arguments = current_args + new_args
+                    final_tool_calls[index].function.arguments = current_args + new_args  # type: ignore
 
             await asyncio.sleep(smooth_duration / 1000)
 
@@ -941,16 +941,16 @@ class MultiAIClient:
 
             queue = asyncio.Queue()
 
-            async def run_tool(tool: ChoiceDeltaToolCall, queue: asyncio.Queue) -> None:
+            async def run_tool(tool: ChoiceDeltaToolCall, queue: asyncio.Queue) -> None:  # type: ignore
                 tool_id = tool.id
-                function_name = tool.function.name
-                function_args = tool.function.arguments
+                function_name = tool.function.name  # type: ignore
+                function_args = tool.function.arguments  # type: ignore
                 if not all([tool_id, function_name, function_args]):
                     return
                 logger.info(
                     f"Tool called for function `{function_name}` with args `{function_args}`",
                 )
-                async for res in execute_tools(function_name, function_args, tool_id):
+                async for res in execute_tools(function_name, function_args, tool_id):  # type: ignore
                     await queue.put((tool, res))
                 await queue.put((tool, None))
 
@@ -1341,7 +1341,7 @@ def parse_tool_call(
                     "type": "tool_use",
                     "id": call_id,
                     "name": function_name,
-                    "input": json.loads(str(tool_call.function.arguments)),
+                    "input": json.loads(str(tool_call.function.arguments)),  # type: ignore
                 },
             ],
         }
@@ -1356,8 +1356,8 @@ def parse_tool_call(
                     "id": tool_call.id,
                     "type": "function",
                     "function": {
-                        "name": tool_call.function.name,
-                        "arguments": str(tool_call.function.arguments),
+                        "name": tool_call.function.name,  # type: ignore
+                        "arguments": str(tool_call.function.arguments),  # type: ignore
                     },
                 },
             ],
