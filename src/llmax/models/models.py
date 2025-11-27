@@ -46,7 +46,6 @@ OpenAIModel = Literal[
     "gpt-5-chat",
     "gpt-5-mini",
     "gpt-5-nano",
-    "gpt-oss-120b",
 ]
 
 AnthropicModel = Literal[
