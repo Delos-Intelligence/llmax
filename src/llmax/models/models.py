@@ -66,6 +66,8 @@ ScalewayModel = Literal[
     "mistral-small-3.2-24b-instruct-2506",
     "llama-3.3-70b-instruct",
     "deepseek-r1-distill-llama-70b",
+    "llama-3.1-8b-instruct",
+    "bge-multilingual-gemma2",
 ]
 
 
@@ -85,7 +87,7 @@ SpeechToTextModel = Literal[
     "whisper-large-v3",
 ]
 
-ImageGenerationModel = Literal["dall-e-3", "gpt-image-1"]
+ImageGenerationModel = Literal["dall-e-3", "gpt-image-1", "gemma-3-27b-it"]
 
 TextToSpeechModel = Literal["tts-1",]
 
@@ -99,8 +101,6 @@ OPENAI_MODELS: tuple[OpenAIModel, ...] = get_args(OpenAIModel)
 ANTHROPIC_MODELS: tuple[AnthropicModel, ...] = get_args(AnthropicModel)
 SCALEWAY_MODELS: tuple[ScalewayModel, ...] = get_args(ScalewayModel)
 
-# Models that require special JSON format handling
-QWEN_SCALEWAY_MODELS: tuple[str, ...] = ("qwen3-235b-a22b-instruct-2507",)
 
 LLMS: tuple[LLModel, ...] = get_args(LLModel)
 AUDIO: tuple[SpeechToTextModel, ...] = get_args(SpeechToTextModel)

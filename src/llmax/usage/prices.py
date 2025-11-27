@@ -32,10 +32,12 @@ PROMPT_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "mistral-small": 1.0,
     "text-embedding-3-large": 0.13,
     "text-embedding-3-small": 0.02,
+    "bge-multilingual-gemma2": 0.13,
     "gpt-5": 1.25,
     "gpt-5-chat": 1.25,
     "gpt-5-mini": 0.25,
     "gpt-5-nano": 0.05,
+    "llama-3.1-8b-instruct": {"scaleway": 0.099},
     "qwen3-235b-a22b-instruct-2507": {"scaleway": 0.825},  # €0.75 → ~$0.825
     "gpt-oss-120b": {"scaleway": 0.165},  # €0.15 → ~$0.165
     "gemma-3-27b-it": {"scaleway": 0.275},  # €0.25 → ~$0.275
