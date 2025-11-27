@@ -87,7 +87,8 @@ SpeechToTextModel = Literal[
     "whisper-large-v3",
 ]
 
-ImageGenerationModel = Literal["dall-e-3", "gpt-image-1", "gemma-3-27b-it"]
+
+ImageGenerationModel = Literal["dall-e-3", "gpt-image-1"]
 
 TextToSpeechModel = Literal["tts-1",]
 
@@ -108,3 +109,6 @@ IMAGE: tuple[ImageGenerationModel, ...] = get_args(ImageGenerationModel)
 TEXTTOAUDIO: tuple[TextToSpeechModel, ...] = get_args(TextToSpeechModel)
 
 MODELS: tuple[Model, ...] = get_args(Model)
+
+
+SpeechModelAllowVerboseJson: set[SpeechToTextModel] = {"whisper-1"}

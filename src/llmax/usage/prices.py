@@ -91,6 +91,7 @@ COMPLETION_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "gpt-5-chat": 10.00,
     "gpt-5-mini": 2.00,
     "gpt-5-nano": 0.40,
+    "llama-3.1-8b-instruct": {"scaleway": 0.099},
     "qwen3-235b-a22b-instruct-2507": {"scaleway": 2.475},  # €2.25 → ~$2.475
     "gpt-oss-120b": {"scaleway": 0.66},  # €0.60 → ~$0.66
     "gemma-3-27b-it": {"scaleway": 0.55},  # €0.50 → ~$0.55

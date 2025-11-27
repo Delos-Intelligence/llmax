@@ -35,6 +35,7 @@ from llmax.models.models import (
     ANTHROPIC_MODELS,
     MISTRAL_MODELS,
     Model,
+    SpeechModelAllowVerboseJson,
 )
 from llmax.usage import ModelUsage, tokens
 from llmax.utils import (
@@ -45,6 +46,7 @@ from llmax.utils import (
     ToolItemContent,
     logger,
 )
+from llmax.utils.types import ModelItemContent
 
 
 async def _default_get_usage() -> float:
@@ -146,7 +148,8 @@ class MultiAIClient:
                     )
                 return self._clients[model], model
 
-        message = "No model deployments are available from the provided list."
+        message = f"No model deployments are available from the provided list : {models}, {fallback_models}"
+        logger.warning(message)
         raise ValueError(message)
 
     def aclient(self, models: list[Model]) -> Client:
@@ -180,7 +183,8 @@ class MultiAIClient:
                     )
                 return self._aclients[model], model
 
-        message = "No model deployments are available from the provided list."
+        message = f"No model deployments are available from the provided list : {models}, {fallback_models}"
+        logger.warning(message)
         raise ValueError(message)
 
     def clean_kwargs(
@@ -619,7 +623,7 @@ class MultiAIClient:
             )
         try:
             if model == "o3-mini-high":
-                response, model = self._create_chat(
+                response, model_used = self._create_chat(
                     messages,
                     ["o3-mini"],
                     **kwargs,
@@ -713,9 +717,6 @@ class MultiAIClient:
             nonlocal chunk_usage, ttft, model_used
             chunk_count = 0
             try:
-                logger.debug(
-                    f"[bold purple][LLMAX][/bold purple] Starting stream collection for model {model}",
-                )
                 for completion_chunk in self.stream(
                     messages,
                     model,
@@ -736,10 +737,6 @@ class MultiAIClient:
                     else:
                         model_used = completion_chunk
 
-                logger.debug(
-                    f"[bold purple][LLMAX][/bold purple] Stream collection finished for model {model}, "
-                    f"received {chunk_count} chunks",
-                )
             except Exception as e:
                 logger.error(
                     f"[bold purple][LLMAX][/bold purple] Exception in stream collection for model {model}: {e}",
@@ -795,6 +792,7 @@ class MultiAIClient:
 
             await asyncio.sleep(smooth_duration / 1000)
 
+        yield ModelItemContent(model_used=model_used)
         await loop.run_in_executor(None, collector.join)
 
         deployment = self.deployments[model_used]
@@ -893,6 +891,8 @@ class MultiAIClient:
                     },
                 )
 
+            model_used = model[0] if isinstance(model, list) else model
+
             async for item in self.stream_output(
                 messages=messages,
                 model=model if isinstance(model, list) else [model],
@@ -903,6 +903,8 @@ class MultiAIClient:
             ):
                 if isinstance(item, StreamItemContent):
                     yield item.content
+                elif isinstance(item, ModelItemContent):
+                    model_used = item.model_used
                 else:
                     final_tool_calls, output_str = item.tools, item.output
 
@@ -950,7 +952,7 @@ class MultiAIClient:
                         tool,
                         tool_result,
                         messages,
-                        model[0] if isinstance(model, list) else model,
+                        model_used,
                     )
                     if not tool_retrigger:
                         retrigger_stream = False
@@ -1092,6 +1094,11 @@ class MultiAIClient:
             model if isinstance(model, list) else [model],
         )
         deployment = self.deployments[model_used]
+        if (
+            response_format == "verbose_json"
+            and model_used not in SpeechModelAllowVerboseJson
+        ):
+            response_format = "json"
 
         response = await aclient.audio.transcriptions.create(
             file=file,
@@ -1106,7 +1113,7 @@ class MultiAIClient:
         if isinstance(response, TranscriptionVerbose):
             response_duration = response.duration
         if isinstance(response, Transcription) and duration:
-            response_duration = duration
+            response_duration = 360
 
         if not response_duration:
             message = "You need to specify the duration in json mode."
