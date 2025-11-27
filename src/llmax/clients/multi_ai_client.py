@@ -34,7 +34,6 @@ from llmax.models.fake import fake_llm
 from llmax.models.models import (
     ANTHROPIC_MODELS,
     MISTRAL_MODELS,
-    QWEN_SCALEWAY_MODELS,
     Model,
 )
 from llmax.usage import ModelUsage, tokens
@@ -82,9 +81,10 @@ class MultiAIClient:
         total_usage: The total usage accumulated by the client. (Mainly for dev purposes, does not handles errors properly)
     """
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         deployments: dict[Model, Deployment],
+        fallback_models: dict[Model, list[Model]],
         get_usage: Callable[[], Awaitable[float]] = _default_get_usage,
         increment_usage: Callable[
             [float, Model, str, float, float | None, int, int, str, str, str, int],
@@ -97,6 +97,7 @@ class MultiAIClient:
 
         Args:
             deployments: A mapping from models to their deployment objects.
+            fallback_models: The fallbacks models to use when not available.
             get_usage: A function to get the current usage.
             increment_usage: A function to increment usage.
             httpx_client: Optional shared sync httpx client to prevent OpenAI SDK memory leaks.
@@ -109,6 +110,7 @@ class MultiAIClient:
         self._httpx_aclient = httpx_aclient
         self.total_usage: float = 0
         self.usages: list[ModelUsage] = []
+        self.fallback_models = fallback_models
 
         self._clients: dict[Model, Client] = {}
         self._aclients: dict[Model, Client] = {}
@@ -123,6 +125,19 @@ class MultiAIClient:
             The client object for the specified model.
         """
         for model in models:
+            if model in self.deployments:
+                if model not in self._clients:
+                    self._clients[model] = get_client(
+                        self.deployments[model],
+                        http_client=self._httpx_client,
+                    )
+                return self._clients[model], model
+
+        fallback_models: set[Model] = {
+            m for model in models for m in self.fallback_models[model]
+        }
+
+        for model in fallback_models:
             if model in self.deployments:
                 if model not in self._clients:
                     self._clients[model] = get_client(
@@ -152,74 +167,21 @@ class MultiAIClient:
                     )
                 return self._aclients[model], model
 
+        fallback_models: set[Model] = {
+            m for model in models for m in self.fallback_models[model]
+        }
+
+        for model in fallback_models:
+            if model in self.deployments:
+                if model not in self._aclients:
+                    self._aclients[model] = get_aclient(
+                        self.deployments[model],
+                        http_client=self._httpx_aclient,
+                    )
+                return self._aclients[model], model
+
         message = "No model deployments are available from the provided list."
         raise ValueError(message)
-
-    def _transform_response_format_for_qwen(
-        self,
-        kwargs: dict[str, Any],
-        model: Model,
-    ) -> dict[str, Any]:
-        """Transform response_format for Qwen models on Scaleway.
-
-        Qwen models on Scaleway require response_format with type "json_schema"
-        instead of OpenAI's standard "json_object" format.
-
-        This function automatically transforms:
-        - response_format={"type": "json_object"} -> {"type": "json_schema"}
-        - Preserves any json_schema provided separately or in response_format
-
-        Example:
-            # User code (OpenAI format):
-            response = await client.ainvoke(
-                messages=[...],
-                model="scaleway/qwen3-235b-a22b-instruct-2507",
-                response_format={"type": "json_object"}
-            )
-
-            # Automatically transformed to:
-            # response_format={"type": "json_schema"}
-
-        Args:
-            kwargs: The kwargs dictionary that may contain response_format
-            model: The model being used
-
-        Returns:
-            Modified kwargs with transformed response_format if needed
-        """
-        if model not in QWEN_SCALEWAY_MODELS:
-            return kwargs
-
-        if "response_format" not in kwargs:
-            return kwargs
-
-        response_format = kwargs["response_format"]
-
-        if (
-            isinstance(response_format, dict)
-            and response_format.get("type") == "json_object"
-        ):
-            new_format: dict[str, Any] = {"type": "json_schema"}
-
-            if "json_schema" in kwargs:
-                new_format["json_schema"] = kwargs.pop("json_schema")
-            elif "json_schema" in response_format:
-                new_format["json_schema"] = response_format["json_schema"]
-
-            kwargs["response_format"] = new_format
-            logger.debug(
-                "[bold purple][LLMAX][/bold purple] Transformed response_format for Qwen model: "
-                "json_object -> json_schema",
-            )
-        elif (
-            isinstance(response_format, dict)
-            and response_format.get("type") == "json_schema"
-        ):
-            if "json_schema" in kwargs and "json_schema" not in response_format:
-                response_format["json_schema"] = kwargs.pop("json_schema")
-                kwargs["response_format"] = response_format
-
-        return kwargs
 
     def clean_kwargs(
         self,
@@ -227,7 +189,6 @@ class MultiAIClient:
         deployment: Deployment,
     ) -> dict[str, Any]:
         """Clean kwargs to avoid errors."""
-        kwargs = self._transform_response_format_for_qwen(kwargs, deployment.model)
         if "temperature" in kwargs and deployment.model in {"o3-mini", "o3-mini-high"}:
             logger.warning("Temperature is not supported for this model.")
             kwargs.pop("temperature")
@@ -635,7 +596,7 @@ class MultiAIClient:
     def stream(
         self,
         messages: Messages,
-        models: Model | list[Model],
+        model: Model | list[Model],
         system: str | None = None,
         **kwargs: Any,
     ) -> Generator[ChatCompletionChunk | CompletionUsage | Model, None, None]:
@@ -643,20 +604,21 @@ class MultiAIClient:
 
         Args:
             messages: The list of messages for the chat.
-            models: The model to use for generating the chat completions.
+            model: The model to use for generating the chat completions.
             system: A string that will be passed as a system prompt.
             kwargs: More args.
 
         Yields:
             ChatCompletionChunk: Individual chunks of the completion response.
         """
+        model_used = model[0] if isinstance(model, list) else model
         if system:
             messages = add_system_message(
                 messages=messages,
                 system=system,
             )
         try:
-            if models == "o3-mini-high":
+            if model == "o3-mini-high":
                 response, model = self._create_chat(
                     messages,
                     ["o3-mini"],
@@ -666,25 +628,25 @@ class MultiAIClient:
                     stream_options={"include_usage": True},
                 )
             else:
-                response, model = self._create_chat(
+                response, model_used = self._create_chat(
                     messages,
-                    models if isinstance(models, list) else [models],
+                    model if isinstance(model, list) else [model],
                     **kwargs,
                     stream=True,
                     stream_options={"include_usage": True},
                 )
         except BadRequestError as e:
             logger.error(
-                f"[bold purple][LLMAX][/bold purple] BadRequestError in stream for model {models}: {e}",
+                f"[bold purple][LLMAX][/bold purple] BadRequestError in stream for model {model}: {e}",
             )
             return
         except Exception as e:
             logger.error(
-                f"[bold purple][LLMAX][/bold purple] Unexpected error in stream for model {models}: {e}",
+                f"[bold purple][LLMAX][/bold purple] Unexpected error in stream for model {model}: {e}",
             )
             return
 
-        yield model
+        yield model_used
 
         try:
             for chunk in response:
@@ -1075,7 +1037,7 @@ class MultiAIClient:
     def speech_to_text(
         self,
         file: BufferedReader,
-        model: Model,
+        model: Model | list[Model],
         **kwargs: Any,
     ) -> TranscriptionVerbose:
         """Synchronously processes audio data for speech-to-text using the Whisper model.
@@ -1092,8 +1054,8 @@ class MultiAIClient:
             "[bold purple][LLMAX][/bold purple] Deprecated function `speech_to_text`, use the async one instead.",
         )
         kwargs.pop("operation", "")
-        client, model = self.client([model])
-        deployment = self.deployments[model]
+        client, model_used = self.client(model if isinstance(model, list) else [model])
+        deployment = self.deployments[model_used]
 
         response = client.audio.transcriptions.create(
             file=file,
@@ -1107,7 +1069,7 @@ class MultiAIClient:
     async def aspeech_to_text(
         self,
         file: BytesIO,
-        model: Model,
+        model: Model | list[Model],
         response_format: Literal["json", "verbose_json"] = "verbose_json",
         duration: float | None = None,
         **kwargs: Any,
@@ -1126,8 +1088,10 @@ class MultiAIClient:
         """
         start = time.time()
         operation: str = kwargs.pop("operation", "")
-        aclient, model = self.aclient([model])
-        deployment = self.deployments[model]
+        aclient, model_used = self.aclient(
+            model if isinstance(model, list) else [model],
+        )
+        deployment = self.deployments[model_used]
 
         response = await aclient.audio.transcriptions.create(
             file=file,
@@ -1162,7 +1126,7 @@ class MultiAIClient:
 
     async def text_to_image(
         self,
-        model: Model,
+        model: Model | list[Model],
         prompt: str,
         size: Literal["1024x1024", "1024x1536", "1536x1024"] = "1024x1024",
         quality: Literal["low", "medium", "high", "auto"] = "medium",
@@ -1172,8 +1136,8 @@ class MultiAIClient:
         """Generate images from a text prompt using the specified model."""
         start = time.time()
         operation: str = kwargs.pop("operation", "")
-        client, model = self.aclient([model])
-        deployment = self.deployments[model]
+        client, model_used = self.aclient(model if isinstance(model, list) else [model])
+        deployment = self.deployments[model_used]
 
         response = await client.images.generate(
             model=deployment.deployment_name,
@@ -1204,7 +1168,7 @@ class MultiAIClient:
 
     async def edit_image(  # noqa: PLR0913
         self,
-        model: Model,
+        model: Model | list[Model],
         prompt: str,
         image: tuple[str, bytes, str],
         size: Literal["1024x1024", "1024x1536", "1536x1024"] = "1024x1024",
@@ -1215,8 +1179,8 @@ class MultiAIClient:
         """Edit an image using the specified model and a text prompt."""
         start = time.time()
         operation: str = kwargs.pop("operation", "")
-        client, model = self.aclient([model])
-        deployment = self.deployments[model]
+        client, model_used = self.aclient(model if isinstance(model, list) else [model])
+        deployment = self.deployments[model_used]
 
         response = await client.images.edit(
             model=deployment.deployment_name,
@@ -1249,7 +1213,7 @@ class MultiAIClient:
     def text_to_speech(
         self,
         text: str,
-        model: Model,
+        model: Model | list[Model],
         path: str,
         **kwargs: Any,
     ) -> str:
@@ -1270,8 +1234,8 @@ class MultiAIClient:
             "[bold purple][LLMAX][/bold purple] Deprecated function `text_to_speech`, create the async one instead.",
         )
         kwargs.pop("operation", "")
-        client, model = self.client([model])
-        deployment = self.deployments[model]
+        client, model_used = self.client(model if isinstance(model, list) else [model])
+        deployment = self.deployments[model_used]
         response = client.audio.speech.create(
             model=deployment.deployment_name,
             input=text,
