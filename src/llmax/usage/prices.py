@@ -32,19 +32,25 @@ PROMPT_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "mistral-small": 1.0,
     "text-embedding-3-large": 0.13,
     "text-embedding-3-small": 0.02,
-    "bge-multilingual-gemma2": 0.13,
+    "bge-multilingual-gemma2": {"scaleway": 0.115},  # €0.10 → $0.115
     "gpt-5": 1.25,
     "gpt-5-chat": 1.25,
     "gpt-5-mini": 0.25,
     "gpt-5-nano": 0.05,
-    "llama-3.1-8b-instruct": {"scaleway": 0.099},
-    "qwen3-235b-a22b-instruct-2507": {"scaleway": 0.825},  # €0.75 → ~$0.825
-    "gpt-oss-120b": {"scaleway": 0.165},  # €0.15 → ~$0.165
-    "gemma-3-27b-it": {"scaleway": 0.275},  # €0.25 → ~$0.275
-    "voxtral-small-24b-2507": {"scaleway": 0.165},  # €0.15 → ~$0.165
-    "mistral-small-3.2-24b-instruct-2506": {"scaleway": 0.165},  # €0.15 → ~$0.165
-    "llama-3.3-70b-instruct": {"scaleway": 0.99},  # €0.90 → ~$0.99
-    "deepseek-r1-distill-llama-70b": {"scaleway": 0.99},  # €0.90 → ~$0.99
+    "llama-3.1-8b-instruct": {"scaleway": 0.23},  # €0.20 → $0.23
+    "qwen3-235b-a22b-instruct-2507": {"scaleway": 0.8625},  # €0.75 → $0.8625
+    "gpt-oss-120b": {"scaleway": 0.1725},  # €0.15 → $0.1725
+    "gemma-3-27b-it": {"scaleway": 0.2875},  # €0.25 → $0.2875
+    "voxtral-small-24b-2507": {"scaleway": 0.1725},  # €0.15 → $0.1725
+    "mistral-small-3.2-24b-instruct-2506": {"scaleway": 0.1725},  # €0.15 → $0.1725
+    "llama-3.3-70b-instruct": {"scaleway": 1.035},  # €0.90 → $1.035
+    "deepseek-r1-distill-llama-70b": {"scaleway": 1.035},  # €0.90 → $1.035
+    "qwen3-coder-30b-a3b-instruct": {"scaleway": 0.23},  # €0.20 → $0.23
+    "pixtral-12b-2409": {"scaleway": 0.23},  # €0.20 → $0.23
+    "mistral-nemo-instruct-2407": {"scaleway": 0.23},  # €0.20 → $0.23
+    "mistral-small-3.1-24b-instruct-2503": {"scaleway": 0.1725},  # €0.15 → $0.1725 (deprecated)
+    "qwen2.5-coder-32b-instruct": {"scaleway": 1.035},  # €0.90 → $1.035 (deprecated)
+    "devstral-small-2505": {"scaleway": 0.1725},  # €0.15 → $0.1725
 }
 
 CACHED_PROMPT_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
@@ -91,20 +97,26 @@ COMPLETION_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "gpt-5-chat": 10.00,
     "gpt-5-mini": 2.00,
     "gpt-5-nano": 0.40,
-    "llama-3.1-8b-instruct": {"scaleway": 0.099},
-    "qwen3-235b-a22b-instruct-2507": {"scaleway": 2.475},  # €2.25 → ~$2.475
-    "gpt-oss-120b": {"scaleway": 0.66},  # €0.60 → ~$0.66
-    "gemma-3-27b-it": {"scaleway": 0.55},  # €0.50 → ~$0.55
-    "voxtral-small-24b-2507": {"scaleway": 0.385},  # €0.35 → ~$0.385
-    "mistral-small-3.2-24b-instruct-2506": {"scaleway": 0.385},  # €0.35 → ~$0.385
-    "llama-3.3-70b-instruct": {"scaleway": 0.99},  # €0.90 → ~$0.99
-    "deepseek-r1-distill-llama-70b": {"scaleway": 0.99},  # €0.90 → ~$0.99
+    "llama-3.1-8b-instruct": {"scaleway": 0.23},  # €0.20 → $0.23
+    "qwen3-235b-a22b-instruct-2507": {"scaleway": 2.5875},  # €2.25 → $2.5875
+    "gpt-oss-120b": {"scaleway": 0.69},  # €0.60 → $0.69
+    "gemma-3-27b-it": {"scaleway": 0.575},  # €0.50 → $0.575
+    "voxtral-small-24b-2507": {"scaleway": 0.4025},  # €0.35 → $0.4025
+    "mistral-small-3.2-24b-instruct-2506": {"scaleway": 0.4025},  # €0.35 → $0.4025
+    "llama-3.3-70b-instruct": {"scaleway": 1.035},  # €0.90 → $1.035
+    "deepseek-r1-distill-llama-70b": {"scaleway": 1.035},  # €0.90 → $1.035
+    "qwen3-coder-30b-a3b-instruct": {"scaleway": 0.92},  # €0.80 → $0.92
+    "pixtral-12b-2409": {"scaleway": 0.23},  # €0.20 → $0.23
+    "mistral-nemo-instruct-2407": {"scaleway": 0.23},  # €0.20 → $0.23
+    "mistral-small-3.1-24b-instruct-2503": {"scaleway": 0.4025},  # €0.35 → $0.4025 (deprecated)
+    "qwen2.5-coder-32b-instruct": {"scaleway": 1.035},  # €0.90 → $1.035 (deprecated)
+    "devstral-small-2505": {"scaleway": 0.4025},  # €0.35 → $0.4025
 }
 
 TRANSCRIPTION_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "whisper-1": 0.006,
     "gpt-4o-transcribe": 0.006,
-    "whisper-large-v3": {"scaleway": 0.0033},  # €0.003/minute → ~$0.0033/minute
+    "whisper-large-v3": {"scaleway": 0.00345},  # €0.003/minute → $0.00345/minute
 }
 
 GENERATION_PRICE_BASE: dict[Model, float | dict[Provider, float]] = {
