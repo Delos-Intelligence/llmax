@@ -46,7 +46,7 @@ PROMPT_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "llama-3.3-70b-instruct": {"scaleway": 1.035},  # €0.90 → $1.035
     "deepseek-r1-distill-llama-70b": {"scaleway": 1.035},  # €0.90 → $1.035
     "grok-4-1-fast": 0.2,
-    "gemini-3-pro": 2,
+    "gemini-3-pro-preview": 2,
 }
 
 CACHED_PROMPT_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
@@ -103,7 +103,7 @@ COMPLETION_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "llama-3.3-70b-instruct": {"scaleway": 1.035},  # €0.90 → $1.035
     "deepseek-r1-distill-llama-70b": {"scaleway": 1.035},  # €0.90 → $1.035
     "grok-4-1-fast": 0.5,
-    "gemini-3-pro": 12,
+    "gemini-3-pro-preview": 12,
 }
 
 TRANSCRIPTION_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
@@ -115,6 +115,7 @@ TRANSCRIPTION_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
 GENERATION_PRICE_BASE: dict[Model, float | dict[Provider, float]] = {
     "dall-e-3": 0.04,
     "gpt-image-1": 0.08,
+    "gemini-3-pro-image-preview": 0.08,
 }
 
 GENERATION_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {

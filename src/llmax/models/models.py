@@ -13,7 +13,7 @@ MetaModel = Literal[
     "llama-4-maverick-17b-128e-instruct-fp8",
 ]
 
-GeminiModel = Literal["gemini-3-pro", "nano-banana-pro"]
+GeminiModel = Literal["gemini-3-pro-preview", "gemini-3-pro-image-preview"]
 
 MistralModel = Literal[
     "mistral-large",
@@ -92,7 +92,7 @@ SpeechToTextModel = Literal[
 ]
 
 
-ImageGenerationModel = Literal["dall-e-3", "gpt-image-1", "nano-banana-pro"]
+ImageGenerationModel = Literal["dall-e-3", "gpt-image-1", "gemini-3-pro-image-preview"]
 
 TextToSpeechModel = Literal["tts-1",]
 
