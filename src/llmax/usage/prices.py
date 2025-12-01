@@ -20,10 +20,9 @@ PROMPT_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "claude-3.7-sonnet": 3.0,
     "claude-4-sonnet": 3.0,
     "claude-4.5-sonnet": 3.0,
+    "claude-4.5-opus": 5.0,
     "command-r": 0.5,
     "command-r-plus": 3.0,
-    "google/gemini-1.5-flash-002": 0.075,
-    "google/gemini-1.5-pro-002": 1.25,
     "llama-3-70b-instruct": 3.78,  # To be checked
     "llama-4-scout-17b-16e-instruct": 0.275,  # To be checked
     "llama-4-maverick-17b-128e-instruct-fp8": 0.275,  # To be checked
@@ -34,6 +33,7 @@ PROMPT_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "text-embedding-3-small": 0.02,
     "bge-multilingual-gemma2": {"scaleway": 0.115},  # €0.10 → $0.115
     "gpt-5": 1.25,
+    "gpt-5.1": 1.25,
     "gpt-5-chat": 1.25,
     "gpt-5-mini": 0.25,
     "gpt-5-nano": 0.05,
@@ -45,12 +45,8 @@ PROMPT_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "mistral-small-3.2-24b-instruct-2506": {"scaleway": 0.1725},  # €0.15 → $0.1725
     "llama-3.3-70b-instruct": {"scaleway": 1.035},  # €0.90 → $1.035
     "deepseek-r1-distill-llama-70b": {"scaleway": 1.035},  # €0.90 → $1.035
-    "qwen3-coder-30b-a3b-instruct": {"scaleway": 0.23},  # €0.20 → $0.23
-    "pixtral-12b-2409": {"scaleway": 0.23},  # €0.20 → $0.23
-    "mistral-nemo-instruct-2407": {"scaleway": 0.23},  # €0.20 → $0.23
-    "mistral-small-3.1-24b-instruct-2503": {"scaleway": 0.1725},  # €0.15 → $0.1725 (deprecated)
-    "qwen2.5-coder-32b-instruct": {"scaleway": 1.035},  # €0.90 → $1.035 (deprecated)
-    "devstral-small-2505": {"scaleway": 0.1725},  # €0.15 → $0.1725
+    "grok-4-1-fast": 0.2,
+    "gemini-3-pro": 2,
 }
 
 CACHED_PROMPT_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
@@ -62,6 +58,7 @@ CACHED_PROMPT_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "o3-mini": {"openai": 0.55, "azure": 0.605},
     "o3-mini-high": {"openai": 0.55, "azure": 0.605},
     "gpt-5": 0.125,
+    "gpt-5.1": 0.125,
     "gpt-5-chat": 0.125,
     "gpt-5-mini": 0.025,
     "gpt-5-nano": 0.005,
@@ -83,10 +80,9 @@ COMPLETION_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "claude-3.7-sonnet": 15.0,
     "claude-4-sonnet": 15.0,
     "claude-4.5-sonnet": 15.0,
+    "claude-4.5-opus": 25.0,
     "command-r": 1.5,
     "command-r-plus": 15.0,
-    "google/gemini-1.5-flash-002": 0.3,
-    "google/gemini-1.5-pro-002": 5.0,
     "llama-3-70b-instruct": 11.34,
     "llama-4-scout-17b-16e-instruct": 1.1,  # To be checked
     "llama-4-maverick-17b-128e-instruct-fp8": 1.1,  # To be checked
@@ -94,6 +90,7 @@ COMPLETION_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "mistral-large-2411": 6.0,
     "mistral-small": 3.0,
     "gpt-5": 10.00,
+    "gpt-5.1": 10.00,
     "gpt-5-chat": 10.00,
     "gpt-5-mini": 2.00,
     "gpt-5-nano": 0.40,
@@ -105,12 +102,8 @@ COMPLETION_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "mistral-small-3.2-24b-instruct-2506": {"scaleway": 0.4025},  # €0.35 → $0.4025
     "llama-3.3-70b-instruct": {"scaleway": 1.035},  # €0.90 → $1.035
     "deepseek-r1-distill-llama-70b": {"scaleway": 1.035},  # €0.90 → $1.035
-    "qwen3-coder-30b-a3b-instruct": {"scaleway": 0.92},  # €0.80 → $0.92
-    "pixtral-12b-2409": {"scaleway": 0.23},  # €0.20 → $0.23
-    "mistral-nemo-instruct-2407": {"scaleway": 0.23},  # €0.20 → $0.23
-    "mistral-small-3.1-24b-instruct-2503": {"scaleway": 0.4025},  # €0.35 → $0.4025 (deprecated)
-    "qwen2.5-coder-32b-instruct": {"scaleway": 1.035},  # €0.90 → $1.035 (deprecated)
-    "devstral-small-2505": {"scaleway": 0.4025},  # €0.35 → $0.4025
+    "grok-4-1-fast": 0.5,
+    "gemini-3-pro": 12,
 }
 
 TRANSCRIPTION_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {

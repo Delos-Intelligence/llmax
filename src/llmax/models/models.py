@@ -13,7 +13,7 @@ MetaModel = Literal[
     "llama-4-maverick-17b-128e-instruct-fp8",
 ]
 
-GeminiModel = Literal["google/gemini-1.5-flash-002", "google/gemini-1.5-pro-002"]
+GeminiModel = Literal["gemini-3-pro", "nano-banana-pro"]
 
 MistralModel = Literal[
     "mistral-large",
@@ -43,6 +43,7 @@ OpenAIModel = Literal[
     "tts-1",
     "whisper-1",
     "gpt-5",
+    "gpt-5.1",
     "gpt-5-chat",
     "gpt-5-mini",
     "gpt-5-nano",
@@ -54,7 +55,10 @@ AnthropicModel = Literal[
     "claude-3.7-sonnet",
     "claude-4-sonnet",
     "claude-4.5-sonnet",
+    "claude-4.5-opus",
 ]
+
+GrokModel = Literal["grok-4-1-fast"]
 
 ScalewayModel = Literal[
     "qwen3-235b-a22b-instruct-2507",
@@ -77,6 +81,7 @@ LLModel = (
     | OpenAIModel
     | AnthropicModel
     | GeminiModel
+    | GrokModel
     | ScalewayModel
 )
 
@@ -87,7 +92,7 @@ SpeechToTextModel = Literal[
 ]
 
 
-ImageGenerationModel = Literal["dall-e-3", "gpt-image-1"]
+ImageGenerationModel = Literal["dall-e-3", "gpt-image-1", "nano-banana-pro"]
 
 TextToSpeechModel = Literal["tts-1",]
 
@@ -99,6 +104,7 @@ GEMINI_MODELS: tuple[GeminiModel, ...] = get_args(GeminiModel)
 MISTRAL_MODELS: tuple[MistralModel, ...] = get_args(MistralModel)
 OPENAI_MODELS: tuple[OpenAIModel, ...] = get_args(OpenAIModel)
 ANTHROPIC_MODELS: tuple[AnthropicModel, ...] = get_args(AnthropicModel)
+GROK_MODELS: tuple[GrokModel, ...] = get_args(GrokModel)
 SCALEWAY_MODELS: tuple[ScalewayModel, ...] = get_args(ScalewayModel)
 
 

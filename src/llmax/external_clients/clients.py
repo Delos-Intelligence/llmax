@@ -10,13 +10,14 @@ from llmax.models.models import (
     ANTHROPIC_MODELS,
     COHERE_MODELS,
     GEMINI_MODELS,
+    GROK_MODELS,
     META_MODELS,
     MISTRAL_MODELS,
     OPENAI_MODELS,
     SCALEWAY_MODELS,
 )
 
-from . import anthropic, cohere, gemini, meta, mistral, openai, scaleway
+from . import anthropic, cohere, gemini, grok, meta, mistral, openai, scaleway
 
 Client = Any
 
@@ -50,11 +51,13 @@ def get_client(  # noqa: PLR0911
             return gemini.get_client(deployment, http_client=http_client)
         case model if model in SCALEWAY_MODELS:
             return scaleway.get_client(deployment, http_client=http_client)
+        case model if model in GROK_MODELS:
+            return grok.get_client(deployment, http_client=http_client)
         case _:
             raise ClientNotFoundError(deployment)
 
 
-def get_aclient(
+def get_aclient(  # noqa: PLR0911
     deployment: Deployment,
     http_client: httpx.AsyncClient | None = None,
 ) -> Client:
@@ -81,5 +84,7 @@ def get_aclient(
             return gemini.get_aclient(deployment, http_client=http_client)
         case model if model in SCALEWAY_MODELS:
             return scaleway.get_aclient(deployment, http_client=http_client)
+        case model if model in GROK_MODELS:
+            return grok.get_aclient(deployment, http_client=http_client)
         case _:
             raise ClientNotFoundError(deployment)

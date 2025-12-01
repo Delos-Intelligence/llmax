@@ -1,6 +1,6 @@
-"""Gemini client for interacting with Google Gemini / CometAPI models.
+"""Grok client for interacting with CometAPI / xAI models.
 
-Note: we use the OpenAI client to interact with Gemini models
+Note: we use the OpenAI client to interact with Grok models
 because these providers expose an OpenAI-compatible API.
 """
 
@@ -19,17 +19,17 @@ def get_client(
     deployment: Deployment,
     http_client: httpx.Client | None = None,
 ) -> Client:
-    """Get a Gemini client for the given deployment.
+    """Get a Grok client for the given deployment.
 
     Args:
         deployment: The deployment configuration
         http_client: Optional httpx client to prevent OpenAI SDK memory leaks
 
     Returns:
-        The Gemini client for the deployment
+        The Grok client for the deployment
     """
     match deployment.provider:
-        case "gemini":
+        case "grok":
             if http_client:
                 return OpenAI(
                     api_key=deployment.api_key,
@@ -49,17 +49,17 @@ def get_aclient(
     deployment: Deployment,
     http_client: httpx.AsyncClient | None = None,
 ) -> Client:
-    """Get an async Gemini client for the given deployment.
+    """Get an async Grok client for the given deployment.
 
     Args:
         deployment: The deployment configuration
         http_client: Optional async httpx client
 
     Returns:
-        The async Gemini client
+        The async Grok client
     """
     match deployment.provider:
-        case "gemini":
+        case "grok":
             if http_client:
                 return AsyncOpenAI(
                     api_key=deployment.api_key,
