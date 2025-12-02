@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "delos-llmax"
 
-version = "1.12.1"
+version = "1.12.2"
 description = "Interface to handle multiple LLMs and AI tools."
 authors = ["Delos Intelligence <maximiliendedinechin@delosintelligence.fr>"]
 readme = "README.md"
@@ -9,6 +9,7 @@ keywords = ["AI", "LLM", "generative"]
 packages = [
     { include = "llmax", from = "src" }
 ]
+include = ["src/llmax/py.typed"]
 
 [tool.poetry.dependencies]
 python = ">=3.8.1,<4.0"
