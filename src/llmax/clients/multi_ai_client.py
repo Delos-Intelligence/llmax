@@ -17,7 +17,7 @@ from typing import Any, Literal
 import httpx
 from google import genai
 from google.genai import types
-from openai import BadRequestError, RateLimitError
+from openai import NOT_GIVEN, BadRequestError, RateLimitError
 from openai.types import CompletionUsage, Embedding
 from openai.types.audio import Transcription, TranscriptionVerbose
 from openai.types.chat import (
@@ -635,12 +635,15 @@ class MultiAIClient:
                     stream_options={"include_usage": True},
                 )
             else:
+                stream_opts = (
+                    NOT_GIVEN if model in MISTRAL_MODELS else {"include_usage": True}
+                )
                 response, model_used = self._create_chat(
                     messages,
                     model if isinstance(model, list) else [model],
                     **kwargs,
                     stream=True,
-                    stream_options={"include_usage": True},
+                    stream_options=stream_opts,
                 )
         except BadRequestError as e:
             logger.error(
