@@ -216,6 +216,10 @@ class MultiAIClient:
         if "reasoning_effort" in kwargs and deployment.model == "o3-mini-high":
             logger.warning("Reasoning effort is not supported for this model.")
             kwargs.pop("reasoning_effort")
+
+        if "stream_options" in kwargs and deployment.model in MISTRAL_MODELS:
+            kwargs["stream_options"] = NOT_GIVEN
+
         return kwargs
 
     def _create_chat(
@@ -635,15 +639,12 @@ class MultiAIClient:
                     stream_options={"include_usage": True},
                 )
             else:
-                stream_opts = (
-                    NOT_GIVEN if model in MISTRAL_MODELS else {"include_usage": True}
-                )
                 response, model_used = self._create_chat(
                     messages,
                     model if isinstance(model, list) else [model],
                     **kwargs,
                     stream=True,
-                    stream_options=stream_opts,
+                    stream_options={"include_usage": True},
                 )
         except BadRequestError as e:
             logger.error(
