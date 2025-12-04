@@ -15,6 +15,8 @@ from queue import Queue
 from typing import Any, Literal
 
 import httpx
+from google import genai
+from google.genai import types
 from openai import BadRequestError, RateLimitError
 from openai.types import CompletionUsage, Embedding
 from openai.types.audio import Transcription, TranscriptionVerbose
@@ -33,6 +35,7 @@ from llmax.models.deployment import Deployment
 from llmax.models.fake import fake_llm
 from llmax.models.models import (
     ANTHROPIC_MODELS,
+    GEMINI_MODELS,
     MISTRAL_MODELS,
     Model,
     SpeechModelAllowVerboseJson,
@@ -1146,13 +1149,42 @@ class MultiAIClient:
         client, model_used = self.aclient(model if isinstance(model, list) else [model])
         deployment = self.deployments[model_used]
 
-        response = await client.images.generate(
-            model=deployment.deployment_name,
-            prompt=prompt,
-            size=size,
-            quality=quality,
-            n=n,
-        )
+        image_bytes: bytes | None = None
+
+        if model_used in GEMINI_MODELS:
+            client = genai.Client(api_key=deployment.api_key)
+            aclient = client.aio
+            response = await aclient.models.generate_content(
+                model=model_used,
+                contents=[prompt],
+            )
+
+            if response.candidates:
+                for candidate in response.candidates:
+                    content = candidate.content
+                    if not content or not content.parts:
+                        continue
+
+                    for part in content.parts:
+                        if part.inline_data:
+                            image_bytes = part.inline_data.data
+                            if not image_bytes:
+                                continue
+                            break
+                    if image_bytes:
+                        break
+
+        else:
+            response = await client.images.generate(
+                model=model_used,
+                prompt=prompt,
+                size=size,
+                quality=quality,
+                n=n,
+            )
+            image_base64 = response.data[0].b64_json
+            image_bytes = base64.b64decode(image_base64)
+
         duration = time.time() - start
 
         usage = ModelUsage(deployment, self._increment_usage)
@@ -1170,8 +1202,11 @@ class MultiAIClient:
         self.total_usage += cost
         self.usages.append(usage)
 
-        image_base64 = response.data[0].b64_json
-        return base64.b64decode(image_base64)
+        if image_bytes is None:
+            message = "Couldn't generate an image"
+            raise ValueError(message)
+
+        return image_bytes
 
     async def edit_image(  # noqa: PLR0913
         self,
@@ -1188,15 +1223,49 @@ class MultiAIClient:
         operation: str = kwargs.pop("operation", "")
         client, model_used = self.aclient(model if isinstance(model, list) else [model])
         deployment = self.deployments[model_used]
+        image_bytes: bytes | None = None
 
-        response = await client.images.edit(
-            model=deployment.deployment_name,
-            prompt=prompt,
-            image=image,
-            size=size,
-            quality=quality,
-            n=n,
-        )
+        if model_used in GEMINI_MODELS:
+            client = genai.Client(api_key=deployment.api_key)
+            aclient = client.aio
+
+            # Convert input image to Part
+            _filename, file_bytes, mime_type = image
+            image_part = types.Part.from_bytes(data=file_bytes, mime_type=mime_type)
+            text_part = types.Part.from_text(text=prompt)
+
+            content = types.Content(parts=[text_part, image_part])
+            response = await aclient.models.generate_content(
+                model=model_used,
+                contents=[content],
+            )
+
+            if response.candidates:
+                for candidate in response.candidates:
+                    content = candidate.content
+                    if not content or not content.parts:
+                        continue
+
+                    for part in content.parts:
+                        if part.inline_data:
+                            image_bytes = part.inline_data.data
+                            if image_bytes:
+                                break
+                    if image_bytes:
+                        break
+
+        else:
+            response = await client.images.edit(
+                model=deployment.deployment_name,
+                prompt=prompt,
+                image=image,
+                size=size,
+                quality=quality,
+                n=n,
+            )
+            image_base64 = response.data[0].b64_json
+            image_bytes = base64.b64decode(image_base64)
+
         duration = time.time() - start
 
         usage = ModelUsage(deployment, self._increment_usage)
@@ -1213,9 +1282,11 @@ class MultiAIClient:
         self.total_usage += cost
         self.usages.append(usage)
 
-        # --- Récupération de l'image ---
-        image_base64 = response.data[0].b64_json
-        return base64.b64decode(image_base64)
+        if image_bytes is None:
+            message = "Couldn't generate an edited image"
+            raise ValueError(message)
+
+        return image_bytes
 
     def text_to_speech(
         self,
