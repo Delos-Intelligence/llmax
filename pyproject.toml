@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "delos-llmax"
 
-version = "1.12.2"
+version = "1.13.0"
 description = "Interface to handle multiple LLMs and AI tools."
 authors = ["Delos Intelligence <maximiliendedinechin@delosintelligence.fr>"]
 readme = "README.md"
@@ -12,7 +12,7 @@ packages = [
 include = ["src/llmax/py.typed"]
 
 [tool.poetry.dependencies]
-python = ">=3.8.1,<4.0"
+python = ">=3.10,<4.0"
 openai = "^1.42.0"
 tiktoken = "^0.7.0"
 loguru = "^0.7.2"
@@ -21,6 +21,7 @@ pydub = "^0.25.1"
 pydantic = "^2.9.2"
 boto3 = "^1.35.65"
 google-auth = "^2.36.0"
+google-genai = "^1.52.0"
 
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.6.1"
