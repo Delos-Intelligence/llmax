@@ -13,7 +13,7 @@ include = ["src/llmax/py.typed"]
 
 [tool.poetry.dependencies]
 python = ">=3.10,<4.0"
-openai = "^1.42.0"
+openai = ">=1.42,<3.0"
 tiktoken = "^0.7.0"
 loguru = "^0.7.2"
 python-dotenv = "^1.0.1"
