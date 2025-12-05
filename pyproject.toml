@@ -26,7 +26,7 @@ google-genai = "1.2.0"
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.6.1"
 pyright = "^1.1.377"
-isort = "^5.13.2"
+isort = ">=5.13.2,<8.0.0"
 mypy = "^1.11.1"
 pydub-stubs = "^0.25.1.1"
 pytest = ">=7,<9"
