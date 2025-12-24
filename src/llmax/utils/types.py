@@ -1,4 +1,4 @@
-"""Types for multiai clients."""
+"""Types for multiai clients."""  # noqa: A005
 
 from openai.types.chat.chat_completion_chunk import ChoiceDeltaToolCall
 from pydantic import BaseModel
