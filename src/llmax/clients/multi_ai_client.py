@@ -15,8 +15,8 @@ from queue import Queue
 from typing import Any, Literal
 
 import httpx
-from google import genai
-from google.genai import types as genai_types
+from google import genai  # type: ignore[reportMissingTypeStubs]
+from google.genai import types as genai_types  # type: ignore[reportMissingTypeStubs]
 from openai import NOT_GIVEN, BadRequestError, RateLimitError
 from openai.types import CompletionUsage, Embedding
 from openai.types.audio import Transcription, TranscriptionVerbose
