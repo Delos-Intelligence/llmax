@@ -1138,7 +1138,7 @@ class MultiAIClient:  # noqa: PLR0904
 
         return response
 
-    async def text_to_image(  # noqa: PLR1702
+    async def text_to_image(
         self,
         model: Model | list[Model],
         prompt: str,
@@ -1197,7 +1197,7 @@ class MultiAIClient:  # noqa: PLR0904
 
         return image_bytes
 
-    async def edit_image(  # noqa: PLR0913, PLR0917, PLR0914, PLR1702
+    async def edit_image(  # noqa: PLR0913, PLR0917, PLR0914
         self,
         model: Model | list[Model],
         prompt: str,
