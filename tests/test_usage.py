@@ -74,9 +74,24 @@ def test_model_usage_text() -> None:
     final_cost = 0.00055
     message_token = 8
     output_token = 34
+    async def increment_usage(
+        _1: float,
+        _2: Model,
+        _3: str,
+        _4: float,
+        _5: float | None,
+        _6: int,
+        _7: int,
+        _8: str,
+        _9: str,
+        _10: str,
+        _11: int,
+    ) -> bool:
+        return True
+
     usage = ModelUsage(
         deployments["gpt-4o"],
-        lambda _1, _2, _3, _4, _5, _6, _7, _8, _9, _10: True,
+        increment_usage,
         CompletionUsage(
             completion_tokens=tokens.count(output),
             prompt_tokens=tokens.count(message),
@@ -92,9 +107,24 @@ def test_model_usage_text() -> None:
 def test_model_usage_audio() -> None:
     """Test the model usage for audio."""
     cost_audio = 0.0789
+    async def increment_usage(
+        _1: float,
+        _2: Model,
+        _3: str,
+        _4: float,
+        _5: float | None,
+        _6: int,
+        _7: int,
+        _8: str,
+        _9: str,
+        _10: str,
+        _11: int,
+    ) -> bool:
+        return True
+
     usage = ModelUsage(
         deployments["whisper-1"],
-        lambda _1, _2, _3, _4, _5, _6, _7, _8, _9, _10: True,
+        increment_usage,
         audio_duration=789,
     )
 
