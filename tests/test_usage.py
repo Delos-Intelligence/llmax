@@ -74,7 +74,8 @@ def test_model_usage_text() -> None:
     final_cost = 0.00055
     message_token = 8
     output_token = 34
-    async def increment_usage(
+
+    async def increment_usage(  # noqa: RUF029
         _1: float,
         _2: Model,
         _3: str,
@@ -107,7 +108,8 @@ def test_model_usage_text() -> None:
 def test_model_usage_audio() -> None:
     """Test the model usage for audio."""
     cost_audio = 0.0789
-    async def increment_usage(
+
+    async def increment_usage(  # noqa: RUF029
         _1: float,
         _2: Model,
         _3: str,
