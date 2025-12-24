@@ -16,7 +16,7 @@ from typing import Any, Literal
 
 import httpx
 from google import genai
-from google.genai import types
+from google.genai import types as genai_types
 from openai import NOT_GIVEN, BadRequestError, RateLimitError
 from openai.types import CompletionUsage, Embedding
 from openai.types.audio import Transcription, TranscriptionVerbose
@@ -52,11 +52,11 @@ from llmax.utils import (
 from llmax.utils.types import ModelItemContent
 
 
-async def _default_get_usage() -> float:
+async def _default_get_usage() -> float:  # noqa: RUF029
     return 0.0
 
 
-async def _default_increment_usage(
+async def _default_increment_usage(  # noqa: RUF029
     _usage: float,
     _model: Model,
     _user_id: str,
@@ -72,7 +72,7 @@ async def _default_increment_usage(
     return True
 
 
-class MultiAIClient:
+class MultiAIClient:  # noqa: PLR0904
     """Class to interface with multiple LLMs and AI models.
 
     This class supports both synchronous and asynchronous operations for obtaining
@@ -86,7 +86,7 @@ class MultiAIClient:
         total_usage: The total usage accumulated by the client. (Mainly for dev purposes, does not handles errors properly)
     """
 
-    def __init__(  # noqa: PLR0913
+    def __init__(  # noqa: PLR0913, PLR0917
         self,
         deployments: dict[Model, Deployment],
         fallback_models: dict[Model, list[Model]],
@@ -190,8 +190,8 @@ class MultiAIClient:
         logger.warning(message)
         raise ValueError(message)
 
+    @staticmethod
     def clean_kwargs(
-        self,
         kwargs: dict[str, Any],
         deployment: Deployment,
     ) -> dict[str, Any]:
@@ -241,7 +241,7 @@ class MultiAIClient:
         client, model = self.client(models)
         deployment = self.deployments[model]
 
-        kwargs = self.clean_kwargs(kwargs, deployment)
+        kwargs = MultiAIClient.clean_kwargs(kwargs, deployment)
 
         if "text_format" in kwargs:
             return client.responses.parse(
@@ -275,7 +275,7 @@ class MultiAIClient:
         aclient, model = self.aclient(models)
         deployment = self.deployments[model]
 
-        kwargs = self.clean_kwargs(kwargs, deployment)
+        kwargs = MultiAIClient.clean_kwargs(kwargs, deployment)
 
         if "text_format" in kwargs:
             return await aclient.responses.parse(
@@ -523,7 +523,7 @@ class MultiAIClient:
 
         return output_str, final_tool_calls  # type: ignore
 
-    async def ainvoke_with_tools(  # noqa: D417, PLR0913
+    async def ainvoke_with_tools(  # noqa: D417, PLR0913, PLR0917
         self,
         messages: Messages,
         model: Model | list[Model],
@@ -676,7 +676,7 @@ class MultiAIClient:
             )
             return
 
-    async def stream_output_smooth(  # noqa: C901, PLR0915
+    async def stream_output_smooth(  # noqa: C901, PLR0915, PLR0914
         self,
         messages: Messages,
         model: list[Model] | Model,
@@ -845,7 +845,7 @@ class MultiAIClient:
         ):
             yield chunk
 
-    async def stream_output_with_tools(  # noqa: C901, PLR0912, PLR0913
+    async def stream_output_with_tools(  # noqa: C901, PLR0912, PLR0913, PLR0917
         self,
         messages: Messages,
         model: list[Model] | Model,
@@ -1138,7 +1138,7 @@ class MultiAIClient:
 
         return response
 
-    async def text_to_image(
+    async def text_to_image(  # noqa: PLR1702
         self,
         model: Model | list[Model],
         prompt: str,
@@ -1162,22 +1162,7 @@ class MultiAIClient:
                 model=model_used,
                 contents=[prompt],
             )
-
-            if response.candidates:
-                for candidate in response.candidates:
-                    content = candidate.content
-                    if not content or not content.parts:
-                        continue
-
-                    for part in content.parts:
-                        if part.inline_data:
-                            image_bytes = part.inline_data.data
-                            if not image_bytes:
-                                continue
-                            break
-                    if image_bytes:
-                        break
-
+            image_bytes = _extract_image_from_gemini_response(response)
         else:
             response = await client.images.generate(
                 model=model_used,
@@ -1212,7 +1197,7 @@ class MultiAIClient:
 
         return image_bytes
 
-    async def edit_image(  # noqa: PLR0913
+    async def edit_image(  # noqa: PLR0913, PLR0917, PLR0914, PLR1702
         self,
         model: Model | list[Model],
         prompt: str,
@@ -1235,29 +1220,15 @@ class MultiAIClient:
 
             # Convert input image to Part
             _filename, file_bytes, mime_type = image
-            image_part = types.Part.from_bytes(data=file_bytes, mime_type=mime_type)
-            text_part = types.Part.from_text(text=prompt)
+            image_part = genai_types.Part.from_bytes(data=file_bytes, mime_type=mime_type)
+            text_part = genai_types.Part.from_text(text=prompt)
 
-            content = types.Content(parts=[text_part, image_part])
+            content = genai_types.Content(parts=[text_part, image_part])
             response = await aclient.models.generate_content(
                 model=model_used,
                 contents=[content],
             )
-
-            if response.candidates:
-                for candidate in response.candidates:
-                    content = candidate.content
-                    if not content or not content.parts:
-                        continue
-
-                    for part in content.parts:
-                        if part.inline_data:
-                            image_bytes = part.inline_data.data
-                            if image_bytes:
-                                break
-                    if image_bytes:
-                        break
-
+            image_bytes = _extract_image_from_gemini_response(response)
         else:
             response = await client.images.edit(
                 model=deployment.deployment_name,
@@ -1327,6 +1298,22 @@ class MultiAIClient:
         response.stream_to_file(path)
 
         return path
+
+
+def _extract_image_from_gemini_response(response: Any) -> bytes | None:
+    """Extract image bytes from Gemini API response."""
+    if not response.candidates:
+        return None
+    for candidate in response.candidates:
+        content = candidate.content
+        if not content or not content.parts:
+            continue
+        for part in content.parts:
+            if part.inline_data:
+                image_bytes = part.inline_data.data
+                if image_bytes:
+                    return image_bytes
+    return None
 
 
 def add_system_message(
