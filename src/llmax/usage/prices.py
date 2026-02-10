@@ -21,6 +21,7 @@ PROMPT_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "claude-4-sonnet": 3.0,
     "claude-4.5-sonnet": 3.0,
     "claude-4.5-opus": 5.0,
+    "claude-4.6-opus": 5.0,
     "command-r": 0.5,
     "command-r-plus": 3.0,
     "llama-3-70b-instruct": 3.78,  # To be checked
@@ -81,6 +82,7 @@ COMPLETION_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "claude-4-sonnet": 15.0,
     "claude-4.5-sonnet": 15.0,
     "claude-4.5-opus": 25.0,
+    "claude-4.6-opus": 25.0,
     "command-r": 1.5,
     "command-r-plus": 15.0,
     "llama-3-70b-instruct": 11.34,
