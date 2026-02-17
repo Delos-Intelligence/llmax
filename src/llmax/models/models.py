@@ -55,6 +55,7 @@ AnthropicModel = Literal[
     "claude-4.5-sonnet",
     "claude-4.5-opus",
     "claude-4.6-opus",
+    "claude-4.6-sonnet",
 ]
 
 GrokModel = Literal["grok-4-1-fast"]
