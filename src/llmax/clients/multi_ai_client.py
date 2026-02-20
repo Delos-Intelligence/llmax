@@ -52,11 +52,11 @@ from llmax.utils import (
 from llmax.utils.types import ModelItemContent
 
 
-async def _default_get_usage() -> float:  # noqa: RUF029
+async def _default_get_usage() -> float:
     return 0.0
 
 
-async def _default_increment_usage(  # noqa: RUF029
+async def _default_increment_usage(
     _usage: float,
     _model: Model,
     _user_id: str,
@@ -72,7 +72,7 @@ async def _default_increment_usage(  # noqa: RUF029
     return True
 
 
-class MultiAIClient:  # noqa: PLR0904
+class MultiAIClient:
     """Class to interface with multiple LLMs and AI models.
 
     This class supports both synchronous and asynchronous operations for obtaining
@@ -86,7 +86,7 @@ class MultiAIClient:  # noqa: PLR0904
         total_usage: The total usage accumulated by the client. (Mainly for dev purposes, does not handles errors properly)
     """
 
-    def __init__(  # noqa: PLR0913, PLR0917
+    def __init__(  # noqa: PLR0913
         self,
         deployments: dict[Model, Deployment],
         fallback_models: dict[Model, list[Model]],
@@ -219,6 +219,9 @@ class MultiAIClient:  # noqa: PLR0904
 
         if "stream_options" in kwargs and deployment.model in MISTRAL_MODELS:
             kwargs["stream_options"] = NOT_GIVEN
+
+        if "max_completion_tokens" in kwargs and deployment.model in MISTRAL_MODELS:
+            kwargs["max_tokens"] = kwargs.pop("max_completion_tokens")
 
         return kwargs
 
@@ -523,7 +526,7 @@ class MultiAIClient:  # noqa: PLR0904
 
         return output_str, final_tool_calls  # type: ignore
 
-    async def ainvoke_with_tools(  # noqa: D417, PLR0913, PLR0917
+    async def ainvoke_with_tools(  # noqa: D417, PLR0913
         self,
         messages: Messages,
         model: Model | list[Model],
@@ -676,7 +679,7 @@ class MultiAIClient:  # noqa: PLR0904
             )
             return
 
-    async def stream_output_smooth(  # noqa: C901, PLR0915, PLR0914
+    async def stream_output_smooth(  # noqa: C901, PLR0915
         self,
         messages: Messages,
         model: list[Model] | Model,
@@ -845,7 +848,7 @@ class MultiAIClient:  # noqa: PLR0904
         ):
             yield chunk
 
-    async def stream_output_with_tools(  # noqa: C901, PLR0912, PLR0913, PLR0917
+    async def stream_output_with_tools(  # noqa: C901, PLR0912, PLR0913
         self,
         messages: Messages,
         model: list[Model] | Model,
@@ -1197,7 +1200,7 @@ class MultiAIClient:  # noqa: PLR0904
 
         return image_bytes
 
-    async def edit_image(  # noqa: PLR0913, PLR0917, PLR0914
+    async def edit_image(  # noqa: PLR0913
         self,
         model: Model | list[Model],
         prompt: str,
@@ -1220,7 +1223,9 @@ class MultiAIClient:  # noqa: PLR0904
 
             # Convert input image to Part
             _filename, file_bytes, mime_type = image
-            image_part = genai_types.Part.from_bytes(data=file_bytes, mime_type=mime_type)
+            image_part = genai_types.Part.from_bytes(
+                data=file_bytes, mime_type=mime_type
+            )
             text_part = genai_types.Part.from_text(text=prompt)
 
             content = genai_types.Content(parts=[text_part, image_part])
