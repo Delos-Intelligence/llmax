@@ -120,6 +120,32 @@ class MultiAIClient:
         self._clients: dict[Model, Client] = {}
         self._aclients: dict[Model, Client] = {}
 
+    def resolve_model(self, models: list[Model]) -> Model:
+        """Returns the model that would be used for the given model list, without creating a client.
+
+        Args:
+            models: The models to resolve.
+
+        Returns:
+            The model that would be used (either a direct match or a fallback).
+
+        Raises:
+            ValueError: If no deployment is available for any of the models or their fallbacks.
+        """
+        for model in models:
+            if model in self.deployments:
+                return model
+
+        fallbacks = self._get_fallback_models(models)
+
+        for model in fallbacks:
+            if model in self.deployments:
+                return model
+
+        message = f"No model deployments are available from the provided list : {models}, {fallbacks}"
+        logger.warning(message)
+        raise ValueError(message)
+
     def client(self, models: list[Model]) -> Client:
         """Returns the client for the given model, creating it if necessary.
 
