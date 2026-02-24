@@ -136,13 +136,15 @@ class MultiAIClient:
             if model in self.deployments:
                 return model
 
-        fallbacks = self._get_fallback_models(models)
+        fallback_models: set[Model] = {
+            m for model in models for m in self.fallback_models[model]
+        }
 
-        for model in fallbacks:
+        for model in fallback_models:
             if model in self.deployments:
                 return model
 
-        message = f"No model deployments are available from the provided list : {models}, {fallbacks}"
+        message = f"No model deployments are available from the provided list : {models}, {fallback_models}"
         logger.warning(message)
         raise ValueError(message)
 
@@ -1250,7 +1252,8 @@ class MultiAIClient:
             # Convert input image to Part
             _filename, file_bytes, mime_type = image
             image_part = genai_types.Part.from_bytes(
-                data=file_bytes, mime_type=mime_type
+                data=file_bytes,
+                mime_type=mime_type,
             )
             text_part = genai_types.Part.from_text(text=prompt)
 
