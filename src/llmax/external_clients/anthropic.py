@@ -5,6 +5,7 @@ from collections.abc import Generator
 from typing import Any
 
 import boto3  # type: ignore
+from botocore.config import Config as BotoConfig
 from dateutil import parser
 from openai.types.chat import ChatCompletion, ChatCompletionChunk
 
@@ -28,17 +29,29 @@ MAPPING_FINISH_REASON = {
 }
 
 
+_boto3_clients: dict[tuple[str, str], Any] = {}
+
+
 def client_creation_anthropic(
     aws_key: str,
     aws_secret_key: str,
     region_name: str,
 ) -> Any:
-    """Create the antropic client."""
-    return boto3.Session(
-        aws_access_key_id=aws_key,
-        aws_secret_access_key=aws_secret_key,
-        region_name=region_name,
-    ).client("bedrock-runtime")
+    """Create the anthropic client, reusing cached clients per (key, region)."""
+    cache_key = (aws_key, region_name)
+    if cache_key not in _boto3_clients:
+        _boto3_clients[cache_key] = boto3.Session(
+            aws_access_key_id=aws_key,
+            aws_secret_access_key=aws_secret_key,
+            region_name=region_name,
+        ).client(
+            "bedrock-runtime",
+            config=BotoConfig(
+                max_pool_connections=100,
+                retries={"max_attempts": 3, "mode": "adaptive"},
+            ),
+        )
+    return _boto3_clients[cache_key]
 
 
 def anthropic_parsing(response: dict[str, Any]) -> ChatCompletion | None:
