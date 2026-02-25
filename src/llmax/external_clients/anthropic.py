@@ -4,7 +4,7 @@ import json
 from collections.abc import Generator
 from typing import Any
 
-import boto3  # type: ignore
+import boto3
 from botocore.config import Config as BotoConfig
 from dateutil import parser
 from openai.types.chat import ChatCompletion, ChatCompletionChunk
