@@ -18,7 +18,12 @@ import httpx
 from google import genai  # type: ignore[reportMissingTypeStubs]
 from google.genai import types as genai_types  # type: ignore[reportMissingTypeStubs]
 from openai import NOT_GIVEN, BadRequestError, RateLimitError
-from openai.types import CompletionUsage, Embedding
+from openai.types import (
+    CompletionUsage,
+    Embedding,
+    ImageEditStreamEvent,
+    ImageGenStreamEvent,
+)
 from openai.types.audio import Transcription, TranscriptionVerbose
 from openai.types.chat import (
     ChatCompletion,
@@ -1169,13 +1174,16 @@ class MultiAIClient:
 
         return response
 
-    async def text_to_image(
+    async def text_to_image(  # noqa: PLR0913, C901
         self,
         model: Model | list[Model],
         prompt: str,
-        size: Literal["1024x1024", "1024x1536", "1536x1024"] = "1024x1024",
         quality: Literal["low", "medium", "high", "auto"] = "medium",
         n: int = 1,
+        aspect_ratio: Literal["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"] = "1:1",
+        background: Literal["transparent", "opaque", "auto"] | None = None,
+        output_format: Literal["png", "jpeg", "webp"] | None = None,
+        output_compression: int | None = None,
         **kwargs: Any,
     ) -> bytes:
         """Generate images from a text prompt using the specified model."""
@@ -1185,22 +1193,71 @@ class MultiAIClient:
         deployment = self.deployments[model_used]
 
         image_bytes: bytes | None = None
+        quality_to_resolution = {
+            "low": "1K",
+            "medium": "2K",
+            "high": "4K",
+            "auto": "1K",
+        }
+
+        aspect_ratio_to_size: dict[str, Literal["1024x1024", "1024x1536", "1536x1024"]] = {
+            "1:1": "1024x1024",
+            "2:3": "1024x1536",
+            "3:2": "1536x1024",
+            "3:4": "1024x1536",
+            "4:3": "1536x1024",
+            "4:5": "1024x1536",
+            "5:4": "1536x1024",
+            "9:16": "1024x1536",
+            "16:9": "1536x1024",
+            "21:9": "1536x1024",
+        }
+        size: Literal["1024x1024", "1024x1536", "1536x1024"] = aspect_ratio_to_size[aspect_ratio]
 
         if model_used in GEMINI_MODELS:
+            if background is not None:
+                logger.warning(f"'background' is not supported by {model_used} and will be ignored.")
+            if output_format is not None:
+                logger.warning(f"'output_format' is not supported by {model_used} and will be ignored.")
+            if output_compression is not None:
+                logger.warning(f"'output_compression' is not supported by {model_used} and will be ignored.")
+            if n > 1:
+                logger.warning(f"'n > 1' is not supported by {model_used}. Only one image will be returned.")
+
             client = genai.Client(api_key=deployment.api_key)
             aclient = client.aio
             response = await aclient.models.generate_content(
                 model=model_used,
                 contents=[prompt],
+                config=genai_types.GenerateContentConfig(
+                    response_modalities=["IMAGE"],
+                    image_config=genai_types.ImageConfig(
+                        aspect_ratio=aspect_ratio,
+                        image_size=quality_to_resolution[quality],
+                    ),
+                ),
             )
             image_bytes = _extract_image_from_gemini_response(response)
         else:
+            if model_used != "gpt-image-1":
+                if background is not None:
+                    logger.warning(f"'background' is only supported by gpt-image-1, not {model_used}.")
+                if output_format is not None:
+                    logger.warning(f"'output_format' is only supported by gpt-image-1, not {model_used}.")
+                if output_compression is not None:
+                    logger.warning(f"'output_compression' is only supported by gpt-image-1, not {model_used}.")
+            if aspect_ratio == "21:9":
+                logger.warning("Aspect ratio '21:9' has no exact OpenAI equivalent. Using '1536x1024' (16:9) as the closest match.")
+
             response = await client.images.generate(
                 model=model_used,
                 prompt=prompt,
                 size=size,
                 quality=quality,
                 n=n,
+                background=background if background is not None else NOT_GIVEN,
+                output_format=output_format if output_format is not None else NOT_GIVEN,
+                output_compression=output_compression if output_compression is not None else NOT_GIVEN,
             )
             image_base64 = response.data[0].b64_json
             image_bytes = base64.b64decode(image_base64)
@@ -1228,14 +1285,95 @@ class MultiAIClient:
 
         return image_bytes
 
-    async def edit_image(  # noqa: PLR0913
+    async def stream_text_to_image(  # noqa: PLR0913
         self,
         model: Model | list[Model],
         prompt: str,
-        image: tuple[str, bytes, str],
-        size: Literal["1024x1024", "1024x1536", "1536x1024"] = "1024x1024",
         quality: Literal["low", "medium", "high", "auto"] = "medium",
         n: int = 1,
+        aspect_ratio: Literal["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"] = "1:1",
+        background: Literal["transparent", "opaque", "auto"] | None = None,
+        output_format: Literal["png", "jpeg", "webp"] | None = None,
+        output_compression: int | None = None,
+        partial_images: int = 3,
+        **kwargs: Any,
+    ) -> AsyncGenerator[bytes, None]:
+        """Stream image generation, yielding partial then final image bytes.
+
+        Each yielded value is a complete renderable image — intermediate yields are
+        progressive previews and the last one is the final result. Only supported for
+        OpenAI models (e.g. gpt-image-1). Set `partial_images` to control how many
+        intermediate frames are emitted before the final image.
+        """
+        start = time.time()
+        operation: str = kwargs.pop("operation", "")
+        client, model_used = self.aclient(model if isinstance(model, list) else [model])
+        deployment = self.deployments[model_used]
+
+        if model_used in GEMINI_MODELS:
+            message = f"Streaming image generation is not supported for {model_used}. Use text_to_image instead."
+            raise ValueError(message)
+
+        aspect_ratio_to_size: dict[str, Literal["1024x1024", "1024x1536", "1536x1024"]] = {
+            "1:1": "1024x1024",
+            "2:3": "1024x1536",
+            "3:2": "1536x1024",
+            "3:4": "1024x1536",
+            "4:3": "1536x1024",
+            "4:5": "1024x1536",
+            "5:4": "1536x1024",
+            "9:16": "1024x1536",
+            "16:9": "1536x1024",
+            "21:9": "1536x1024",
+        }
+        size: Literal["1024x1024", "1024x1536", "1536x1024"] = aspect_ratio_to_size[aspect_ratio]
+
+        if aspect_ratio == "21:9":
+            logger.warning("Aspect ratio '21:9' has no exact OpenAI equivalent. Using '1536x1024' (16:9) as the closest match.")
+        if model_used != "gpt-image-1":
+            if background is not None:
+                logger.warning(f"'background' is only supported by gpt-image-1, not {model_used}.")
+            if output_format is not None:
+                logger.warning(f"'output_format' is only supported by gpt-image-1, not {model_used}.")
+            if output_compression is not None:
+                logger.warning(f"'output_compression' is only supported by gpt-image-1, not {model_used}.")
+
+        stream = await client.images.generate(
+            model=deployment.deployment_name,
+            prompt=prompt,
+            size=size,
+            quality=quality,
+            n=n,
+            background=background if background is not None else NOT_GIVEN,
+            output_format=output_format if output_format is not None else NOT_GIVEN,
+            output_compression=output_compression if output_compression is not None else NOT_GIVEN,
+            partial_images=partial_images,
+            stream=True,
+        )
+
+        event: ImageGenStreamEvent
+        async for event in stream:
+            yield base64.b64decode(event.b64_json)
+
+        duration = time.time() - start
+        usage = ModelUsage(deployment, self._increment_usage)
+        usage.add_image(quality=quality, size=size, n=n)
+        cost = await usage.apply(operation=operation, duration=duration, ttft=None)
+        self.total_usage += cost
+        self.usages.append(usage)
+
+    async def edit_image(  # noqa: PLR0912, PLR0913, C901
+        self,
+        model: Model | list[Model],
+        prompt: str,
+        image: tuple[str, bytes, str] | list[tuple[str, bytes, str]],
+        size: Literal["1024x1024", "1024x1536", "1536x1024", "auto"] = "1024x1024",
+        quality: Literal["low", "medium", "high", "auto"] = "medium",
+        n: int = 1,
+        background: Literal["transparent", "opaque", "auto"] | None = None,
+        output_format: Literal["png", "jpeg", "webp"] | None = None,
+        output_compression: int | None = None,
+        mask: tuple[str, bytes, str] | None = None,
         **kwargs: Any,
     ) -> bytes:
         """Edit an image using the specified model and a text prompt."""
@@ -1245,32 +1383,57 @@ class MultiAIClient:
         deployment = self.deployments[model_used]
         image_bytes: bytes | None = None
 
+        images = image if isinstance(image, list) else [image]
+
         if model_used in GEMINI_MODELS:
+            if background is not None:
+                logger.warning(f"'background' is not supported by {model_used} and will be ignored.")
+            if output_format is not None:
+                logger.warning(f"'output_format' is not supported by {model_used} and will be ignored.")
+            if output_compression is not None:
+                logger.warning(f"'output_compression' is not supported by {model_used} and will be ignored.")
+            if mask is not None:
+                logger.warning(f"'mask' is not supported by {model_used} and will be ignored.")
+            if n > 1:
+                logger.warning(f"'n > 1' is not supported by {model_used}. Only one image will be returned.")
+
             client = genai.Client(api_key=deployment.api_key)
             aclient = client.aio
 
-            # Convert input image to Part
-            _filename, file_bytes, mime_type = image
-            image_part = genai_types.Part.from_bytes(
-                data=file_bytes,
-                mime_type=mime_type,
-            )
             text_part = genai_types.Part.from_text(text=prompt)
+            image_parts = [
+                genai_types.Part.from_bytes(data=file_bytes, mime_type=mime_type)
+                for _filename, file_bytes, mime_type in images
+            ]
 
-            content = genai_types.Content(parts=[text_part, image_part])
+            content = genai_types.Content(parts=[text_part, *image_parts])
             response = await aclient.models.generate_content(
                 model=model_used,
                 contents=[content],
             )
             image_bytes = _extract_image_from_gemini_response(response)
         else:
+            if model_used != "gpt-image-1":
+                if background is not None:
+                    logger.warning(f"'background' is only supported by gpt-image-1, not {model_used}.")
+                if output_format is not None:
+                    logger.warning(f"'output_format' is only supported by gpt-image-1, not {model_used}.")
+                if output_compression is not None:
+                    logger.warning(f"'output_compression' is only supported by gpt-image-1, not {model_used}.")
+                if len(images) > 1:
+                    logger.warning(f"Multiple input images are only supported by gpt-image-1, not {model_used}. Only the first image will be used.")
+
             response = await client.images.edit(
                 model=deployment.deployment_name,
                 prompt=prompt,
-                image=image,
+                image=images[0] if len(images) == 1 else images,
                 size=size,
                 quality=quality,
                 n=n,
+                background=background if background is not None else NOT_GIVEN,
+                output_format=output_format if output_format is not None else NOT_GIVEN,
+                output_compression=output_compression if output_compression is not None else NOT_GIVEN,
+                mask=mask if mask is not None else NOT_GIVEN,
             )
             image_base64 = response.data[0].b64_json
             image_bytes = base64.b64decode(image_base64)
@@ -1296,6 +1459,75 @@ class MultiAIClient:
             raise ValueError(message)
 
         return image_bytes
+
+    async def stream_edit_image(  # noqa: PLR0913
+        self,
+        model: Model | list[Model],
+        prompt: str,
+        image: tuple[str, bytes, str] | list[tuple[str, bytes, str]],
+        size: Literal["1024x1024", "1024x1536", "1536x1024", "auto"] = "1024x1024",
+        quality: Literal["low", "medium", "high", "auto"] = "medium",
+        n: int = 1,
+        background: Literal["transparent", "opaque", "auto"] | None = None,
+        output_format: Literal["png", "jpeg", "webp"] | None = None,
+        output_compression: int | None = None,
+        mask: tuple[str, bytes, str] | None = None,
+        partial_images: int =3,
+        **kwargs: Any,
+    ) -> AsyncGenerator[bytes, None]:
+        """Stream image editing, yielding partial then final image bytes.
+
+        Each yielded value is a complete renderable image — intermediate yields are
+        progressive previews and the last one is the final result. Only supported for
+        OpenAI models (e.g. gpt-image-1). Set `partial_images` to control how many
+        intermediate frames are emitted before the final image.
+        """
+        start = time.time()
+        operation: str = kwargs.pop("operation", "")
+        client, model_used = self.aclient(model if isinstance(model, list) else [model])
+        deployment = self.deployments[model_used]
+
+        if model_used in GEMINI_MODELS:
+            message = f"Streaming image editing is not supported for {model_used}. Use edit_image instead."
+            raise ValueError(message)
+
+        images = image if isinstance(image, list) else [image]
+
+        if model_used != "gpt-image-1":
+            if background is not None:
+                logger.warning(f"'background' is only supported by gpt-image-1, not {model_used}.")
+            if output_format is not None:
+                logger.warning(f"'output_format' is only supported by gpt-image-1, not {model_used}.")
+            if output_compression is not None:
+                logger.warning(f"'output_compression' is only supported by gpt-image-1, not {model_used}.")
+            if len(images) > 1:
+                logger.warning(f"Multiple input images are only supported by gpt-image-1, not {model_used}. Only the first image will be used.")
+
+        stream = await client.images.edit(
+            model=deployment.deployment_name,
+            prompt=prompt,
+            image=images[0] if len(images) == 1 else images,
+            size=size,
+            quality=quality,
+            n=n,
+            background=background if background is not None else NOT_GIVEN,
+            output_format=output_format if output_format is not None else NOT_GIVEN,
+            output_compression=output_compression if output_compression is not None else NOT_GIVEN,
+            mask=mask if mask is not None else NOT_GIVEN,
+            partial_images=partial_images,
+            stream=True,
+        )
+
+        event: ImageEditStreamEvent
+        async for event in stream:
+            yield base64.b64decode(event.b64_json)
+
+        duration = time.time() - start
+        usage = ModelUsage(deployment, self._increment_usage)
+        usage.add_image(quality=quality, size=size, n=n)
+        cost = await usage.apply(operation=operation, duration=duration, ttft=None)
+        self.total_usage += cost
+        self.usages.append(usage)
 
     def text_to_speech(
         self,
