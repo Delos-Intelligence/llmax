@@ -5,6 +5,7 @@ from collections.abc import Generator
 from typing import Any
 
 import boto3  # type: ignore
+from botocore.config import Config as BotoConfig
 from dateutil import parser
 from openai.types.chat import ChatCompletion, ChatCompletionChunk
 
@@ -38,7 +39,13 @@ def client_creation_anthropic(
         aws_access_key_id=aws_key,
         aws_secret_access_key=aws_secret_key,
         region_name=region_name,
-    ).client("bedrock-runtime")
+    ).client(
+        "bedrock-runtime",
+        config=BotoConfig(
+            max_pool_connections=50,
+            retries={"max_attempts": 3, "mode": "adaptive"},
+        ),
+    )
 
 
 def anthropic_parsing(response: dict[str, Any]) -> ChatCompletion | None:
