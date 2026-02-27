@@ -1285,7 +1285,7 @@ class MultiAIClient:
 
         return image_bytes
 
-    async def stream_text_to_image(  # noqa: PLR0913
+    async def stream_text_to_image(  # noqa: PLR0913, C901
         self,
         model: Model | list[Model],
         prompt: str,
@@ -1301,18 +1301,21 @@ class MultiAIClient:
         """Stream image generation, yielding partial then final image bytes.
 
         Each yielded value is a complete renderable image — intermediate yields are
-        progressive previews and the last one is the final result. Only supported for
-        OpenAI models (e.g. gpt-image-1). Set `partial_images` to control how many
-        intermediate frames are emitted before the final image.
+        progressive previews and the last one is the final result. For models that
+        don't support streaming (e.g. Gemini), falls back to single-shot generation
+        and yields only the final image (equivalent to partial_images=0).
         """
         start = time.time()
         operation: str = kwargs.pop("operation", "")
         client, model_used = self.aclient(model if isinstance(model, list) else [model])
         deployment = self.deployments[model_used]
 
-        if model_used in GEMINI_MODELS:
-            message = f"Streaming image generation is not supported for {model_used}. Use text_to_image instead."
-            raise ValueError(message)
+        quality_to_resolution = {
+            "low": "1K",
+            "medium": "2K",
+            "high": "4K",
+            "auto": "1K",
+        }
 
         aspect_ratio_to_size: dict[str, Literal["1024x1024", "1024x1536", "1536x1024"]] = {
             "1:1": "1024x1024",
@@ -1328,32 +1331,61 @@ class MultiAIClient:
         }
         size: Literal["1024x1024", "1024x1536", "1536x1024"] = aspect_ratio_to_size[aspect_ratio]
 
-        if aspect_ratio == "21:9":
-            logger.warning("Aspect ratio '21:9' has no exact OpenAI equivalent. Using '1536x1024' (16:9) as the closest match.")
-        if model_used != "gpt-image-1":
+        if model_used in GEMINI_MODELS:
             if background is not None:
-                logger.warning(f"'background' is only supported by gpt-image-1, not {model_used}.")
+                logger.warning(f"'background' is not supported by {model_used} and will be ignored.")
             if output_format is not None:
-                logger.warning(f"'output_format' is only supported by gpt-image-1, not {model_used}.")
+                logger.warning(f"'output_format' is not supported by {model_used} and will be ignored.")
             if output_compression is not None:
-                logger.warning(f"'output_compression' is only supported by gpt-image-1, not {model_used}.")
+                logger.warning(f"'output_compression' is not supported by {model_used} and will be ignored.")
+            if n > 1:
+                logger.warning(f"'n > 1' is not supported by {model_used}. Only one image will be returned.")
 
-        stream = await client.images.generate(
-            model=deployment.deployment_name,
-            prompt=prompt,
-            size=size,
-            quality=quality,
-            n=n,
-            background=background if background is not None else NOT_GIVEN,
-            output_format=output_format if output_format is not None else NOT_GIVEN,
-            output_compression=output_compression if output_compression is not None else NOT_GIVEN,
-            partial_images=partial_images,
-            stream=True,
-        )
+            gemini_client = genai.Client(api_key=deployment.api_key)
+            aclient = gemini_client.aio
+            response = await aclient.models.generate_content(
+                model=model_used,
+                contents=[prompt],
+                config=genai_types.GenerateContentConfig(
+                    response_modalities=["IMAGE"],
+                    image_config=genai_types.ImageConfig(
+                        aspect_ratio=aspect_ratio,
+                        image_size=quality_to_resolution[quality],
+                    ),
+                ),
+            )
+            image_bytes = _extract_image_from_gemini_response(response)
+            if image_bytes is None:
+                message = "Couldn't generate an image"
+                raise ValueError(message)
+            yield image_bytes
+        else:
+            if aspect_ratio == "21:9":
+                logger.warning("Aspect ratio '21:9' has no exact OpenAI equivalent. Using '1536x1024' (16:9) as the closest match.")
+            if model_used != "gpt-image-1":
+                if background is not None:
+                    logger.warning(f"'background' is only supported by gpt-image-1, not {model_used}.")
+                if output_format is not None:
+                    logger.warning(f"'output_format' is only supported by gpt-image-1, not {model_used}.")
+                if output_compression is not None:
+                    logger.warning(f"'output_compression' is only supported by gpt-image-1, not {model_used}.")
 
-        event: ImageGenStreamEvent
-        async for event in stream:
-            yield base64.b64decode(event.b64_json)
+            stream = await client.images.generate(
+                model=deployment.deployment_name,
+                prompt=prompt,
+                size=size,
+                quality=quality,
+                n=n,
+                background=background if background is not None else NOT_GIVEN,
+                output_format=output_format if output_format is not None else NOT_GIVEN,
+                output_compression=output_compression if output_compression is not None else NOT_GIVEN,
+                partial_images=partial_images,
+                stream=True,
+            )
+
+            event: ImageGenStreamEvent
+            async for event in stream:
+                yield base64.b64decode(event.b64_json)
 
         duration = time.time() - start
         usage = ModelUsage(deployment, self._increment_usage)
