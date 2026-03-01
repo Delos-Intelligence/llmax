@@ -2,7 +2,7 @@
 name = "delos-llmax"
 
 
-version = "1.21.0"
+version = "1.22.0"
 description = "Interface to handle multiple LLMs and AI tools."
 authors = ["Delos Intelligence <maximiliendedinechin@delosintelligence.fr>"]
 readme = "README.md"
