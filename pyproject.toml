@@ -2,14 +2,12 @@
 name = "delos-llmax"
 
 
-version = "1.22.0"
+version = "1.23.0"
 description = "Interface to handle multiple LLMs and AI tools."
 authors = ["Delos Intelligence <maximiliendedinechin@delosintelligence.fr>"]
 readme = "README.md"
 keywords = ["AI", "LLM", "generative"]
-packages = [
-    { include = "llmax", from = "src" }
-]
+packages = [{ include = "llmax", from = "src" }]
 include = ["src/llmax/py.typed"]
 
 [tool.poetry.dependencies]
@@ -115,8 +113,7 @@ ignore = [
   "FBT002", # bool arguments
   "ANN401", # Any for kwargs
   "CPY001", #copyright
-  "B901", #generator
-  "S311" , # usage of rnadom
+  "S311",   # usage of rnadom
   "PGH003", #type ignore
   "BLE001", #Exception
 ]
@@ -126,9 +123,9 @@ pydocstyle.convention = "google"
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = [
-    "S101", # asserts allowed in tests...
-    "S311", # Standard pseudo-random generators are not suitable for cryptographic purposes
-    "INP001"
+  "S101",   # asserts allowed in tests...
+  "S311",   # Standard pseudo-random generators are not suitable for cryptographic purposes
+  "INP001",
 ]
 
 

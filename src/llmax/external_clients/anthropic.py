@@ -226,10 +226,10 @@ def anthropic_parsing_stream(  # noqa: C901, PLR0912, PLR0915
                     "usage": {
                         "completion_tokens": completion_tokens,
                         "prompt_tokens": prompt_tokens,
-                        "total_tokens": completion_tokens + prompt_tokens
-                        if completion_tokens and prompt_tokens
-                        else None,
-                    },
+                        "total_tokens": completion_tokens + prompt_tokens,
+                    }
+                    if completion_tokens is not None and prompt_tokens is not None
+                    else None,
                     "choices": [
                         {
                             "delta": delta,
@@ -243,6 +243,11 @@ def anthropic_parsing_stream(  # noqa: C901, PLR0912, PLR0915
             except Exception as e:
                 logger.error(f"Error processing chunk: {e}")
                 return None
+
+    if completion_tokens is None or prompt_tokens is None:
+        logger.warning(
+            f"Bedrock stream ended without token usage data (prompt={prompt_tokens}, completion={completion_tokens})",
+        )
     return None
 
 
