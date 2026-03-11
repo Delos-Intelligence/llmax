@@ -37,6 +37,7 @@ PROMPT_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "bge-multilingual-gemma2": {"scaleway": 0.115},  # €0.10 → $0.115
     "gpt-5": 1.25,
     "gpt-5.1": 1.25,
+    "gpt-5.4": 2.5,
     "gpt-5-chat": 1.25,
     "gpt-5-mini": 0.25,
     "gpt-5-nano": 0.05,
@@ -62,6 +63,7 @@ CACHED_PROMPT_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "o3-mini-high": {"openai": 0.55, "azure": 0.605},
     "gpt-5": 0.125,
     "gpt-5.1": 0.125,
+    "gpt-5.4": 0.25,
     "gpt-5-chat": 0.125,
     "gpt-5-mini": 0.025,
     "gpt-5-nano": 0.005,
@@ -97,6 +99,7 @@ COMPLETION_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "mistral-small": 3.0,
     "gpt-5": 10.00,
     "gpt-5.1": 10.00,
+    "gpt-5.4": 15.00,
     "gpt-5-chat": 10.00,
     "gpt-5-mini": 2.00,
     "gpt-5-nano": 0.40,
