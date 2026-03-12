@@ -13,7 +13,7 @@ MetaModel = Literal[
     "llama-4-maverick-17b-128e-instruct-fp8",
 ]
 
-GeminiModel = Literal["gemini-3-pro-preview", "gemini-3-pro-image-preview"]
+GeminiModel = Literal["gemini-3-pro-preview", "gemini-3-pro-image-preview", "gemini-3.1-flash-lite-preview"]
 
 MistralModel = Literal[
     "mistral-large",
