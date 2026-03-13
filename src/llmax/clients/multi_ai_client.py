@@ -1695,7 +1695,29 @@ def parse_tool_call(
         }
         return formatted_call
 
-    formatted_call = {
+    if model in GEMINI_MODELS:
+        # Preserve Gemini thought signatures for function calling.
+        # See https://ai.google.dev/gemini-api/docs/thought-signatures
+        tool_call_dict: dict[str, Any] = {
+            "id": call_id,
+            "type": "function",
+            "function": {
+                "name": function_name,
+                "arguments": tool_call.function.arguments if tool_call.function else "",
+            },
+        }
+        extra_content = getattr(tool_call, "extra_content", None)
+        if extra_content is not None:
+            tool_call_dict["extra_content"] = (
+                extra_content if isinstance(extra_content, dict) else extra_content.model_dump()  # type: ignore[union-attr]
+            )
+        return {
+            "role": "assistant",
+            "content": None,
+            "tool_calls": [tool_call_dict],
+        }
+
+    return {
         "role": "assistant",
         "content": None,
         "tool_calls": [
@@ -1711,8 +1733,6 @@ def parse_tool_call(
             },
         ],
     }
-
-    return formatted_call
 
 
 def update_messages_tools(
