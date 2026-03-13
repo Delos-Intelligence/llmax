@@ -51,6 +51,7 @@ PROMPT_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "deepseek-r1-distill-llama-70b": {"scaleway": 1.035},  # €0.90 → $1.035
     "grok-4-1-fast": 0.2,
     "gemini-3-pro-preview": 2,
+    "gemini-3.1-flash-lite-preview": 0.25,
 }
 
 CACHED_PROMPT_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
@@ -113,6 +114,7 @@ COMPLETION_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "deepseek-r1-distill-llama-70b": {"scaleway": 1.035},  # €0.90 → $1.035
     "grok-4-1-fast": 0.5,
     "gemini-3-pro-preview": 12,
+    "gemini-3.1-flash-lite-preview": 1.5,
 }
 
 TRANSCRIPTION_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
