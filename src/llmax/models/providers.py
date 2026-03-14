@@ -7,6 +7,7 @@ Provider = Literal[
     "azure",
     "openai",
     "mistral",
+    "anthropic",
     "aws-bedrock",
     "gcp-vertexai",
     "scaleway",
