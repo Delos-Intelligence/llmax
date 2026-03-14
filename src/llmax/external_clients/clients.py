@@ -46,7 +46,7 @@ def get_client(  # noqa: PLR0911
         case model if model in META_MODELS:
             return meta.get_client(deployment, http_client=http_client)
         case model if model in ANTHROPIC_MODELS:
-            return anthropic.get_client(deployment)
+            return anthropic.get_client(deployment, http_client=http_client)
         case model if model in GEMINI_MODELS:
             return gemini.get_client(deployment, http_client=http_client)
         case model if model in SCALEWAY_MODELS:
@@ -80,6 +80,8 @@ def get_aclient(  # noqa: PLR0911
             return cohere.get_aclient(deployment, http_client=http_client)
         case model if model in META_MODELS:
             return meta.get_aclient(deployment, http_client=http_client)
+        case model if model in ANTHROPIC_MODELS:
+            return anthropic.get_aclient(deployment, http_client=http_client)
         case model if model in GEMINI_MODELS:
             return gemini.get_aclient(deployment, http_client=http_client)
         case model if model in SCALEWAY_MODELS:

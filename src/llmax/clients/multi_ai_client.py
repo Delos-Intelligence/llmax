@@ -33,6 +33,7 @@ from openai.types.chat import (
 from openai.types.chat.chat_completion_chunk import Choice, ChoiceDeltaToolCall
 from openai.types.responses import ParsedResponse
 
+from llmax.external_clients.anthropic import anthropic_acreate, anthropic_create
 from llmax.external_clients.clients import Client, get_aclient, get_client
 from llmax.messages import Messages
 from llmax.messages.message import Message
@@ -256,6 +257,12 @@ class MultiAIClient:
         if "max_completion_tokens" in kwargs and deployment.model in MISTRAL_MODELS:
             kwargs["max_tokens"] = kwargs.pop("max_completion_tokens")
 
+        if deployment.model in ANTHROPIC_MODELS:
+            kwargs.pop("stream_options", None)
+            kwargs.pop("response_format", None)
+            if "max_completion_tokens" in kwargs:
+                kwargs["max_tokens"] = kwargs.pop("max_completion_tokens")
+
         return kwargs
 
     def _create_chat(
@@ -285,6 +292,9 @@ class MultiAIClient:
                 model=deployment.deployment_name,
                 **kwargs,
             )
+
+        if model in ANTHROPIC_MODELS:
+            return anthropic_create(client, messages, deployment.deployment_name, **kwargs), model
 
         return client.chat.completions.create(
             messages=messages,
@@ -319,6 +329,9 @@ class MultiAIClient:
                 model=deployment.deployment_name,
                 **kwargs,
             )
+
+        if model in ANTHROPIC_MODELS:
+            return await anthropic_acreate(aclient, messages, deployment.deployment_name, **kwargs), model
 
         response = await aclient.chat.completions.create(
             messages=messages,
