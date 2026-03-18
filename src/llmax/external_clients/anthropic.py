@@ -475,7 +475,7 @@ def anthropic_create(
         kwargs["max_tokens"] = DEFAULT_MAX_TOKENS
 
     if stream:
-        raw_stream = client.messages.create(
+        raw_stream = client.messages.create(  # type: ignore[call-overload]
             model=model,
             messages=remaining,
             system=system,
@@ -484,7 +484,7 @@ def anthropic_create(
         )
         return _stream_to_chunks(raw_stream)
 
-    response = client.messages.create(
+    response = client.messages.create(  # type: ignore[call-overload]
         model=model,
         messages=remaining,
         system=system,
@@ -508,7 +508,7 @@ async def anthropic_acreate(
         kwargs["max_tokens"] = DEFAULT_MAX_TOKENS
 
     if stream:
-        raw_stream = await client.messages.create(
+        raw_stream = await client.messages.create(  # type: ignore[call-overload]
             model=model,
             messages=remaining,
             system=system,
@@ -517,7 +517,7 @@ async def anthropic_acreate(
         )
         return _astream_to_chunks(raw_stream)
 
-    response = await client.messages.create(
+    response = await client.messages.create(  # type: ignore[call-overload]
         model=model,
         messages=remaining,
         system=system,
