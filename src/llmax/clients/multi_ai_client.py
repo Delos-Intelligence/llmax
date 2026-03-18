@@ -15,8 +15,8 @@ from queue import Queue
 from typing import Any, Literal
 
 import httpx
-from google import genai  # type: ignore[reportMissingTypeStubs]
-from google.genai import types as genai_types  # type: ignore[reportMissingTypeStubs]
+from google import genai
+from google.genai import types as genai_types
 from openai import NOT_GIVEN, BadRequestError, RateLimitError
 from openai.types import (
     CompletionUsage,
@@ -365,7 +365,6 @@ class MultiAIClient:
         logger.error(
             "[bold purple][LLMAX][/bold purple] Deprecated function `invoke`, use the async one instead.",
         )
-        kwargs.pop("operation", "")
         if system:
             messages = add_system_message(
                 messages=messages,
@@ -427,10 +426,11 @@ class MultiAIClient:
             return None
         return response.output[0].content[0].text if response.output else None  # type: ignore
 
-    async def ainvoke(
+    async def ainvoke(  # noqa: D417, PLR0913
         self,
         messages: Messages,
         models: list[Model],
+        operation: str,
         system: str | None = None,
         delay: float = 0.0,
         tries: int = 1,
@@ -450,7 +450,6 @@ class MultiAIClient:
             ChatCompletion: The API response containing the chat completions.
         """
         start_time = time.time()
-        operation: str = kwargs.pop("operation", "")
         if system:
             messages = add_system_message(
                 messages=messages,
@@ -502,10 +501,11 @@ class MultiAIClient:
 
         return response
 
-    async def ainvoke_to_str(
+    async def ainvoke_to_str(  # noqa: D417, PLR0913
         self,
         messages: Messages,
         model: Model | list[Model],
+        operation: str,
         system: str | None = None,
         delay: float = 0.0,
         tries: int = 1,
@@ -529,6 +529,7 @@ class MultiAIClient:
             model if isinstance(model, list) else [model],
             delay=delay,
             tries=tries,
+            operation=operation,
             system=system,
             **kwargs,
         )
@@ -536,10 +537,11 @@ class MultiAIClient:
             return response.choices[0].message.content if response.choices else None
         return response.output[0].content[0].text if response.output else None  # type: ignore
 
-    async def ainvoke_get_tools(
+    async def ainvoke_get_tools(  # noqa: D417, PLR0913
         self,
         messages: Messages,
         model: list[Model] | Model,
+        operation: str,
         system: str | None = None,
         delay: float = 0.0,
         tries: int = 1,
@@ -564,6 +566,7 @@ class MultiAIClient:
             model if isinstance(model, list) else [model],
             delay=delay,
             tries=tries,
+            operation=operation,
             system=system,
             **kwargs,
         )
@@ -577,6 +580,7 @@ class MultiAIClient:
         messages: Messages,
         model: Model | list[Model],
         execute_tools: Callable[[str, str], Awaitable[str]],
+        operation: str,
         system: str | None = None,
         delay: float = 0.0,
         max_tool_calls: int = 4,
@@ -607,6 +611,7 @@ class MultiAIClient:
                 model if isinstance(model, list) else [model],
                 delay=delay,
                 tries=tries,
+                operation=operation,
                 system=system,
                 **kwargs,
             )
@@ -639,7 +644,7 @@ class MultiAIClient:
             for tool, resultat in zip(final_tool_calls, results, strict=True):
                 messages.append(
                     parse_tool_call(
-                        tool,  # type: ignore
+                        tool,
                         model[0] if isinstance(model, list) else model,
                     ),
                 )
@@ -718,18 +723,19 @@ class MultiAIClient:
                 except Exception as e:
                     logger.debug(f"Error in llmax streaming : {e}")
                     continue
-                yield chunk  # type: ignore
+                yield chunk
         except Exception as e:
             logger.error(
                 f"[bold purple][LLMAX][/bold purple] Error iterating stream chunks for model {model}: {e}",
             )
             return
 
-    async def stream_output_smooth(  # noqa: C901, PLR0915
+    async def stream_output_smooth(  # noqa: C901, D417, PLR0915
         self,
         messages: Messages,
         model: list[Model] | Model,
         smooth_duration: int,
+        operation: str,
         system: str | None = None,
         **kwargs: Any,
     ) -> AsyncGenerator[StreamedItem, None]:
@@ -759,8 +765,6 @@ class MultiAIClient:
         start = time.time()
         ttft = None
         model_used = model[0] if isinstance(model, list) else model
-
-        operation: str = kwargs.pop("operation", "")
 
         for chunk in fake_llm(
             "",
@@ -833,7 +837,7 @@ class MultiAIClient:
 
             for tool_call in choices[0].delta.tool_calls or []:
                 index = tool_call.index
-                if index is None:  # type: ignore
+                if index is None:
                     index = 1
 
                 if index not in final_tool_calls:
@@ -862,10 +866,11 @@ class MultiAIClient:
 
         yield StreamItemOutput(tools=final_tool_calls, output=final_output)
 
-    async def stream_output(
+    async def stream_output(  # noqa: D417
         self,
         messages: Messages,
         model: list[Model] | Model,
+        operation: str,
         system: str | None = None,
         smooth_duration: int | None = None,
         **kwargs: Any,
@@ -890,14 +895,16 @@ class MultiAIClient:
             model=model,
             system=system,
             smooth_duration=smooth_duration or 0,
+            operation=operation,
             **kwargs,
         ):
             yield chunk
 
-    async def stream_output_with_tools(  # noqa: C901, PLR0912, PLR0913
+    async def stream_output_with_tools(  # noqa: C901, D417, PLR0912, PLR0913
         self,
         messages: Messages,
         model: list[Model] | Model,
+        operation: str,
         execute_tools: Callable[[str, str, str], AsyncGenerator[ToolItem, None]],
         system: str | None = None,
         smooth_duration: int | None = None,
@@ -954,6 +961,7 @@ class MultiAIClient:
                 model=model if isinstance(model, list) else [model],
                 system=system,
                 smooth_duration=smooth_duration,
+                operation=operation,
                 tools=tools if allow_tools else None,
                 **kwargs,
             ):
@@ -975,7 +983,7 @@ class MultiAIClient:
 
             queue = asyncio.Queue()
 
-            async def run_tool(tool: ChoiceDeltaToolCall, queue: asyncio.Queue) -> None:  # type: ignore
+            async def run_tool(tool: ChoiceDeltaToolCall, queue: asyncio.Queue) -> None:
                 tool_id = tool.id
                 function_name = tool.function.name  # type: ignore
                 function_args = tool.function.arguments  # type: ignore
@@ -1023,20 +1031,19 @@ class MultiAIClient:
         self,
         texts: list[str],
         model: Model | list[Model],
-        **kwargs: Any,
+        operation: str,
     ) -> list[Embedding]:
         """Asynchronously obtains vector embeddings for a list of texts.
 
         Args:
             texts: The texts to generate embeddings for.
             model: The embedding model.
-            kwargs: Additional arguments.
+            operation: The name.
 
         Returns:
             List[Embedding]: The embeddings for each text.
         """
         start = time.time()
-        operation: str = kwargs.pop("operation", "")
         texts = [text.replace("\n", " ") for text in texts]
 
         client, model_used = self.aclient(model if isinstance(model, list) else [model])
@@ -1063,14 +1070,12 @@ class MultiAIClient:
         self,
         texts: list[str],
         model: Model | list[Model],
-        **kwargs: Any,
     ) -> list[Embedding]:
         """Obtains vector embeddings for a list of texts asynchronously.
 
         Args:
             texts: The texts to generate embeddings for.
             model: The embedding model.
-            kwargs: More args.
 
         Returns:
             list[Embedding]: The embeddings for each text.
@@ -1078,7 +1083,6 @@ class MultiAIClient:
         logger.error(
             "[bold purple][LLMAX][/bold purple] Deprecated function `embedder`, use the async one instead.",
         )
-        kwargs.pop("operation", "")
         texts = [text.replace("\n", " ") for text in texts]
 
         client, model_used = self.client(model if isinstance(model, list) else [model])
@@ -1111,7 +1115,6 @@ class MultiAIClient:
         logger.error(
             "[bold purple][LLMAX][/bold purple] Deprecated function `speech_to_text`, use the async one instead.",
         )
-        kwargs.pop("operation", "")
         client, model_used = self.client(model if isinstance(model, list) else [model])
         deployment = self.deployments[model_used]
 
@@ -1124,10 +1127,11 @@ class MultiAIClient:
 
         return response
 
-    async def aspeech_to_text(
+    async def aspeech_to_text(  # noqa: D417
         self,
         file: BytesIO,
         model: Model | list[Model],
+        operation: str,
         response_format: Literal["json", "verbose_json"] = "verbose_json",
         duration: float | None = None,
         **kwargs: Any,
@@ -1145,7 +1149,6 @@ class MultiAIClient:
             Any: The response from the API.
         """
         start = time.time()
-        operation: str = kwargs.pop("operation", "")
         aclient, model_used = self.aclient(
             model if isinstance(model, list) else [model],
         )
@@ -1191,17 +1194,27 @@ class MultiAIClient:
         self,
         model: Model | list[Model],
         prompt: str,
+        operation: str,
         quality: Literal["low", "medium", "high", "auto"] = "medium",
         n: int = 1,
-        aspect_ratio: Literal["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"] = "1:1",
+        aspect_ratio: Literal[
+            "1:1",
+            "2:3",
+            "3:2",
+            "3:4",
+            "4:3",
+            "4:5",
+            "5:4",
+            "9:16",
+            "16:9",
+            "21:9",
+        ] = "1:1",
         background: Literal["transparent", "opaque", "auto"] | None = None,
         output_format: Literal["png", "jpeg", "webp"] | None = None,
         output_compression: int | None = None,
-        **kwargs: Any,
     ) -> bytes:
         """Generate images from a text prompt using the specified model."""
         start = time.time()
-        operation: str = kwargs.pop("operation", "")
         client, model_used = self.aclient(model if isinstance(model, list) else [model])
         deployment = self.deployments[model_used]
 
@@ -1213,7 +1226,10 @@ class MultiAIClient:
             "auto": "1K",
         }
 
-        aspect_ratio_to_size: dict[str, Literal["1024x1024", "1024x1536", "1536x1024"]] = {
+        aspect_ratio_to_size: dict[
+            str,
+            Literal["1024x1024", "1024x1536", "1536x1024"],
+        ] = {
             "1:1": "1024x1024",
             "2:3": "1024x1536",
             "3:2": "1536x1024",
@@ -1225,17 +1241,27 @@ class MultiAIClient:
             "16:9": "1536x1024",
             "21:9": "1536x1024",
         }
-        size: Literal["1024x1024", "1024x1536", "1536x1024"] = aspect_ratio_to_size[aspect_ratio]
+        size: Literal["1024x1024", "1024x1536", "1536x1024"] = aspect_ratio_to_size[
+            aspect_ratio
+        ]
 
         if model_used in GEMINI_MODELS:
             if background is not None:
-                logger.warning(f"'background' is not supported by {model_used} and will be ignored.")
+                logger.warning(
+                    f"'background' is not supported by {model_used} and will be ignored.",
+                )
             if output_format is not None:
-                logger.warning(f"'output_format' is not supported by {model_used} and will be ignored.")
+                logger.warning(
+                    f"'output_format' is not supported by {model_used} and will be ignored.",
+                )
             if output_compression is not None:
-                logger.warning(f"'output_compression' is not supported by {model_used} and will be ignored.")
+                logger.warning(
+                    f"'output_compression' is not supported by {model_used} and will be ignored.",
+                )
             if n > 1:
-                logger.warning(f"'n > 1' is not supported by {model_used}. Only one image will be returned.")
+                logger.warning(
+                    f"'n > 1' is not supported by {model_used}. Only one image will be returned.",
+                )
 
             client = genai.Client(api_key=deployment.api_key)
             aclient = client.aio
@@ -1254,13 +1280,21 @@ class MultiAIClient:
         else:
             if model_used != "gpt-image-1":
                 if background is not None:
-                    logger.warning(f"'background' is only supported by gpt-image-1, not {model_used}.")
+                    logger.warning(
+                        f"'background' is only supported by gpt-image-1, not {model_used}.",
+                    )
                 if output_format is not None:
-                    logger.warning(f"'output_format' is only supported by gpt-image-1, not {model_used}.")
+                    logger.warning(
+                        f"'output_format' is only supported by gpt-image-1, not {model_used}.",
+                    )
                 if output_compression is not None:
-                    logger.warning(f"'output_compression' is only supported by gpt-image-1, not {model_used}.")
+                    logger.warning(
+                        f"'output_compression' is only supported by gpt-image-1, not {model_used}.",
+                    )
             if aspect_ratio == "21:9":
-                logger.warning("Aspect ratio '21:9' has no exact OpenAI equivalent. Using '1536x1024' (16:9) as the closest match.")
+                logger.warning(
+                    "Aspect ratio '21:9' has no exact OpenAI equivalent. Using '1536x1024' (16:9) as the closest match.",
+                )
 
             response = await client.images.generate(
                 model=model_used,
@@ -1270,7 +1304,9 @@ class MultiAIClient:
                 n=n,
                 background=background if background is not None else NOT_GIVEN,
                 output_format=output_format if output_format is not None else NOT_GIVEN,
-                output_compression=output_compression if output_compression is not None else NOT_GIVEN,
+                output_compression=output_compression
+                if output_compression is not None
+                else NOT_GIVEN,
             )
             image_base64 = response.data[0].b64_json
             image_bytes = base64.b64decode(image_base64)
@@ -1298,18 +1334,29 @@ class MultiAIClient:
 
         return image_bytes
 
-    async def stream_text_to_image(  # noqa: PLR0913, C901
+    async def stream_text_to_image(  # noqa: C901, PLR0912, PLR0913
         self,
         model: Model | list[Model],
         prompt: str,
+        operation: str,
         quality: Literal["low", "medium", "high", "auto"] = "medium",
         n: int = 1,
-        aspect_ratio: Literal["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"] = "1:1",
+        aspect_ratio: Literal[
+            "1:1",
+            "2:3",
+            "3:2",
+            "3:4",
+            "4:3",
+            "4:5",
+            "5:4",
+            "9:16",
+            "16:9",
+            "21:9",
+        ] = "1:1",
         background: Literal["transparent", "opaque", "auto"] | None = None,
         output_format: Literal["png", "jpeg", "webp"] | None = None,
         output_compression: int | None = None,
         partial_images: int = 3,
-        **kwargs: Any,
     ) -> AsyncGenerator[bytes, None]:
         """Stream image generation, yielding partial then final image bytes.
 
@@ -1319,7 +1366,6 @@ class MultiAIClient:
         and yields only the final image (equivalent to partial_images=0).
         """
         start = time.time()
-        operation: str = kwargs.pop("operation", "")
         client, model_used = self.aclient(model if isinstance(model, list) else [model])
         deployment = self.deployments[model_used]
 
@@ -1330,7 +1376,10 @@ class MultiAIClient:
             "auto": "1K",
         }
 
-        aspect_ratio_to_size: dict[str, Literal["1024x1024", "1024x1536", "1536x1024"]] = {
+        aspect_ratio_to_size: dict[
+            str,
+            Literal["1024x1024", "1024x1536", "1536x1024"],
+        ] = {
             "1:1": "1024x1024",
             "2:3": "1024x1536",
             "3:2": "1536x1024",
@@ -1342,17 +1391,27 @@ class MultiAIClient:
             "16:9": "1536x1024",
             "21:9": "1536x1024",
         }
-        size: Literal["1024x1024", "1024x1536", "1536x1024"] = aspect_ratio_to_size[aspect_ratio]
+        size: Literal["1024x1024", "1024x1536", "1536x1024"] = aspect_ratio_to_size[
+            aspect_ratio
+        ]
 
         if model_used in GEMINI_MODELS:
             if background is not None:
-                logger.warning(f"'background' is not supported by {model_used} and will be ignored.")
+                logger.warning(
+                    f"'background' is not supported by {model_used} and will be ignored.",
+                )
             if output_format is not None:
-                logger.warning(f"'output_format' is not supported by {model_used} and will be ignored.")
+                logger.warning(
+                    f"'output_format' is not supported by {model_used} and will be ignored.",
+                )
             if output_compression is not None:
-                logger.warning(f"'output_compression' is not supported by {model_used} and will be ignored.")
+                logger.warning(
+                    f"'output_compression' is not supported by {model_used} and will be ignored.",
+                )
             if n > 1:
-                logger.warning(f"'n > 1' is not supported by {model_used}. Only one image will be returned.")
+                logger.warning(
+                    f"'n > 1' is not supported by {model_used}. Only one image will be returned.",
+                )
 
             gemini_client = genai.Client(api_key=deployment.api_key)
             aclient = gemini_client.aio
@@ -1374,14 +1433,22 @@ class MultiAIClient:
             yield image_bytes
         else:
             if aspect_ratio == "21:9":
-                logger.warning("Aspect ratio '21:9' has no exact OpenAI equivalent. Using '1536x1024' (16:9) as the closest match.")
+                logger.warning(
+                    "Aspect ratio '21:9' has no exact OpenAI equivalent. Using '1536x1024' (16:9) as the closest match.",
+                )
             if model_used != "gpt-image-1":
                 if background is not None:
-                    logger.warning(f"'background' is only supported by gpt-image-1, not {model_used}.")
+                    logger.warning(
+                        f"'background' is only supported by gpt-image-1, not {model_used}.",
+                    )
                 if output_format is not None:
-                    logger.warning(f"'output_format' is only supported by gpt-image-1, not {model_used}.")
+                    logger.warning(
+                        f"'output_format' is only supported by gpt-image-1, not {model_used}.",
+                    )
                 if output_compression is not None:
-                    logger.warning(f"'output_compression' is only supported by gpt-image-1, not {model_used}.")
+                    logger.warning(
+                        f"'output_compression' is only supported by gpt-image-1, not {model_used}.",
+                    )
 
             stream = await client.images.generate(
                 model=deployment.deployment_name,
@@ -1391,7 +1458,9 @@ class MultiAIClient:
                 n=n,
                 background=background if background is not None else NOT_GIVEN,
                 output_format=output_format if output_format is not None else NOT_GIVEN,
-                output_compression=output_compression if output_compression is not None else NOT_GIVEN,
+                output_compression=output_compression
+                if output_compression is not None
+                else NOT_GIVEN,
                 partial_images=partial_images,
                 stream=True,
             )
@@ -1412,6 +1481,7 @@ class MultiAIClient:
         model: Model | list[Model],
         prompt: str,
         image: tuple[str, bytes, str] | list[tuple[str, bytes, str]],
+        operation: str,
         size: Literal["1024x1024", "1024x1536", "1536x1024", "auto"] = "1024x1024",
         quality: Literal["low", "medium", "high", "auto"] = "medium",
         n: int = 1,
@@ -1419,11 +1489,9 @@ class MultiAIClient:
         output_format: Literal["png", "jpeg", "webp"] | None = None,
         output_compression: int | None = None,
         mask: tuple[str, bytes, str] | None = None,
-        **kwargs: Any,
     ) -> bytes:
         """Edit an image using the specified model and a text prompt."""
         start = time.time()
-        operation: str = kwargs.pop("operation", "")
         client, model_used = self.aclient(model if isinstance(model, list) else [model])
         deployment = self.deployments[model_used]
         image_bytes: bytes | None = None
@@ -1432,15 +1500,25 @@ class MultiAIClient:
 
         if model_used in GEMINI_MODELS:
             if background is not None:
-                logger.warning(f"'background' is not supported by {model_used} and will be ignored.")
+                logger.warning(
+                    f"'background' is not supported by {model_used} and will be ignored.",
+                )
             if output_format is not None:
-                logger.warning(f"'output_format' is not supported by {model_used} and will be ignored.")
+                logger.warning(
+                    f"'output_format' is not supported by {model_used} and will be ignored.",
+                )
             if output_compression is not None:
-                logger.warning(f"'output_compression' is not supported by {model_used} and will be ignored.")
+                logger.warning(
+                    f"'output_compression' is not supported by {model_used} and will be ignored.",
+                )
             if mask is not None:
-                logger.warning(f"'mask' is not supported by {model_used} and will be ignored.")
+                logger.warning(
+                    f"'mask' is not supported by {model_used} and will be ignored.",
+                )
             if n > 1:
-                logger.warning(f"'n > 1' is not supported by {model_used}. Only one image will be returned.")
+                logger.warning(
+                    f"'n > 1' is not supported by {model_used}. Only one image will be returned.",
+                )
 
             client = genai.Client(api_key=deployment.api_key)
             aclient = client.aio
@@ -1460,13 +1538,21 @@ class MultiAIClient:
         else:
             if model_used != "gpt-image-1":
                 if background is not None:
-                    logger.warning(f"'background' is only supported by gpt-image-1, not {model_used}.")
+                    logger.warning(
+                        f"'background' is only supported by gpt-image-1, not {model_used}.",
+                    )
                 if output_format is not None:
-                    logger.warning(f"'output_format' is only supported by gpt-image-1, not {model_used}.")
+                    logger.warning(
+                        f"'output_format' is only supported by gpt-image-1, not {model_used}.",
+                    )
                 if output_compression is not None:
-                    logger.warning(f"'output_compression' is only supported by gpt-image-1, not {model_used}.")
+                    logger.warning(
+                        f"'output_compression' is only supported by gpt-image-1, not {model_used}.",
+                    )
                 if len(images) > 1:
-                    logger.warning(f"Multiple input images are only supported by gpt-image-1, not {model_used}. Only the first image will be used.")
+                    logger.warning(
+                        f"Multiple input images are only supported by gpt-image-1, not {model_used}. Only the first image will be used.",
+                    )
 
             response = await client.images.edit(
                 model=deployment.deployment_name,
@@ -1477,7 +1563,9 @@ class MultiAIClient:
                 n=n,
                 background=background if background is not None else NOT_GIVEN,
                 output_format=output_format if output_format is not None else NOT_GIVEN,
-                output_compression=output_compression if output_compression is not None else NOT_GIVEN,
+                output_compression=output_compression
+                if output_compression is not None
+                else NOT_GIVEN,
                 mask=mask if mask is not None else NOT_GIVEN,
             )
             image_base64 = response.data[0].b64_json
@@ -1510,6 +1598,7 @@ class MultiAIClient:
         model: Model | list[Model],
         prompt: str,
         image: tuple[str, bytes, str] | list[tuple[str, bytes, str]],
+        operation: str,
         size: Literal["1024x1024", "1024x1536", "1536x1024", "auto"] = "1024x1024",
         quality: Literal["low", "medium", "high", "auto"] = "medium",
         n: int = 1,
@@ -1517,8 +1606,7 @@ class MultiAIClient:
         output_format: Literal["png", "jpeg", "webp"] | None = None,
         output_compression: int | None = None,
         mask: tuple[str, bytes, str] | None = None,
-        partial_images: int =3,
-        **kwargs: Any,
+        partial_images: int = 3,
     ) -> AsyncGenerator[bytes, None]:
         """Stream image editing, yielding partial then final image bytes.
 
@@ -1528,7 +1616,6 @@ class MultiAIClient:
         intermediate frames are emitted before the final image.
         """
         start = time.time()
-        operation: str = kwargs.pop("operation", "")
         client, model_used = self.aclient(model if isinstance(model, list) else [model])
         deployment = self.deployments[model_used]
 
@@ -1540,13 +1627,21 @@ class MultiAIClient:
 
         if model_used != "gpt-image-1":
             if background is not None:
-                logger.warning(f"'background' is only supported by gpt-image-1, not {model_used}.")
+                logger.warning(
+                    f"'background' is only supported by gpt-image-1, not {model_used}.",
+                )
             if output_format is not None:
-                logger.warning(f"'output_format' is only supported by gpt-image-1, not {model_used}.")
+                logger.warning(
+                    f"'output_format' is only supported by gpt-image-1, not {model_used}.",
+                )
             if output_compression is not None:
-                logger.warning(f"'output_compression' is only supported by gpt-image-1, not {model_used}.")
+                logger.warning(
+                    f"'output_compression' is only supported by gpt-image-1, not {model_used}.",
+                )
             if len(images) > 1:
-                logger.warning(f"Multiple input images are only supported by gpt-image-1, not {model_used}. Only the first image will be used.")
+                logger.warning(
+                    f"Multiple input images are only supported by gpt-image-1, not {model_used}. Only the first image will be used.",
+                )
 
         stream = await client.images.edit(
             model=deployment.deployment_name,
@@ -1557,7 +1652,9 @@ class MultiAIClient:
             n=n,
             background=background if background is not None else NOT_GIVEN,
             output_format=output_format if output_format is not None else NOT_GIVEN,
-            output_compression=output_compression if output_compression is not None else NOT_GIVEN,
+            output_compression=output_compression
+            if output_compression is not None
+            else NOT_GIVEN,
             mask=mask if mask is not None else NOT_GIVEN,
             partial_images=partial_images,
             stream=True,
@@ -1597,7 +1694,6 @@ class MultiAIClient:
         logger.error(
             "[bold purple][LLMAX][/bold purple] Deprecated function `text_to_speech`, create the async one instead.",
         )
-        kwargs.pop("operation", "")
         client, model_used = self.client(model if isinstance(model, list) else [model])
         deployment = self.deployments[model_used]
         response = client.audio.speech.create(
