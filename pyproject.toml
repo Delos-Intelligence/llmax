@@ -46,6 +46,7 @@ include = ["src/llmax/py.typed"]
 [tool.ruff]
 # fix = true
 src = ["src"]
+exclude = ["tests"]
 
 
 [tool.ruff.lint]

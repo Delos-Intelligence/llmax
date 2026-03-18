@@ -294,7 +294,12 @@ class MultiAIClient:
             )
 
         if model in ANTHROPIC_MODELS:
-            return anthropic_create(client, messages, deployment.deployment_name, **kwargs), model
+            return anthropic_create(
+                client,
+                messages,
+                deployment.deployment_name,
+                **kwargs,
+            ), model
 
         return client.chat.completions.create(
             messages=messages,
@@ -331,7 +336,12 @@ class MultiAIClient:
             )
 
         if model in ANTHROPIC_MODELS:
-            return await anthropic_acreate(aclient, messages, deployment.deployment_name, **kwargs), model
+            return await anthropic_acreate(
+                aclient,
+                messages,
+                deployment.deployment_name,
+                **kwargs,
+            ), model
 
         response = await aclient.chat.completions.create(
             messages=messages,
@@ -1818,7 +1828,9 @@ def parse_tool_call(
         extra_content = getattr(tool_call, "extra_content", None)
         if extra_content is not None:
             tool_call_dict["extra_content"] = (
-                extra_content if isinstance(extra_content, dict) else extra_content.model_dump()  # type: ignore[union-attr]
+                extra_content
+                if isinstance(extra_content, dict)
+                else extra_content.model_dump()
             )
         return {
             "role": "assistant",
