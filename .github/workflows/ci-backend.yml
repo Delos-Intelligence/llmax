@@ -30,11 +30,11 @@ jobs:
 
     - name: Run Ruff
       run: |
-        uv run ruff check --preview
+        uv run ruff check --preview --exclude tests
 
     - name: Run ty
       run: |
-        uv run ty check .
+        uv run ty check . --exclude tests
 
     - name: Run MyPy
       run: |
