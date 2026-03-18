@@ -297,9 +297,9 @@ class MultiAIClient:
             return anthropic_create(
                 client,
                 messages,
-                deployment.deployment_name,
+                deployment.deployment_name,  # ty:ignore[invalid-argument-type]
                 **kwargs,
-            ), model
+            ), model  # ty:ignore[invalid-return-type]
 
         return client.chat.completions.create(
             messages=messages,
@@ -339,9 +339,9 @@ class MultiAIClient:
             return await anthropic_acreate(
                 aclient,
                 messages,
-                deployment.deployment_name,
+                deployment.deployment_name,  # ty:ignore[invalid-argument-type]
                 **kwargs,
-            ), model
+            ), model  # ty:ignore[invalid-return-type]
 
         response = await aclient.chat.completions.create(
             messages=messages,
