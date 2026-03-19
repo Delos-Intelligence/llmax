@@ -1,44 +1,53 @@
-[tool.poetry]
+[project]
 name = "delos-llmax"
 
 
-version = "1.25.1"
+version = "1.25.2"
 description = "Interface to handle multiple LLMs and AI tools."
-authors = ["Delos Intelligence <maximiliendedinechin@delosintelligence.fr>"]
+authors = [
+    { name = "Delos Intelligence", email = "maximiliendedinechin@delosintelligence.fr" },
+]
 readme = "README.md"
 keywords = ["AI", "LLM", "generative"]
-packages = [{ include = "llmax", from = "src" }]
-include = ["src/llmax/py.typed"]
+requires-python = ">=3.10,<4.0"
+dependencies = [
+    "openai>=1.42.0",
+    "tiktoken>=0.7.0",
+    "loguru>=0.7.2",
+    "python-dotenv>=1.0.1",
+    "pydub>=0.25.1",
+    "pydantic>=2.9.2",
+    "boto3>=1.35.65",
+    "google-auth>=2.36.0",
+    "google-genai==1.64.0",
+    "anthropic>=0.85.0",
+]
 
-[tool.poetry.dependencies]
-python = ">=3.10,<4.0"
-openai = "^1.42.0"
-tiktoken = "^0.7.0"
-loguru = "^0.7.2"
-python-dotenv = "^1.0.1"
-pydub = "^0.25.1"
-pydantic = "^2.9.2"
-anthropic = ">=0.52.0"
-google-auth = "^2.36.0"
-google-genai = "1.64.0"
-
-[tool.poetry.group.dev.dependencies]
-ruff = "^0.6.1"
-pyright = "^1.1.377"
-isort = "^5.13.2"
-mypy = "^1.11.1"
-pydub-stubs = "^0.25.1.1"
-pytest = ">=7,<9"
-pytest-cov = ">=3,<6"
-ty = "^0.0.18"
+[dependency-groups]
+dev = [
+    "ruff>=0.6.1",
+    "ty>=0.0.18",
+    "isort>=5.13.2",
+    "mypy>=1.11.1",
+    "pydub-stubs>=0.25.1.1",
+    "pytest>=7,<9",
+    "pytest-cov>=3,<6",
+]
 
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/llmax"]
+
+[tool.hatch.build]
+include = ["src/llmax/py.typed"]
 
 [tool.ruff]
 # fix = true
 src = ["src"]
+exclude = ["tests"]
 
 
 [tool.ruff.lint]
@@ -128,21 +137,6 @@ pydocstyle.convention = "google"
   "INP001",
 ]
 
-
-[tool.pyright]
-typeCheckingMode = "strict"
-reportMissingParameterType = "warning"
-reportMissingTypeArguments = "warning"
-reportMissingTypeArgument = "warning"
-reportMissingTypeImports = "error"
-reportMissingTypeStubs = "warning"
-reportUnknownArgumentType = "none"
-reportUnknownLambdaType = "warning"
-reportUnknownParameterType = "warning"
-reportUnnecessaryTypeIgnoreComment = "warning"
-reportUnusedVariable = "warning"
-reportUnknownVariableType = "none"
-reportUnknownMemberType = "none"
 
 [tool.mypy]
 python_version = "3.11"

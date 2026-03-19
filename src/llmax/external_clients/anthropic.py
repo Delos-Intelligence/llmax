@@ -1,11 +1,22 @@
 """Anthropic clients — native SDK for both direct API and AWS Bedrock."""
 
+import json
 import time
 from collections.abc import AsyncGenerator, Generator
 from typing import Any
 
 import anthropic
 import httpx
+from anthropic.types import (
+    InputJSONDelta,
+    RawContentBlockDeltaEvent,
+    RawContentBlockStartEvent,
+    RawMessageDeltaEvent,
+    RawMessageStartEvent,
+    TextBlock,
+    TextDelta,
+    ToolUseBlock,
+)
 from openai.types.chat import ChatCompletion, ChatCompletionChunk
 
 from llmax.external_clients.exceptions import ProviderNotFoundError
@@ -62,7 +73,10 @@ def _convert_tools(kwargs: dict[str, Any]) -> dict[str, Any]:
     if "tool_choice" in kwargs:
         tool_choice = kwargs.pop("tool_choice")
         if isinstance(tool_choice, dict) and tool_choice.get("type") == "function":
-            kwargs["tool_choice"] = {"type": "tool", "name": tool_choice["function"]["name"]}
+            kwargs["tool_choice"] = {
+                "type": "tool",
+                "name": tool_choice["function"]["name"],
+            }
         elif tool_choice == "auto":
             kwargs["tool_choice"] = {"type": "auto"}
         elif tool_choice == "required":
@@ -75,52 +89,76 @@ def _to_chat_completion(response: anthropic.types.Message) -> ChatCompletion:
     """Convert an Anthropic Message to an OpenAI ChatCompletion."""
     choices = []
     for i, block in enumerate(response.content):
-        if block.type == "text":
-            choices.append({
-                "finish_reason": MAPPING_FINISH_REASON.get(response.stop_reason or "", "stop"),
-                "index": i,
-                "message": {"content": block.text, "role": response.role},
-            })
-        elif block.type == "tool_use":
-            import json
-
-            choices.append({
-                "finish_reason": "tool_calls",
-                "index": i,
-                "message": {
-                    "content": None,
-                    "role": response.role,
-                    "tool_calls": [{
-                        "id": block.id,
-                        "type": "function",
-                        "function": {
-                            "name": block.name,
-                            "arguments": json.dumps(block.input),
-                        },
-                    }],
+        if block.type == "text" and isinstance(block, TextBlock):
+            choices.append(
+                {
+                    "finish_reason": MAPPING_FINISH_REASON.get(
+                        response.stop_reason or "",
+                        "stop",
+                    ),
+                    "index": i,
+                    "message": {"content": block.text, "role": response.role},
                 },
-            })
+            )
+        elif block.type == "tool_use" and isinstance(
+            block,
+            ToolUseBlock,
+        ):
+            choices.append(
+                {
+                    "finish_reason": "tool_calls",
+                    "index": i,
+                    "message": {
+                        "content": None,
+                        "role": response.role,
+                        "tool_calls": [
+                            {
+                                "id": block.id,
+                                "type": "function",
+                                "function": {
+                                    "name": block.name,
+                                    "arguments": json.dumps(block.input),
+                                },
+                            },
+                        ],
+                    },
+                },
+            )
 
     # If no choices extracted (shouldn't happen), fallback
     if not choices:
-        choices.append({
-            "finish_reason": MAPPING_FINISH_REASON.get(response.stop_reason or "", "stop"),
-            "index": 0,
-            "message": {"content": "", "role": response.role},
-        })
+        choices.append(
+            {
+                "finish_reason": MAPPING_FINISH_REASON.get(
+                    response.stop_reason or "",
+                    "stop",
+                ),
+                "index": 0,
+                "message": {"content": "", "role": response.role},
+            },
+        )
 
-    return ChatCompletion.model_validate({
-        "id": response.id,
-        "created": int(time.time()),
-        "model": response.model,
-        "usage": {
-            "completion_tokens": response.usage.output_tokens,
-            "prompt_tokens": response.usage.input_tokens,
-            "total_tokens": response.usage.input_tokens + response.usage.output_tokens,
+    return ChatCompletion.model_validate(
+        {
+            "id": response.id,
+            "created": int(time.time()),
+            "model": response.model,
+            "usage": {
+                "completion_tokens": response.usage.output_tokens,
+                "prompt_tokens": response.usage.input_tokens,
+                "total_tokens": response.usage.input_tokens
+                + response.usage.output_tokens,
+            },
+            "choices": choices,
+            "object": "chat.completion",
         },
-        "choices": choices,
-        "object": "chat.completion",
-    })
+    )
+
+
+"""
+        RawMessageStopEvent,
+        RawContentBlockStopEvent,
+"""
 
 
 def _stream_to_chunks(  # noqa: C901, PLR0912
@@ -141,14 +179,23 @@ def _stream_to_chunks(  # noqa: C901, PLR0912
             tool_calls: list[dict[str, Any]] | None = None
             finish_reason: str | None = None
 
-            if event.type == "message_start":
+            if event.type == "message_start" and isinstance(
+                event,
+                RawMessageStartEvent,
+            ):
                 request_id = event.message.id
                 model = event.message.model
                 prompt_tokens = event.message.usage.input_tokens
                 completion_tokens = event.message.usage.output_tokens
 
-            elif event.type == "content_block_start":
-                if event.content_block.type == "tool_use":
+            elif event.type == "content_block_start" and isinstance(
+                event,
+                RawContentBlockStartEvent,
+            ):
+                if event.content_block.type == "tool_use" and isinstance(
+                    event.content_block,
+                    ToolUseBlock,
+                ):
                     block = event.content_block
                     active_tool_id = block.id
                     current_tool_calls[block.id] = {
@@ -159,22 +206,37 @@ def _stream_to_chunks(  # noqa: C901, PLR0912
                     }
                     tool_calls = [current_tool_calls[block.id]]
 
-            elif event.type == "content_block_delta":
-                if event.delta.type == "text_delta":
+            elif event.type == "content_block_delta" and isinstance(
+                event,
+                RawContentBlockDeltaEvent,
+            ):
+                if event.delta.type == "text_delta" and isinstance(
+                    event.delta,
+                    TextDelta,
+                ):
                     content = event.delta.text
-                elif event.delta.type == "input_json_delta" and active_tool_id:
+                elif (
+                    event.delta.type == "input_json_delta"
+                    and active_tool_id
+                    and isinstance(event.delta, InputJSONDelta)
+                ):
                     fragment = event.delta.partial_json
                     if active_tool_id in current_tool_calls:
-                        tool_calls = [{
-                            "index": current_tool_calls[active_tool_id]["index"],
-                            "id": active_tool_id,
-                            "function": {"arguments": fragment},
-                        }]
+                        tool_calls = [
+                            {
+                                "index": current_tool_calls[active_tool_id]["index"],
+                                "id": active_tool_id,
+                                "function": {"arguments": fragment},
+                            },
+                        ]
 
             elif event.type == "content_block_stop":
                 active_tool_id = None
 
-            elif event.type == "message_delta":
+            elif event.type == "message_delta" and isinstance(
+                event,
+                RawMessageDeltaEvent,
+            ):
                 finish_reason = MAPPING_FINISH_REASON.get(
                     event.delta.stop_reason or "",
                     "stop",
@@ -185,7 +247,11 @@ def _stream_to_chunks(  # noqa: C901, PLR0912
                 continue
 
             # Only yield if there's something to send
-            if content is not None or tool_calls is not None or finish_reason is not None:
+            if (
+                content is not None
+                or tool_calls is not None
+                or finish_reason is not None
+            ):
                 delta: dict[str, Any] = {}
                 if content is not None:
                     delta["content"] = content
@@ -201,14 +267,22 @@ def _stream_to_chunks(  # noqa: C901, PLR0912
                     }
 
                 try:
-                    yield ChatCompletionChunk.model_validate({
-                        "id": request_id,
-                        "created": created,
-                        "model": model,
-                        "usage": usage,
-                        "choices": [{"delta": delta, "index": 0, "finish_reason": finish_reason}],
-                        "object": "chat.completion.chunk",
-                    })
+                    yield ChatCompletionChunk.model_validate(
+                        {
+                            "id": request_id,
+                            "created": created,
+                            "model": model,
+                            "usage": usage,
+                            "choices": [
+                                {
+                                    "delta": delta,
+                                    "index": 0,
+                                    "finish_reason": finish_reason,
+                                },
+                            ],
+                            "object": "chat.completion.chunk",
+                        },
+                    )
                 except Exception as e:
                     logger.error(f"Error processing chunk: {e}")
                     return
@@ -232,14 +306,23 @@ async def _astream_to_chunks(  # noqa: C901, PLR0912
             tool_calls: list[dict[str, Any]] | None = None
             finish_reason: str | None = None
 
-            if event.type == "message_start":
+            if event.type == "message_start" and isinstance(
+                event,
+                RawMessageStartEvent,
+            ):
                 request_id = event.message.id
                 model = event.message.model
                 prompt_tokens = event.message.usage.input_tokens
                 completion_tokens = event.message.usage.output_tokens
 
-            elif event.type == "content_block_start":
-                if event.content_block.type == "tool_use":
+            elif event.type == "content_block_start" and isinstance(
+                event,
+                RawContentBlockStartEvent,
+            ):
+                if event.content_block.type == "tool_use" and isinstance(
+                    event.content_block,
+                    ToolUseBlock,
+                ):
                     block = event.content_block
                     active_tool_id = block.id
                     current_tool_calls[block.id] = {
@@ -250,22 +333,37 @@ async def _astream_to_chunks(  # noqa: C901, PLR0912
                     }
                     tool_calls = [current_tool_calls[block.id]]
 
-            elif event.type == "content_block_delta":
-                if event.delta.type == "text_delta":
+            elif event.type == "content_block_delta" and isinstance(
+                event,
+                RawContentBlockDeltaEvent,
+            ):
+                if event.delta.type == "text_delta" and isinstance(
+                    event.delta,
+                    TextDelta,
+                ):
                     content = event.delta.text
-                elif event.delta.type == "input_json_delta" and active_tool_id:
+                elif (
+                    event.delta.type == "input_json_delta"
+                    and active_tool_id
+                    and isinstance(event.delta, InputJSONDelta)
+                ):
                     fragment = event.delta.partial_json
                     if active_tool_id in current_tool_calls:
-                        tool_calls = [{
-                            "index": current_tool_calls[active_tool_id]["index"],
-                            "id": active_tool_id,
-                            "function": {"arguments": fragment},
-                        }]
+                        tool_calls = [
+                            {
+                                "index": current_tool_calls[active_tool_id]["index"],
+                                "id": active_tool_id,
+                                "function": {"arguments": fragment},
+                            },
+                        ]
 
             elif event.type == "content_block_stop":
                 active_tool_id = None
 
-            elif event.type == "message_delta":
+            elif event.type == "message_delta" and isinstance(
+                event,
+                RawMessageDeltaEvent,
+            ):
                 finish_reason = MAPPING_FINISH_REASON.get(
                     event.delta.stop_reason or "",
                     "stop",
@@ -275,7 +373,11 @@ async def _astream_to_chunks(  # noqa: C901, PLR0912
             elif event.type == "message_stop":
                 continue
 
-            if content is not None or tool_calls is not None or finish_reason is not None:
+            if (
+                content is not None
+                or tool_calls is not None
+                or finish_reason is not None
+            ):
                 delta_dict: dict[str, Any] = {}
                 if content is not None:
                     delta_dict["content"] = content
@@ -291,14 +393,22 @@ async def _astream_to_chunks(  # noqa: C901, PLR0912
                     }
 
                 try:
-                    yield ChatCompletionChunk.model_validate({
-                        "id": request_id,
-                        "created": created,
-                        "model": model,
-                        "usage": usage,
-                        "choices": [{"delta": delta_dict, "index": 0, "finish_reason": finish_reason}],
-                        "object": "chat.completion.chunk",
-                    })
+                    yield ChatCompletionChunk.model_validate(
+                        {
+                            "id": request_id,
+                            "created": created,
+                            "model": model,
+                            "usage": usage,
+                            "choices": [
+                                {
+                                    "delta": delta_dict,
+                                    "index": 0,
+                                    "finish_reason": finish_reason,
+                                },
+                            ],
+                            "object": "chat.completion.chunk",
+                        },
+                    )
                 except Exception as e:
                     logger.error(f"Error processing chunk: {e}")
                     return
@@ -312,7 +422,10 @@ def get_client(
     match deployment.provider:
         case "anthropic":
             if http_client:
-                return anthropic.Anthropic(api_key=deployment.api_key, http_client=http_client)
+                return anthropic.Anthropic(
+                    api_key=deployment.api_key,
+                    http_client=http_client,
+                )
             return anthropic.Anthropic(api_key=deployment.api_key)
         case "aws-bedrock":
             return anthropic.AnthropicBedrock(
@@ -332,7 +445,10 @@ def get_aclient(
     match deployment.provider:
         case "anthropic":
             if http_client:
-                return anthropic.AsyncAnthropic(api_key=deployment.api_key, http_client=http_client)
+                return anthropic.AsyncAnthropic(
+                    api_key=deployment.api_key,
+                    http_client=http_client,
+                )
             return anthropic.AsyncAnthropic(api_key=deployment.api_key)
         case "aws-bedrock":
             return anthropic.AsyncAnthropicBedrock(
@@ -359,7 +475,7 @@ def anthropic_create(
         kwargs["max_tokens"] = DEFAULT_MAX_TOKENS
 
     if stream:
-        raw_stream = client.messages.create(
+        raw_stream = client.messages.create(  # type: ignore[call-overload]
             model=model,
             messages=remaining,
             system=system,
@@ -368,7 +484,7 @@ def anthropic_create(
         )
         return _stream_to_chunks(raw_stream)
 
-    response = client.messages.create(
+    response = client.messages.create(  # type: ignore[call-overload]
         model=model,
         messages=remaining,
         system=system,
@@ -392,7 +508,7 @@ async def anthropic_acreate(
         kwargs["max_tokens"] = DEFAULT_MAX_TOKENS
 
     if stream:
-        raw_stream = await client.messages.create(
+        raw_stream = await client.messages.create(  # type: ignore[call-overload]
             model=model,
             messages=remaining,
             system=system,
@@ -401,7 +517,7 @@ async def anthropic_acreate(
         )
         return _astream_to_chunks(raw_stream)
 
-    response = await client.messages.create(
+    response = await client.messages.create(  # type: ignore[call-overload]
         model=model,
         messages=remaining,
         system=system,
