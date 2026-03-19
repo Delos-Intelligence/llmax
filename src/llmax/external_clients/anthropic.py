@@ -182,7 +182,7 @@ def _to_chat_completion(response: anthropic.types.Message) -> ChatCompletion:
 
     cache_read = getattr(response.usage, "cache_read_input_tokens", 0) or 0
     cache_creation = getattr(response.usage, "cache_creation_input_tokens", 0) or 0
-    prompt_tokens = response.usage.input_tokens + cache_read + cache_creation
+    prompt_tokens = response.usage.input_tokens + cache_read + int(cache_creation * 1.25)
     usage_dict: dict[str, Any] = {
         "completion_tokens": response.usage.output_tokens,
         "prompt_tokens": prompt_tokens,
@@ -243,7 +243,7 @@ def _stream_to_chunks(  # noqa: C901, PLR0912, PLR0915
                 prompt_tokens = (
                     event.message.usage.input_tokens
                     + cache_read_tokens
-                    + cache_creation_tokens
+                    + int(cache_creation_tokens * 1.25)
                 )
                 completion_tokens = event.message.usage.output_tokens
 
@@ -385,7 +385,7 @@ async def _astream_to_chunks(  # noqa: C901, PLR0912, PLR0915
                 prompt_tokens = (
                     event.message.usage.input_tokens
                     + cache_read_tokens
-                    + cache_creation_tokens
+                    + int(cache_creation_tokens * 1.25)
                 )
                 completion_tokens = event.message.usage.output_tokens
 
