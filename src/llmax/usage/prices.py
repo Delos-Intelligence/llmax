@@ -69,6 +69,15 @@ CACHED_PROMPT_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "gpt-5-mini": 0.025,
     "gpt-5-nano": 0.005,
     "gpt-oss-120b": 0.85,
+    "claude-3-haiku": 0.03,
+    "claude-4.5-haiku": 0.1,
+    "claude-3.5-sonnet": 0.30,
+    "claude-3.7-sonnet": 0.30,
+    "claude-4-sonnet": 0.30,
+    "claude-4.5-sonnet": 0.30,
+    "claude-4.6-sonnet": 0.30,
+    "claude-4.5-opus": 0.50,
+    "claude-4.6-opus": 0.50,
 }
 
 COMPLETION_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {

@@ -2,7 +2,7 @@
 name = "delos-llmax"
 
 
-version = "1.25.2"
+version = "1.26.0"
 description = "Interface to handle multiple LLMs and AI tools."
 authors = [
     { name = "Delos Intelligence", email = "maximiliendedinechin@delosintelligence.fr" },
@@ -40,9 +40,6 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/llmax"]
-
-[tool.hatch.build]
-include = ["src/llmax/py.typed"]
 
 [tool.ruff]
 # fix = true

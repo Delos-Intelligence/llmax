@@ -35,8 +35,13 @@ MAPPING_FINISH_REASON: dict[str, str] = {
 DEFAULT_MAX_TOKENS = 10_000
 
 
-def _extract_system(messages: Messages) -> tuple[str | anthropic.NotGiven, Messages]:
-    """Separate system messages from the list, return (system_text, remaining)."""
+def _extract_system(
+    messages: Messages,
+) -> tuple[list[dict[str, Any]] | anthropic.NotGiven, Messages]:
+    """Separate system messages from the list, return (system_blocks, remaining).
+
+    Returns system as a list with cache_control to enable prompt caching.
+    """
     system_parts: list[str] = []
     remaining: Messages = []
     for msg in messages:
@@ -49,8 +54,44 @@ def _extract_system(messages: Messages) -> tuple[str | anthropic.NotGiven, Messa
         else:
             remaining.append(msg)
     if system_parts:
-        return " ".join(system_parts), remaining
+        return [
+            {
+                "type": "text",
+                "text": " ".join(system_parts),
+                "cache_control": {"type": "ephemeral"},
+            },
+        ], remaining
     return anthropic.NOT_GIVEN, remaining
+
+
+def _add_message_cache_control(messages: Messages) -> Messages:
+    """Add a cache breakpoint on the second-to-last message.
+
+    On each turn, the last message is the fresh user input. Everything before
+    it is stable context that benefits from caching.
+    """
+    if len(messages) < 2:  # noqa: PLR2004
+        return messages
+
+    messages = list(messages)
+    target = dict(messages[-2])
+    content = target.get("content")
+
+    if isinstance(content, str) and content:
+        target["content"] = [
+            {"type": "text", "text": content, "cache_control": {"type": "ephemeral"}},
+        ]
+    elif isinstance(content, list) and content:
+        content = list(content)
+        last_block = content[-1]
+        if isinstance(last_block, str):
+            content[-1] = {"type": "text", "text": last_block, "cache_control": {"type": "ephemeral"}}
+        elif isinstance(last_block, dict):
+            content[-1] = {**last_block, "cache_control": {"type": "ephemeral"}}
+        target["content"] = content
+
+    messages[-2] = target
+    return messages
 
 
 def _convert_tools(kwargs: dict[str, Any]) -> dict[str, Any]:
@@ -68,6 +109,7 @@ def _convert_tools(kwargs: dict[str, Any]) -> dict[str, Any]:
                 if tool.get("type") == "function"
             ]
             if anthropic_tools:
+                anthropic_tools[-1]["cache_control"] = {"type": "ephemeral"}
                 kwargs["tools"] = anthropic_tools
 
     if "tool_choice" in kwargs:
@@ -138,17 +180,23 @@ def _to_chat_completion(response: anthropic.types.Message) -> ChatCompletion:
             },
         )
 
+    cache_read = getattr(response.usage, "cache_read_input_tokens", 0) or 0
+    cache_creation = getattr(response.usage, "cache_creation_input_tokens", 0) or 0
+    prompt_tokens = response.usage.input_tokens + cache_read + cache_creation
+    usage_dict: dict[str, Any] = {
+        "completion_tokens": response.usage.output_tokens,
+        "prompt_tokens": prompt_tokens,
+        "total_tokens": prompt_tokens + response.usage.output_tokens,
+    }
+    if cache_read:
+        usage_dict["prompt_tokens_details"] = {"cached_tokens": cache_read}
+
     return ChatCompletion.model_validate(
         {
             "id": response.id,
             "created": int(time.time()),
             "model": response.model,
-            "usage": {
-                "completion_tokens": response.usage.output_tokens,
-                "prompt_tokens": response.usage.input_tokens,
-                "total_tokens": response.usage.input_tokens
-                + response.usage.output_tokens,
-            },
+            "usage": usage_dict,
             "choices": choices,
             "object": "chat.completion",
         },
@@ -161,7 +209,7 @@ def _to_chat_completion(response: anthropic.types.Message) -> ChatCompletion:
 """
 
 
-def _stream_to_chunks(  # noqa: C901, PLR0912
+def _stream_to_chunks(  # noqa: C901, PLR0912, PLR0915
     stream: anthropic.Stream[anthropic.types.RawMessageStreamEvent],
 ) -> Generator[ChatCompletionChunk, None, None]:
     """Convert Anthropic stream events to ChatCompletionChunk generator."""
@@ -170,6 +218,7 @@ def _stream_to_chunks(  # noqa: C901, PLR0912
     created = int(time.time())
     prompt_tokens: int | None = None
     completion_tokens: int | None = None
+    cache_read_tokens: int = 0
     active_tool_id: str | None = None
     current_tool_calls: dict[str, dict[str, Any]] = {}
 
@@ -185,7 +234,17 @@ def _stream_to_chunks(  # noqa: C901, PLR0912
             ):
                 request_id = event.message.id
                 model = event.message.model
-                prompt_tokens = event.message.usage.input_tokens
+                cache_read_tokens = (
+                    getattr(event.message.usage, "cache_read_input_tokens", 0) or 0
+                )
+                cache_creation_tokens = (
+                    getattr(event.message.usage, "cache_creation_input_tokens", 0) or 0
+                )
+                prompt_tokens = (
+                    event.message.usage.input_tokens
+                    + cache_read_tokens
+                    + cache_creation_tokens
+                )
                 completion_tokens = event.message.usage.output_tokens
 
             elif event.type == "content_block_start" and isinstance(
@@ -258,13 +317,17 @@ def _stream_to_chunks(  # noqa: C901, PLR0912
                 if tool_calls is not None:
                     delta["tool_calls"] = tool_calls
 
-                usage = None
+                usage: dict[str, int | dict[str, int]] | None = None
                 if prompt_tokens is not None and completion_tokens is not None:
                     usage = {
                         "completion_tokens": completion_tokens,
                         "prompt_tokens": prompt_tokens,
                         "total_tokens": prompt_tokens + completion_tokens,
                     }
+                    if cache_read_tokens:
+                        usage["prompt_tokens_details"] = {
+                            "cached_tokens": cache_read_tokens,
+                        }
 
                 try:
                     yield ChatCompletionChunk.model_validate(
@@ -288,7 +351,7 @@ def _stream_to_chunks(  # noqa: C901, PLR0912
                     return
 
 
-async def _astream_to_chunks(  # noqa: C901, PLR0912
+async def _astream_to_chunks(  # noqa: C901, PLR0912, PLR0915
     stream: anthropic.AsyncStream[anthropic.types.RawMessageStreamEvent],
 ) -> AsyncGenerator[ChatCompletionChunk, None]:
     """Convert Anthropic async stream events to ChatCompletionChunk async generator."""
@@ -297,6 +360,7 @@ async def _astream_to_chunks(  # noqa: C901, PLR0912
     created = int(time.time())
     prompt_tokens: int | None = None
     completion_tokens: int | None = None
+    cache_read_tokens: int = 0
     active_tool_id: str | None = None
     current_tool_calls: dict[str, dict[str, Any]] = {}
 
@@ -312,7 +376,17 @@ async def _astream_to_chunks(  # noqa: C901, PLR0912
             ):
                 request_id = event.message.id
                 model = event.message.model
-                prompt_tokens = event.message.usage.input_tokens
+                cache_read_tokens = (
+                    getattr(event.message.usage, "cache_read_input_tokens", 0) or 0
+                )
+                cache_creation_tokens = (
+                    getattr(event.message.usage, "cache_creation_input_tokens", 0) or 0
+                )
+                prompt_tokens = (
+                    event.message.usage.input_tokens
+                    + cache_read_tokens
+                    + cache_creation_tokens
+                )
                 completion_tokens = event.message.usage.output_tokens
 
             elif event.type == "content_block_start" and isinstance(
@@ -384,13 +458,17 @@ async def _astream_to_chunks(  # noqa: C901, PLR0912
                 if tool_calls is not None:
                     delta_dict["tool_calls"] = tool_calls
 
-                usage = None
+                usage: dict[str, int | dict[str, int]] | None = None
                 if prompt_tokens is not None and completion_tokens is not None:
                     usage = {
                         "completion_tokens": completion_tokens,
                         "prompt_tokens": prompt_tokens,
                         "total_tokens": prompt_tokens + completion_tokens,
                     }
+                    if cache_read_tokens:
+                        usage["prompt_tokens_details"] = {
+                            "cached_tokens": cache_read_tokens,
+                        }
 
                 try:
                     yield ChatCompletionChunk.model_validate(
@@ -468,6 +546,7 @@ def anthropic_create(
 ) -> ChatCompletion | Generator[ChatCompletionChunk, None, None]:
     """Synchronous Anthropic call, returns ChatCompletion or streaming generator."""
     system, remaining = _extract_system(messages)
+    remaining = _add_message_cache_control(remaining)
     kwargs = _convert_tools(kwargs)
     stream = kwargs.pop("stream", False)
 
@@ -501,6 +580,7 @@ async def anthropic_acreate(
 ) -> ChatCompletion | AsyncGenerator[ChatCompletionChunk, None]:
     """Async Anthropic call, returns ChatCompletion or async streaming generator."""
     system, remaining = _extract_system(messages)
+    remaining = _add_message_cache_control(remaining)
     kwargs = _convert_tools(kwargs)
     stream = kwargs.pop("stream", False)
 
