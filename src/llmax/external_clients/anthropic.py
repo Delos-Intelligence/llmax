@@ -65,32 +65,38 @@ def _extract_system(
 
 
 def _add_message_cache_control(messages: Messages) -> Messages:
-    """Add a cache breakpoint on the second-to-last message.
+    """Add cache breakpoints on the last two messages.
 
-    On each turn, the last message is the fresh user input. Everything before
-    it is stable context that benefits from caching.
+    Both will be resent on the next turn as stable history, so caching them
+    now means the next call reads the full conversation from cache.
+    Uses 2 of the 4 available Anthropic cache slots (system and tools use the other 2).
     """
-    if len(messages) < 2:  # noqa: PLR2004
+    if not messages:
         return messages
 
     messages = list(messages)
-    target = dict(messages[-2])
-    content = target.get("content")
 
-    if isinstance(content, str) and content:
-        target["content"] = [
-            {"type": "text", "text": content, "cache_control": {"type": "ephemeral"}},
-        ]
-    elif isinstance(content, list) and content:
-        content = list(content)
-        last_block = content[-1]
-        if isinstance(last_block, str):
-            content[-1] = {"type": "text", "text": last_block, "cache_control": {"type": "ephemeral"}}
-        elif isinstance(last_block, dict):
-            content[-1] = {**last_block, "cache_control": {"type": "ephemeral"}}
-        target["content"] = content
+    for idx in (-1, -2):
+        if len(messages) < abs(idx):
+            break
+        target = dict(messages[idx])
+        content = target.get("content")
 
-    messages[-2] = target
+        if isinstance(content, str) and content:
+            target["content"] = [
+                {"type": "text", "text": content, "cache_control": {"type": "ephemeral"}},
+            ]
+        elif isinstance(content, list) and content:
+            content = list(content)
+            last_block = content[-1]
+            if isinstance(last_block, str):
+                content[-1] = {"type": "text", "text": last_block, "cache_control": {"type": "ephemeral"}}
+            elif isinstance(last_block, dict):
+                content[-1] = {**last_block, "cache_control": {"type": "ephemeral"}}
+            target["content"] = content
+
+        messages[idx] = target
+
     return messages
 
 
