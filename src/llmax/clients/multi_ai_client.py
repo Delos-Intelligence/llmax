@@ -1539,10 +1539,18 @@ class MultiAIClient:
                 for _filename, file_bytes, mime_type in images
             ]
 
+            quality_to_resolution = {"low": "1K", "medium": "2K", "high": "4K", "auto": "1K"}
+
             content = genai_types.Content(parts=[text_part, *image_parts])
             response = await aclient.models.generate_content(
                 model=model_used,
                 contents=[content],
+                config=genai_types.GenerateContentConfig(
+                    response_modalities=["IMAGE"],
+                    image_config=genai_types.ImageConfig(
+                        image_size=quality_to_resolution.get(quality, "1K"),
+                    ),
+                ),
             )
             image_bytes = _extract_image_from_gemini_response(response)
         else:
