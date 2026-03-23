@@ -2,7 +2,7 @@
 name = "delos-llmax"
 
 
-version = "1.26.1"
+version = "1.27.0"
 description = "Interface to handle multiple LLMs and AI tools."
 authors = [
     { name = "Delos Intelligence", email = "maximiliendedinechin@delosintelligence.fr" },
