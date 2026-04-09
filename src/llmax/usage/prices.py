@@ -43,6 +43,7 @@ PROMPT_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "gpt-5-nano": 0.05,
     "llama-3.1-8b-instruct": {"scaleway": 0.23},  # €0.20 → $0.23
     "qwen3-235b-a22b-instruct-2507": {"scaleway": 0.8625},  # €0.75 → $0.8625
+    "qwen3.5-397b-a17b": {"scaleway": 0.66},
     "gpt-oss-120b": {"scaleway": 0.1725},  # €0.15 → $0.1725
     "gemma-3-27b-it": {"scaleway": 0.2875},  # €0.25 → $0.2875
     "voxtral-small-24b-2507": {"scaleway": 0.1725},  # €0.15 → $0.1725
@@ -114,6 +115,7 @@ COMPLETION_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "gpt-5-mini": 2.00,
     "gpt-5-nano": 0.40,
     "llama-3.1-8b-instruct": {"scaleway": 0.23},  # €0.20 → $0.23
+    "qwen3.5-397b-a17b": {"scaleway": 3.96},
     "qwen3-235b-a22b-instruct-2507": {"scaleway": 2.5875},  # €2.25 → $2.5875
     "gpt-oss-120b": {"scaleway": 0.69},  # €0.60 → $0.69
     "gemma-3-27b-it": {"scaleway": 0.575},  # €0.50 → $0.575
