@@ -64,6 +64,7 @@ GrokModel = Literal["grok-4-1-fast"]
 
 ScalewayModel = Literal[
     "qwen3-235b-a22b-instruct-2507",
+    "qwen3.5-397b-a17b",
     "gpt-oss-120b",
     "gemma-3-27b-it",
     "whisper-large-v3",
