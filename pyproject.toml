@@ -2,7 +2,7 @@
 name = "delos-llmax"
 
 
-version = "1.29.0"
+version = "1.30.0"
 description = "Interface to handle multiple LLMs and AI tools."
 authors = [
     { name = "Delos Intelligence", email = "maximiliendedinechin@delosintelligence.fr" },
@@ -145,3 +145,4 @@ disable_error_code = [
   "no-untyped-call",
   "attr-defined",
 ]
+
