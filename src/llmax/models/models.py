@@ -74,6 +74,7 @@ ScalewayModel = Literal[
     "deepseek-r1-distill-llama-70b",
     "llama-3.1-8b-instruct",
     "bge-multilingual-gemma2",
+    "devstral-2-123b-instruct-2512",
 ]
 
 

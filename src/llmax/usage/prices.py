@@ -50,6 +50,7 @@ PROMPT_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "mistral-small-3.2-24b-instruct-2506": {"scaleway": 0.1725},  # €0.15 → $0.1725
     "llama-3.3-70b-instruct": {"scaleway": 1.035},  # €0.90 → $1.035
     "deepseek-r1-distill-llama-70b": {"scaleway": 1.035},  # €0.90 → $1.035
+    "devstral-2-123b-instruct-2512": {"scaleway": 0.46},  # €0.40 → $0.46
     "grok-4-1-fast": 0.2,
     "gemini-3-pro-preview": 2,
     "gemini-3.1-flash-lite-preview": 0.25,
@@ -123,6 +124,7 @@ COMPLETION_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "mistral-small-3.2-24b-instruct-2506": {"scaleway": 0.4025},  # €0.35 → $0.4025
     "llama-3.3-70b-instruct": {"scaleway": 1.035},  # €0.90 → $1.035
     "deepseek-r1-distill-llama-70b": {"scaleway": 1.035},  # €0.90 → $1.035
+    "devstral-2-123b-instruct-2512": {"scaleway": 2.30},  # €2.00 → $2.30
     "grok-4-1-fast": 0.5,
     "gemini-3-pro-preview": 12,
     "gemini-3.1-flash-lite-preview": 1.5,
