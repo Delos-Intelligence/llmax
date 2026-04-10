@@ -16,28 +16,44 @@ PROMPT_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "gpt-3.5": 0.5,
     "gpt-4-turbo": 10.0,
     "claude-3-haiku": 0.25,
+    "claude-4.5-haiku": 1.0,
     "claude-3.5-sonnet": 3.0,
     "claude-3.7-sonnet": 3.0,
     "claude-4-sonnet": 3.0,
     "claude-4.5-sonnet": 3.0,
+    "claude-4.6-sonnet": 3.0,
+    "claude-4.5-opus": 5.0,
+    "claude-4.6-opus": 5.0,
     "command-r": 0.5,
     "command-r-plus": 3.0,
-    "google/gemini-1.5-flash-002": 0.075,
-    "google/gemini-1.5-pro-002": 1.25,
-    "llama-3-70b-instruct": 3.78,                           # To be checked
-    "llama-4-scout-17b-16e-instruct": 0.275,                # To be checked
-    "llama-4-maverick-17b-128e-instruct-fp8": 0.275,        # To be checked
+    "llama-3-70b-instruct": 3.78,  # To be checked
+    "llama-4-scout-17b-16e-instruct": 0.275,  # To be checked
+    "llama-4-maverick-17b-128e-instruct-fp8": 0.275,  # To be checked
     "mistral-large": 4.0,
     "mistral-large-2411": 2.0,
     "mistral-small": 1.0,
-    "devstral-2-123b-instruct-2512": 0.40,
     "text-embedding-3-large": 0.13,
     "text-embedding-3-small": 0.02,
+    "bge-multilingual-gemma2": {"scaleway": 0.115},  # €0.10 → $0.115
     "gpt-5": 1.25,
+    "gpt-5.1": 1.25,
+    "gpt-5.4": 2.5,
     "gpt-5-chat": 1.25,
     "gpt-5-mini": 0.25,
     "gpt-5-nano": 0.05,
-    "gpt-oss-120b": 0.85,
+    "llama-3.1-8b-instruct": {"scaleway": 0.23},  # €0.20 → $0.23
+    "qwen3-235b-a22b-instruct-2507": {"scaleway": 0.8625},  # €0.75 → $0.8625
+    "qwen3.5-397b-a17b": {"scaleway": 0.66},
+    "gpt-oss-120b": {"scaleway": 0.1725},  # €0.15 → $0.1725
+    "gemma-3-27b-it": {"scaleway": 0.2875},  # €0.25 → $0.2875
+    "voxtral-small-24b-2507": {"scaleway": 0.1725},  # €0.15 → $0.1725
+    "mistral-small-3.2-24b-instruct-2506": {"scaleway": 0.1725},  # €0.15 → $0.1725
+    "llama-3.3-70b-instruct": {"scaleway": 1.035},  # €0.90 → $1.035
+    "deepseek-r1-distill-llama-70b": {"scaleway": 1.035},  # €0.90 → $1.035
+    "devstral-2-123b-instruct-2512": {"scaleway": 0.46},  # €0.40 → $0.46
+    "grok-4-1-fast": 0.2,
+    "gemini-3-pro-preview": 2,
+    "gemini-3.1-flash-lite-preview": 0.25,
 }
 
 CACHED_PROMPT_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
@@ -49,10 +65,21 @@ CACHED_PROMPT_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "o3-mini": {"openai": 0.55, "azure": 0.605},
     "o3-mini-high": {"openai": 0.55, "azure": 0.605},
     "gpt-5": 0.125,
+    "gpt-5.1": 0.125,
+    "gpt-5.4": 0.25,
     "gpt-5-chat": 0.125,
     "gpt-5-mini": 0.025,
     "gpt-5-nano": 0.005,
     "gpt-oss-120b": 0.85,
+    "claude-3-haiku": 0.03,
+    "claude-4.5-haiku": 0.1,
+    "claude-3.5-sonnet": 0.30,
+    "claude-3.7-sonnet": 0.30,
+    "claude-4-sonnet": 0.30,
+    "claude-4.5-sonnet": 0.30,
+    "claude-4.6-sonnet": 0.30,
+    "claude-4.5-opus": 0.50,
+    "claude-4.6-opus": 0.50,
 }
 
 COMPLETION_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
@@ -66,36 +93,53 @@ COMPLETION_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "gpt-3.5": 1.5,
     "gpt-4-turbo": 30.0,
     "claude-3-haiku": 1.25,
+    "claude-4.5-haiku": 5.0,
     "claude-3.5-sonnet": 15.0,
     "claude-3.7-sonnet": 15.0,
     "claude-4-sonnet": 15.0,
     "claude-4.5-sonnet": 15.0,
+    "claude-4.6-sonnet": 15.0,
+    "claude-4.5-opus": 25.0,
+    "claude-4.6-opus": 25.0,
     "command-r": 1.5,
     "command-r-plus": 15.0,
-    "google/gemini-1.5-flash-002": 0.3,
-    "google/gemini-1.5-pro-002": 5.0,
     "llama-3-70b-instruct": 11.34,
-    "llama-4-scout-17b-16e-instruct": 1.1,                # To be checked
-    "llama-4-maverick-17b-128e-instruct-fp8": 1.1,        # To be checked
+    "llama-4-scout-17b-16e-instruct": 1.1,  # To be checked
+    "llama-4-maverick-17b-128e-instruct-fp8": 1.1,  # To be checked
     "mistral-large": 12.0,
     "mistral-large-2411": 6.0,
     "mistral-small": 3.0,
-    "devstral-2-123b-instruct-2512": 2.00,
     "gpt-5": 10.00,
+    "gpt-5.1": 10.00,
+    "gpt-5.4": 15.00,
     "gpt-5-chat": 10.00,
     "gpt-5-mini": 2.00,
     "gpt-5-nano": 0.40,
-    "gpt-oss-120b": 0.85,
+    "llama-3.1-8b-instruct": {"scaleway": 0.23},  # €0.20 → $0.23
+    "qwen3.5-397b-a17b": {"scaleway": 3.96},
+    "qwen3-235b-a22b-instruct-2507": {"scaleway": 2.5875},  # €2.25 → $2.5875
+    "gpt-oss-120b": {"scaleway": 0.69},  # €0.60 → $0.69
+    "gemma-3-27b-it": {"scaleway": 0.575},  # €0.50 → $0.575
+    "voxtral-small-24b-2507": {"scaleway": 0.4025},  # €0.35 → $0.4025
+    "mistral-small-3.2-24b-instruct-2506": {"scaleway": 0.4025},  # €0.35 → $0.4025
+    "llama-3.3-70b-instruct": {"scaleway": 1.035},  # €0.90 → $1.035
+    "deepseek-r1-distill-llama-70b": {"scaleway": 1.035},  # €0.90 → $1.035
+    "devstral-2-123b-instruct-2512": {"scaleway": 2.30},  # €2.00 → $2.30
+    "grok-4-1-fast": 0.5,
+    "gemini-3-pro-preview": 12,
+    "gemini-3.1-flash-lite-preview": 1.5,
 }
 
 TRANSCRIPTION_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "whisper-1": 0.006,
     "gpt-4o-transcribe": 0.006,
+    "whisper-large-v3": {"scaleway": 0.00345},  # €0.003/minute → $0.00345/minute
 }
 
 GENERATION_PRICE_BASE: dict[Model, float | dict[Provider, float]] = {
     "dall-e-3": 0.04,
     "gpt-image-1": 0.08,
+    "gemini-3-pro-image-preview": 0.08,
 }
 
 GENERATION_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {

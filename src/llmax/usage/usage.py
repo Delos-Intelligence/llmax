@@ -1,8 +1,9 @@
 """Defines the ModelUsage class for tracking usage statistics for a model."""
 
 import math
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from typing import Callable, Literal
+from typing import Literal
 
 from openai.types import CompletionUsage
 
@@ -28,7 +29,7 @@ class ModelUsage:
     deployment: Deployment
     increment_usage: Callable[
         [float, Model, str, float, float | None, int, int, str, str, str, int],
-        bool,
+        Awaitable[bool],
     ]
     tokens_usage: CompletionUsage = field(
         default_factory=lambda: CompletionUsage(
@@ -94,7 +95,7 @@ class ModelUsage:
     def add_image(
         self,
         quality: Literal["low", "medium", "high", "auto"],
-        size: Literal["1024x1024", "1024x1536", "1536x1024"],
+        size: Literal["1024x1024", "1024x1536", "1536x1024", "auto"],
         n: int = 1,
     ) -> None:
         """Adds image pricing to the usage statistics for image generation models.
@@ -157,7 +158,12 @@ class ModelUsage:
 
         return cost
 
-    def apply(self, duration: float, ttft: float | None, operation: str = "") -> float:
+    async def apply(
+        self,
+        duration: float,
+        ttft: float | None,
+        operation: str = "",
+    ) -> float:
         """Applies the token usage, updating the usage statistics and logging the action."""
         cost = self.compute_cost()
         cost_message = f"Total Cost (USD): ${cost:.6f}"
@@ -191,7 +197,7 @@ class ModelUsage:
         logger.debug(
             f"[bold purple][LLMAX][/bold purple] Applying usage for model '{self.deployment.model}'. {message}",
         )
-        self.increment_usage(
+        await self.increment_usage(
             cost,
             self.deployment.model,
             operation,

@@ -43,18 +43,18 @@ deployments: dict[Model, Deployment] = {
         endpoint="LLMAX_AZURE_LLAMA_3_70B_INSTRUCT_ENDPOINT",
     ),
     "llama-4-scout-17b-16e-instruct": Deployment(
-            model="llama-4-scout-17b-16e-instruct",
-            provider="azure",
-            deployment_name="llama-4-scout-17b-16e-instruct",
-            api_key="LLMAX_AZURE_LLAMA_4_SCOUT_17B_16E_INSTRUCT_KEY",
-            endpoint="LLMAX_AZURE_LLAMA_4_SCOUT_17B_16E_INSTRUCT_ENDPOINT",
+        model="llama-4-scout-17b-16e-instruct",
+        provider="azure",
+        deployment_name="llama-4-scout-17b-16e-instruct",
+        api_key="LLMAX_AZURE_LLAMA_4_SCOUT_17B_16E_INSTRUCT_KEY",
+        endpoint="LLMAX_AZURE_LLAMA_4_SCOUT_17B_16E_INSTRUCT_ENDPOINT",
     ),
     "llama-4-maverick-17b-128e-instruct-fp8": Deployment(
-            model="llama-4-maverick-17b-128e-instruct-fp8",
-            provider="azure",
-            deployment_name="llama-4-maverick-17b-128e-instruct-fp8",
-            api_key="LLMAX_AZURE_LLAMA_4_MAVERICK_17B_128E_INSTRUCT_KEY",
-            endpoint="LLMAX_AZURE_LLAMA_4_MAVERICK_17B_128E_INSTRUCT_ENDPOINT",
+        model="llama-4-maverick-17b-128e-instruct-fp8",
+        provider="azure",
+        deployment_name="llama-4-maverick-17b-128e-instruct-fp8",
+        api_key="LLMAX_AZURE_LLAMA_4_MAVERICK_17B_128E_INSTRUCT_KEY",
+        endpoint="LLMAX_AZURE_LLAMA_4_MAVERICK_17B_128E_INSTRUCT_ENDPOINT",
     ),
     "whisper-1": Deployment(
         model="whisper-1",
@@ -71,12 +71,28 @@ def test_model_usage_text() -> None:
     """Test the model usage for text."""
     message = "Raconte moi une blague."
     output = "Pourquoi les plongeurs plongent-ils toujours en arrière et jamais en avant ? Parce que sinon ils tombent dans le bateau !"
-    final_cost = 0.00055
+    final_cost = 0.000396
     message_token = 8
     output_token = 34
+
+    async def increment_usage(
+        _1: float,
+        _2: Model,
+        _3: str,
+        _4: float,
+        _5: float | None,
+        _6: int,
+        _7: int,
+        _8: str,
+        _9: str,
+        _10: str,
+        _11: int,
+    ) -> bool:
+        return True
+
     usage = ModelUsage(
         deployments["gpt-4o"],
-        lambda _1, _2, _3, _4, _5, _6, _7, _8, _9, _10: True,
+        increment_usage,
         CompletionUsage(
             completion_tokens=tokens.count(output),
             prompt_tokens=tokens.count(message),
@@ -92,9 +108,25 @@ def test_model_usage_text() -> None:
 def test_model_usage_audio() -> None:
     """Test the model usage for audio."""
     cost_audio = 0.0789
+
+    async def increment_usage(
+        _1: float,
+        _2: Model,
+        _3: str,
+        _4: float,
+        _5: float | None,
+        _6: int,
+        _7: int,
+        _8: str,
+        _9: str,
+        _10: str,
+        _11: int,
+    ) -> bool:
+        return True
+
     usage = ModelUsage(
         deployments["whisper-1"],
-        lambda _1, _2, _3, _4, _5, _6, _7, _8, _9, _10: True,
+        increment_usage,
         audio_duration=789,
     )
 

@@ -9,13 +9,21 @@ import base64
 import json
 import threading
 import time
-from collections.abc import AsyncGenerator, Awaitable, Generator
+from collections.abc import AsyncGenerator, Awaitable, Callable, Generator
 from io import BufferedReader, BytesIO
 from queue import Queue
-from typing import Any, Callable, Literal
+from typing import Any, Literal
 
+import httpx
+from google import genai
+from google.genai import types as genai_types
 from openai import NOT_GIVEN, BadRequestError, RateLimitError
-from openai.types import CompletionUsage, Embedding
+from openai.types import (
+    CompletionUsage,
+    Embedding,
+    ImageEditStreamEvent,
+    ImageGenStreamEvent,
+)
 from openai.types.audio import Transcription, TranscriptionVerbose
 from openai.types.chat import (
     ChatCompletion,
@@ -25,6 +33,7 @@ from openai.types.chat import (
 from openai.types.chat.chat_completion_chunk import Choice, ChoiceDeltaToolCall
 from openai.types.responses import ParsedResponse
 
+from llmax.external_clients.anthropic import anthropic_acreate, anthropic_create
 from llmax.external_clients.clients import Client, get_aclient, get_client
 from llmax.messages import Messages
 from llmax.messages.message import Message
@@ -32,13 +41,10 @@ from llmax.models.deployment import Deployment
 from llmax.models.fake import fake_llm
 from llmax.models.models import (
     ANTHROPIC_MODELS,
-    COHERE_MODELS,
     GEMINI_MODELS,
-    META_MODELS,
     MISTRAL_MODELS,
-    OPENAI_MODELS,
-    SCALEWAY_MODELS,
     Model,
+    SpeechModelAllowVerboseJson,
 )
 from llmax.usage import ModelUsage, tokens
 from llmax.utils import (
@@ -49,6 +55,27 @@ from llmax.utils import (
     ToolItemContent,
     logger,
 )
+from llmax.utils.types import ModelItemContent
+
+
+async def _default_get_usage() -> float:
+    return 0.0
+
+
+async def _default_increment_usage(
+    _usage: float,
+    _model: Model,
+    _user_id: str,
+    _cost: float,
+    _limit: float | None,
+    _retries: int,
+    _window: int,
+    _context: str,
+    _action: str,
+    _mode: str,
+    _code: int,
+) -> bool:
+    return True
 
 
 class MultiAIClient:
@@ -65,59 +92,140 @@ class MultiAIClient:
         total_usage: The total usage accumulated by the client. (Mainly for dev purposes, does not handles errors properly)
     """
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         deployments: dict[Model, Deployment],
-        get_usage: Callable[[], float] = lambda: 0.0,
+        fallback_models: dict[Model, list[Model]],
+        get_usage: Callable[[], Awaitable[float]] = _default_get_usage,
         increment_usage: Callable[
             [float, Model, str, float, float | None, int, int, str, str, str, int],
-            bool,
-        ] = lambda _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11: True,
+            Awaitable[bool],
+        ] = _default_increment_usage,
+        httpx_client: httpx.Client | None = None,
+        httpx_aclient: httpx.AsyncClient | None = None,
     ) -> None:
         """Initializes the MultiAIClient class.
 
         Args:
             deployments: A mapping from models to their deployment objects.
+            fallback_models: The fallbacks models to use when not available.
             get_usage: A function to get the current usage.
             increment_usage: A function to increment usage.
+            httpx_client: Optional shared sync httpx client to prevent OpenAI SDK memory leaks.
+            httpx_aclient: Optional shared async httpx client to prevent OpenAI SDK memory leaks.
         """
         self.deployments = deployments
         self._get_usage = get_usage
         self._increment_usage = increment_usage
+        self._httpx_client = httpx_client
+        self._httpx_aclient = httpx_aclient
         self.total_usage: float = 0
         self.usages: list[ModelUsage] = []
+        self.fallback_models = fallback_models
 
         self._clients: dict[Model, Client] = {}
         self._aclients: dict[Model, Client] = {}
 
-    def client(self, model: Model) -> Client:
+    def resolve_model(self, models: list[Model]) -> Model:
+        """Returns the model that would be used for the given model list, without creating a client.
+
+        Args:
+            models: The models to resolve.
+
+        Returns:
+            The model that would be used (either a direct match or a fallback).
+
+        Raises:
+            ValueError: If no deployment is available for any of the models or their fallbacks.
+        """
+        for model in models:
+            if model in self.deployments:
+                return model
+
+        fallback_models: set[Model] = {
+            m for model in models for m in self.fallback_models[model]
+        }
+
+        for model in fallback_models:
+            if model in self.deployments:
+                return model
+
+        message = f"No model deployments are available from the provided list : {models}, {fallback_models}"
+        logger.warning(message)
+        raise ValueError(message)
+
+    def client(self, models: list[Model]) -> Client:
         """Returns the client for the given model, creating it if necessary.
 
         Args:
-            model: The model for which to get the client.
+            models: The models for which to get the client.
 
         Returns:
             The client object for the specified model.
         """
-        if model not in self._clients:
-            self._clients[model] = get_client(self.deployments[model])
-        return self._clients[model]
+        for model in models:
+            if model in self.deployments:
+                if model not in self._clients:
+                    self._clients[model] = get_client(
+                        self.deployments[model],
+                        http_client=self._httpx_client,
+                    )
+                return self._clients[model], model
 
-    def aclient(self, model: Model) -> Client:
+        fallback_models: set[Model] = {
+            m for model in models for m in self.fallback_models[model]
+        }
+
+        for model in fallback_models:
+            if model in self.deployments:
+                if model not in self._clients:
+                    self._clients[model] = get_client(
+                        self.deployments[model],
+                        http_client=self._httpx_client,
+                    )
+                return self._clients[model], model
+
+        message = f"No model deployments are available from the provided list : {models}, {fallback_models}"
+        logger.warning(message)
+        raise ValueError(message)
+
+    def aclient(self, models: list[Model]) -> Client:
         """Returns the asynchronous client for the given model, creating it if necessary.
 
         Args:
-            model: The model for which to get the client.
+            models: The model for which to get the client.
 
         Returns:
             The asynchronous client object for the specified model.
         """
-        if model not in self._aclients:
-            self._aclients[model] = get_aclient(self.deployments[model])
-        return self._aclients[model]
+        for model in models:
+            if model in self.deployments:
+                if model not in self._aclients:
+                    self._aclients[model] = get_aclient(
+                        self.deployments[model],
+                        http_client=self._httpx_aclient,
+                    )
+                return self._aclients[model], model
 
+        fallback_models: set[Model] = {
+            m for model in models for m in self.fallback_models[model]
+        }
+
+        for model in fallback_models:
+            if model in self.deployments:
+                if model not in self._aclients:
+                    self._aclients[model] = get_aclient(
+                        self.deployments[model],
+                        http_client=self._httpx_aclient,
+                    )
+                return self._aclients[model], model
+
+        message = f"No model deployments are available from the provided list : {models}, {fallback_models}"
+        logger.warning(message)
+        raise ValueError(message)
+
+    @staticmethod
     def clean_kwargs(
-        self,
         kwargs: dict[str, Any],
         deployment: Deployment,
     ) -> dict[str, Any]:
@@ -133,7 +241,6 @@ class MultiAIClient:
             "gpt-5",
             "gpt-5-mini",
             "gpt-5-turbo",
-            "gpt-oss-120b",
         }:
             logger.warning("Text format is not supported for this model.")
             kwargs.pop("text_format")
@@ -143,28 +250,41 @@ class MultiAIClient:
         if "reasoning_effort" in kwargs and deployment.model == "o3-mini-high":
             logger.warning("Reasoning effort is not supported for this model.")
             kwargs.pop("reasoning_effort")
+
+        if "stream_options" in kwargs and deployment.model in MISTRAL_MODELS:
+            kwargs["stream_options"] = NOT_GIVEN
+
+        if "max_completion_tokens" in kwargs and deployment.model in MISTRAL_MODELS:
+            kwargs["max_tokens"] = kwargs.pop("max_completion_tokens")
+
+        if deployment.model in ANTHROPIC_MODELS:
+            kwargs.pop("stream_options", None)
+            kwargs.pop("response_format", None)
+            if "max_completion_tokens" in kwargs:
+                kwargs["max_tokens"] = kwargs.pop("max_completion_tokens")
+
         return kwargs
 
     def _create_chat(
         self,
         messages: Messages,
-        model: Model,
+        models: list[Model],
         **kwargs: Any,
-    ) -> ChatCompletion | ParsedResponse[Any]:
+    ) -> tuple[ChatCompletion | ParsedResponse[Any], Model]:
         """Synchronously creates chat completions for the given messages and model.
 
         Args:
             messages: The list of messages to process.
-            model: The model to use for generating completions.
+            models: The model to use for generating completions.
             kwargs: More args.
 
         Returns:
             ChatCompletion: The completion response from the API.
         """
-        client = self.client(model)
+        client, model = self.client(models)
         deployment = self.deployments[model]
 
-        kwargs = self.clean_kwargs(kwargs, deployment)
+        kwargs = MultiAIClient.clean_kwargs(kwargs, deployment)
 
         if "text_format" in kwargs:
             return client.responses.parse(
@@ -173,32 +293,40 @@ class MultiAIClient:
                 **kwargs,
             )
 
+        if model in ANTHROPIC_MODELS:
+            return anthropic_create(
+                client,
+                messages,
+                deployment.deployment_name,  # ty:ignore[invalid-argument-type]
+                **kwargs,
+            ), model  # ty:ignore[invalid-return-type]
+
         return client.chat.completions.create(
             messages=messages,
             model=deployment.deployment_name,
             **kwargs,
-        )
+        ), model
 
     async def _acreate_chat(
         self,
         messages: Messages,
-        model: Model,
+        models: list[Model],
         **kwargs: Any,
-    ) -> ChatCompletion | ParsedResponse[Any]:
+    ) -> tuple[ChatCompletion | ParsedResponse[Any], Model]:
         """Asynchronously creates chat completions for the given messages and model.
 
         Args:
             messages: The list of messages to process.
-            model: The model to use for generating completions.
+            models: The model to use for generating completions.
             kwargs: More args.
 
         Returns:
             ChatCompletion: The completion response from the API.
         """
-        aclient = self.aclient(model)
+        aclient, model = self.aclient(models)
         deployment = self.deployments[model]
 
-        kwargs = self.clean_kwargs(kwargs, deployment)
+        kwargs = MultiAIClient.clean_kwargs(kwargs, deployment)
 
         if "text_format" in kwargs:
             return await aclient.responses.parse(
@@ -207,16 +335,25 @@ class MultiAIClient:
                 **kwargs,
             )
 
-        return await aclient.chat.completions.create(
+        if model in ANTHROPIC_MODELS:
+            return await anthropic_acreate(
+                aclient,
+                messages,
+                deployment.deployment_name,  # ty:ignore[invalid-argument-type]
+                **kwargs,
+            ), model  # ty:ignore[invalid-return-type]
+
+        response = await aclient.chat.completions.create(
             messages=messages,
             model=deployment.deployment_name,
             **kwargs,
         )
+        return response, model
 
     def invoke(
         self,
         messages: Messages,
-        model: Model,
+        models: list[Model],
         system: str | None = None,
         delay: float = 0.0,
         tries: int = 1,
@@ -226,7 +363,7 @@ class MultiAIClient:
 
         Args:
             messages: The list of messages for the chat.
-            model: The model to use for generating the chat completions.
+            models: The model to use for generating the chat completions.
             system: A string that will be passed as a system prompt.
             delay : How log to wait between each try (in s).
             tries : How many tries we can endure with rate limits.
@@ -235,18 +372,23 @@ class MultiAIClient:
         Returns:
             ChatCompletion: The API response containing the chat completions.
         """
-        start_time = time.time()
-        operation: str = kwargs.pop("operation", "")
+        logger.error(
+            "[bold purple][LLMAX][/bold purple] Deprecated function `invoke`, use the async one instead.",
+        )
         if system:
             messages = add_system_message(
                 messages=messages,
-                model=model,
                 system=system,
             )
         response: ChatCompletion | ParsedResponse[Any] | None = None
         for _ in range(tries):
             try:
-                response = self._create_chat(messages, model, **kwargs, stream=False)
+                response, _model_used = self._create_chat(
+                    messages,
+                    models,
+                    **kwargs,
+                    stream=False,
+                )
                 break
             except RateLimitError as e:
                 time.sleep(delay)
@@ -256,36 +398,12 @@ class MultiAIClient:
             message = "Rate Limit error"
             raise ValueError(message)
 
-        duration = time.time() - start_time
-        if not response.usage:
-            message = "No usage for this request"
-            raise ValueError(message)
-        deployment = self.deployments[model]
-        response_usage = (
-            response.usage
-            if isinstance(response, ChatCompletion)
-            else CompletionUsage(
-                completion_tokens=response.usage.output_tokens,
-                prompt_tokens=response.usage.input_tokens,
-                total_tokens=response.usage.total_tokens,
-            )
-        )
-        usage = ModelUsage(deployment, self._increment_usage, response_usage)
-
-        cost = usage.apply(
-            operation=operation,
-            duration=duration,
-            ttft=None,
-        )
-        self.total_usage += cost
-        self.usages.append(usage)
-
         return response
 
     def invoke_to_str(
         self,
         messages: Messages,
-        model: Model,
+        model: Model | list[Model],
         system: str | None = None,
         delay: float = 0.0,
         tries: int = 1,
@@ -306,7 +424,7 @@ class MultiAIClient:
         """
         response = self.invoke(
             messages,
-            model,
+            model if isinstance(model, list) else [model],
             system=system,
             delay=delay,
             tries=tries,
@@ -316,12 +434,13 @@ class MultiAIClient:
             return response.choices[0].message.content if response.choices else None
         if not response:
             return None
-        return response.output[0].content[0].text if response.output else None
+        return response.output[0].content[0].text if response.output else None  # type: ignore
 
-    async def ainvoke(
+    async def ainvoke(  # noqa: D417, PLR0913
         self,
         messages: Messages,
-        model: Model,
+        models: list[Model],
+        operation: str,
         system: str | None = None,
         delay: float = 0.0,
         tries: int = 1,
@@ -331,7 +450,7 @@ class MultiAIClient:
 
         Args:
             messages: The list of messages for the chat.
-            model: The model to use for generating the chat completions.
+            models: The model to use for generating the chat completions.
             system: A string that will be passed as a system prompt.
             delay : How log to wait between each try (in s).
             tries : How many tries we can endure with rate limits.
@@ -341,20 +460,19 @@ class MultiAIClient:
             ChatCompletion: The API response containing the chat completions.
         """
         start_time = time.time()
-        operation: str = kwargs.pop("operation", "")
         if system:
             messages = add_system_message(
                 messages=messages,
-                model=model,
                 system=system,
             )
 
         response: ChatCompletion | ParsedResponse[Any] | None = None
+        model = models[0]
         for _ in range(tries):
             try:
-                response = await self._acreate_chat(
+                response, model = await self._acreate_chat(
                     messages,
-                    model,
+                    models,
                     **kwargs,
                     stream=False,
                 )
@@ -383,7 +501,7 @@ class MultiAIClient:
         )
         usage = ModelUsage(deployment, self._increment_usage, response_usage)
 
-        cost = usage.apply(
+        cost = await usage.apply(
             operation=operation,
             duration=duration,
             ttft=None,
@@ -393,10 +511,11 @@ class MultiAIClient:
 
         return response
 
-    async def ainvoke_to_str(
+    async def ainvoke_to_str(  # noqa: D417, PLR0913
         self,
         messages: Messages,
-        model: Model,
+        model: Model | list[Model],
+        operation: str,
         system: str | None = None,
         delay: float = 0.0,
         tries: int = 1,
@@ -417,20 +536,22 @@ class MultiAIClient:
         """
         response = await self.ainvoke(
             messages,
-            model,
+            model if isinstance(model, list) else [model],
             delay=delay,
             tries=tries,
+            operation=operation,
             system=system,
             **kwargs,
         )
         if isinstance(response, ChatCompletion):
             return response.choices[0].message.content if response.choices else None
-        return response.output[0].content[0].text if response.output else None
+        return response.output[0].content[0].text if response.output else None  # type: ignore
 
-    async def ainvoke_get_tools(
+    async def ainvoke_get_tools(  # noqa: D417, PLR0913
         self,
         messages: Messages,
-        model: Model,
+        model: list[Model] | Model,
+        operation: str,
         system: str | None = None,
         delay: float = 0.0,
         tries: int = 1,
@@ -452,22 +573,24 @@ class MultiAIClient:
         """
         response = await self.ainvoke(
             messages,
-            model,
+            model if isinstance(model, list) else [model],
             delay=delay,
             tries=tries,
+            operation=operation,
             system=system,
             **kwargs,
         )
-        output_str = response.choices[0].message.content if response.choices else None
-        final_tool_calls = response.choices[0].message.tool_calls or []
+        output_str = response.choices[0].message.content if response.choices else None  # type: ignore
+        final_tool_calls = response.choices[0].message.tool_calls or []  # type: ignore
 
-        return output_str, final_tool_calls
+        return output_str, final_tool_calls  # type: ignore
 
     async def ainvoke_with_tools(  # noqa: D417, PLR0913
         self,
         messages: Messages,
-        model: Model,
+        model: Model | list[Model],
         execute_tools: Callable[[str, str], Awaitable[str]],
+        operation: str,
         system: str | None = None,
         delay: float = 0.0,
         max_tool_calls: int = 4,
@@ -495,16 +618,17 @@ class MultiAIClient:
             tries += 1
             response = await self.ainvoke(
                 messages,
-                model,
+                model if isinstance(model, list) else [model],
                 delay=delay,
                 tries=tries,
+                operation=operation,
                 system=system,
                 **kwargs,
             )
             output_str = (
-                response.choices[0].message.content if response.choices else None
+                response.choices[0].message.content if response.choices else None  # type: ignore
             )
-            final_tool_calls = response.choices[0].message.tool_calls or []
+            final_tool_calls = response.choices[0].message.tool_calls or []  # type: ignore
 
             if len(final_tool_calls) == 0:
                 return output_str
@@ -518,8 +642,8 @@ class MultiAIClient:
 
             tool_coros = []
             for tool in final_tool_calls:
-                function_name = tool.function.name
-                function_args = tool.function.arguments
+                function_name = tool.function.name  # type: ignore
+                function_args = tool.function.arguments  # type: ignore
                 logger.info(
                     f"Tool called for function `{function_name}` with the args `{function_args}`",
                 )
@@ -527,8 +651,13 @@ class MultiAIClient:
 
             results = await asyncio.gather(*tool_coros)
 
-            for tool, resultat in zip(final_tool_calls, results):
-                messages.append(parse_tool_call(tool, model))
+            for tool, resultat in zip(final_tool_calls, results, strict=True):
+                messages.append(
+                    parse_tool_call(
+                        tool,
+                        model[0] if isinstance(model, list) else model,
+                    ),
+                )
                 messages.append(
                     {
                         "role": "tool",
@@ -542,10 +671,10 @@ class MultiAIClient:
     def stream(
         self,
         messages: Messages,
-        model: Model,
+        model: Model | list[Model],
         system: str | None = None,
         **kwargs: Any,
-    ) -> Generator[ChatCompletionChunk, None, None]:
+    ) -> Generator[ChatCompletionChunk | CompletionUsage | Model, None, None]:
         """Streams chat completions, allowing responses to be received in chunks.
 
         Args:
@@ -557,73 +686,67 @@ class MultiAIClient:
         Yields:
             ChatCompletionChunk: Individual chunks of the completion response.
         """
-        start = time.time()
-        ttft = None
-        operation: str = kwargs.pop("operation", "")
+        model_used = model[0] if isinstance(model, list) else model
         if system:
             messages = add_system_message(
                 messages=messages,
-                model=model,
                 system=system,
             )
         try:
             if model == "o3-mini-high":
-                response = self._create_chat(
+                response, model_used = self._create_chat(
                     messages,
-                    "o3-mini",
+                    ["o3-mini"],
                     **kwargs,
                     stream=True,
                     reasoning_effort="high",
                     stream_options={"include_usage": True},
                 )
-                model = "o3-mini"
             else:
-                response = self._create_chat(
+                response, model_used = self._create_chat(
                     messages,
-                    model,
+                    model if isinstance(model, list) else [model],
                     **kwargs,
                     stream=True,
-                    stream_options=NOT_GIVEN
-                    if model in MISTRAL_MODELS or model in SCALEWAY_MODELS
-                    else {"include_usage": True},
+                    stream_options={"include_usage": True},
                 )
-        except BadRequestError:
+        except BadRequestError as e:
+            logger.error(
+                f"[bold purple][LLMAX][/bold purple] BadRequestError in stream for model {model}: {e}",
+            )
             return
-        deployment = self.deployments[model]
+        except Exception as e:
+            logger.error(
+                f"[bold purple][LLMAX][/bold purple] Unexpected error in stream for model {model}: {e}",
+            )
+            return
 
-        chunk_usage: CompletionUsage = CompletionUsage(
-            completion_tokens=0,
-            prompt_tokens=0,
-            total_tokens=0,
-        )
+        yield model_used
 
-        for chunk in response:
-            if chunk.usage:
-                chunk_usage = chunk.usage
-            try:
-                if len(chunk.choices) == 0:  # type: ignore
+        try:
+            for chunk in response:
+                if isinstance(chunk.usage, CompletionUsage):  # type: ignore
+                    yield chunk.usage  # type: ignore
+                try:
+                    if len(chunk.choices) == 0:  # type: ignore
+                        continue
+                except Exception as e:
+                    logger.debug(f"Error in llmax streaming : {e}")
                     continue
-                if chunk.choices[0].delta.content and ttft is None:  # type: ignore
-                    ttft = time.time() - start
-            except Exception as e:
-                logger.debug(f"Error in llmax streaming : {e}")
-            yield chunk  # type: ignore
+                yield chunk
+        except Exception as e:
+            logger.error(
+                f"[bold purple][LLMAX][/bold purple] Error iterating stream chunks for model {model}: {e}",
+            )
+            return
 
-        usage = ModelUsage(deployment, self._increment_usage, chunk_usage)
-
-        duration = time.time() - start
-
-        cost = usage.apply(operation=operation, ttft=ttft, duration=duration)
-        self.total_usage += cost
-        self.usages.append(usage)
-
-    async def stream_output_smooth(  # noqa: C901
+    async def stream_output_smooth(  # noqa: C901, D417, PLR0915
         self,
         messages: Messages,
-        model: Model,
+        model: list[Model] | Model,
         smooth_duration: int,
+        operation: str,
         system: str | None = None,
-        beta: bool = True,
         **kwargs: Any,
     ) -> AsyncGenerator[StreamedItem, None]:
         """Streams formatted output from the chat completions.
@@ -636,23 +759,33 @@ class MultiAIClient:
             model: The model to use for generating the chat completions.
             system: A string that will be passed as a system prompt.
             smooth_duration: The duration in ms to wait before trying to send another chunk.
-            beta: Whether to use the beta chat for vercel streaming
             kwargs: More args.
 
         Yields:
             str: Formatted output for each chunk.
         """
         output_queue: Queue[list[Choice] | Exception | None] = Queue()
+        chunk_usage: CompletionUsage = CompletionUsage(
+            completion_tokens=0,
+            prompt_tokens=0,
+            total_tokens=0,
+        )
+
+        # Track timing for usage
+        start = time.time()
+        ttft = None
+        model_used = model[0] if isinstance(model, list) else model
 
         for chunk in fake_llm(
             "",
             stream=False,
             send_empty=True,
-            beta=beta,
         ):
             yield StreamItemContent(content=chunk)
 
         def collect_chunks() -> None:
+            nonlocal chunk_usage, ttft, model_used
+            chunk_count = 0
             try:
                 for completion_chunk in self.stream(
                     messages,
@@ -660,10 +793,30 @@ class MultiAIClient:
                     system=system,
                     **kwargs,
                 ):
-                    output_queue.put(completion_chunk.choices)
+                    chunk_count += 1
+                    if isinstance(completion_chunk, CompletionUsage):
+                        chunk_usage = completion_chunk
+                    elif isinstance(completion_chunk, ChatCompletionChunk):
+                        if (
+                            ttft is None
+                            and len(completion_chunk.choices) > 0
+                            and completion_chunk.choices[0].delta.content
+                        ):
+                            ttft = time.time() - start
+                        output_queue.put(completion_chunk.choices)
+                    else:
+                        model_used = completion_chunk
+
             except Exception as e:
+                logger.error(
+                    f"[bold purple][LLMAX][/bold purple] Exception in stream collection for model {model}: {e}",
+                )
                 output_queue.put(e)
             finally:
+                if chunk_count == 0:
+                    logger.warning(
+                        f"[bold purple][LLMAX][/bold purple] No chunks received for model {model}",
+                    )
                 output_queue.put(None)
 
         collector = threading.Thread(target=collect_chunks)
@@ -703,23 +856,33 @@ class MultiAIClient:
                     tool_call.function is not None
                     and final_tool_calls[index].function is not None
                 ):
-                    current_args = final_tool_calls[index].function.arguments or ""
+                    current_args = final_tool_calls[index].function.arguments or ""  # type: ignore
                     new_args = tool_call.function.arguments or ""
-                    final_tool_calls[index].function.arguments = current_args + new_args
+                    final_tool_calls[index].function.arguments = current_args + new_args  # type: ignore
 
             await asyncio.sleep(smooth_duration / 1000)
 
+        yield ModelItemContent(model_used=model_used)
         await loop.run_in_executor(None, collector.join)
+
+        deployment = self.deployments[model_used]
+        usage = ModelUsage(deployment, self._increment_usage, chunk_usage)
+
+        duration = time.time() - start
+
+        cost = await usage.apply(operation=operation, ttft=ttft, duration=duration)
+        self.total_usage += cost
+        self.usages.append(usage)
 
         yield StreamItemOutput(tools=final_tool_calls, output=final_output)
 
-    async def stream_output(
+    async def stream_output(  # noqa: D417
         self,
         messages: Messages,
-        model: Model,
+        model: list[Model] | Model,
+        operation: str,
         system: str | None = None,
         smooth_duration: int | None = None,
-        beta: bool = True,
         **kwargs: Any,
     ) -> AsyncGenerator[StreamedItem, None]:
         """Streams formatted output from the chat completions.
@@ -732,7 +895,6 @@ class MultiAIClient:
             model: The model to use for generating the chat completions.
             system: A string that will be passed as a system prompt.
             smooth_duration: The duration in ms to wait before trying to send another chunk.
-            beta: whether or not to use the new chat version of vercel.
             kwargs: More args.
 
         Yields:
@@ -743,19 +905,19 @@ class MultiAIClient:
             model=model,
             system=system,
             smooth_duration=smooth_duration or 0,
-            beta=beta,
+            operation=operation,
             **kwargs,
         ):
             yield chunk
 
-    async def stream_output_with_tools(  # noqa: C901, PLR0912, PLR0913
+    async def stream_output_with_tools(  # noqa: C901, D417, PLR0912, PLR0913
         self,
         messages: Messages,
-        model: Model,
+        model: list[Model] | Model,
+        operation: str,
         execute_tools: Callable[[str, str, str], AsyncGenerator[ToolItem, None]],
         system: str | None = None,
         smooth_duration: int | None = None,
-        beta: bool = True,
         max_tool_calls: int = 4,
         max_tokens_before_tool_use: int | None = None,
         **kwargs: Any,
@@ -770,7 +932,6 @@ class MultiAIClient:
             model: The model to use for generating the chat completions.
             system: A string that will be passed as a system prompt.
             smooth_duration: The duration in ms to wait before trying to send another chunk.
-            beta: whether or not to use the new chat version of vercel.
             execute_tools: how to execute the tools given.
             max_tool_calls: maximum number of call to a tool before stopping.
             max_tokens_before_tool_use: To limit the usage of tools if there are too many tokens and force an answer
@@ -795,17 +956,29 @@ class MultiAIClient:
                 or token_count <= max_tokens_before_tool_use
             )
 
+            if not allow_tools:
+                messages.append(
+                    {
+                        "role": "user",
+                        "content": "You can no longer call any tools due to the size of the context. With the curent information, answer the user question directly.",
+                    },
+                )
+
+            model_used = model[0] if isinstance(model, list) else model
+
             async for item in self.stream_output(
                 messages=messages,
-                model=model,
+                model=model if isinstance(model, list) else [model],
                 system=system,
                 smooth_duration=smooth_duration,
-                beta=beta,
+                operation=operation,
                 tools=tools if allow_tools else None,
                 **kwargs,
             ):
                 if isinstance(item, StreamItemContent):
                     yield item.content
+                elif isinstance(item, ModelItemContent):
+                    model_used = item.model_used
                 else:
                     final_tool_calls, output_str = item.tools, item.output
 
@@ -820,21 +993,21 @@ class MultiAIClient:
 
             queue = asyncio.Queue()
 
-            async def run_tool(tool: ChoiceDeltaToolCall) -> None:
+            async def run_tool(tool: ChoiceDeltaToolCall, queue: asyncio.Queue) -> None:
                 tool_id = tool.id
-                function_name = tool.function.name
-                function_args = tool.function.arguments
+                function_name = tool.function.name  # type: ignore
+                function_args = tool.function.arguments  # type: ignore
                 if not all([tool_id, function_name, function_args]):
                     return
                 logger.info(
                     f"Tool called for function `{function_name}` with args `{function_args}`",
                 )
-                async for res in execute_tools(function_name, function_args, tool_id):
+                async for res in execute_tools(function_name, function_args, tool_id):  # type: ignore
                     await queue.put((tool, res))
                 await queue.put((tool, None))
 
             tasks = [
-                asyncio.create_task(run_tool(tool))
+                asyncio.create_task(run_tool(tool, queue))
                 for tool in final_tool_calls.values()
             ]
             finished_tools = 0
@@ -849,7 +1022,12 @@ class MultiAIClient:
                     yield res.content
                 else:
                     tool_result, tool_retrigger = res.output, res.redo
-                    update_messages_tools(tool, tool_result, messages, model)
+                    update_messages_tools(
+                        tool,
+                        tool_result,
+                        messages,
+                        model_used,
+                    )
                     if not tool_retrigger:
                         retrigger_stream = False
 
@@ -859,41 +1037,71 @@ class MultiAIClient:
             if not retrigger_stream:
                 break
 
+    async def aembedder(
+        self,
+        texts: list[str],
+        model: Model | list[Model],
+        operation: str,
+    ) -> list[Embedding]:
+        """Asynchronously obtains vector embeddings for a list of texts.
+
+        Args:
+            texts: The texts to generate embeddings for.
+            model: The embedding model.
+            operation: The name.
+
+        Returns:
+            List[Embedding]: The embeddings for each text.
+        """
+        start = time.time()
+        texts = [text.replace("\n", " ") for text in texts]
+
+        client, model_used = self.aclient(model if isinstance(model, list) else [model])
+        deployment = self.deployments[model_used]
+
+        response = await client.embeddings.create(
+            input=texts,
+            model=deployment.deployment_name,
+        )
+
+        duration = time.time() - start
+
+        usage = ModelUsage(deployment, self._increment_usage)
+        usage.add_tokens(prompt_tokens=response.usage.prompt_tokens)
+
+        cost = await usage.apply(operation=operation, duration=duration, ttft=None)
+        self.total_usage += cost
+        self.usages.append(usage)
+
+        embeddings = response.data
+        return embeddings
+
     def embedder(
         self,
         texts: list[str],
-        model: Model,
-        **kwargs: Any,
+        model: Model | list[Model],
     ) -> list[Embedding]:
         """Obtains vector embeddings for a list of texts asynchronously.
 
         Args:
             texts: The texts to generate embeddings for.
             model: The embedding model.
-            kwargs: More args.
 
         Returns:
             list[Embedding]: The embeddings for each text.
         """
-        start = time.time()
-        operation: str = kwargs.pop("operation", "")
+        logger.error(
+            "[bold purple][LLMAX][/bold purple] Deprecated function `embedder`, use the async one instead.",
+        )
         texts = [text.replace("\n", " ") for text in texts]
 
-        client = self.client(model)
-        deployment = self.deployments[model]
+        client, model_used = self.client(model if isinstance(model, list) else [model])
+        deployment = self.deployments[model_used]
 
         response = client.embeddings.create(
             input=texts,
             model=deployment.deployment_name,
         )
-        duration = time.time() - start
-
-        usage = ModelUsage(deployment, self._increment_usage)
-        usage.add_tokens(prompt_tokens=response.usage.prompt_tokens)
-
-        cost = usage.apply(operation=operation, duration=duration, ttft=None)
-        self.total_usage += cost
-        self.usages.append(usage)
 
         embeddings = response.data
         return embeddings
@@ -901,7 +1109,7 @@ class MultiAIClient:
     def speech_to_text(
         self,
         file: BufferedReader,
-        model: Model,
+        model: Model | list[Model],
         **kwargs: Any,
     ) -> TranscriptionVerbose:
         """Synchronously processes audio data for speech-to-text using the Whisper model.
@@ -914,10 +1122,11 @@ class MultiAIClient:
         Returns:
             Any: The response from the API.
         """
-        start = time.time()
-        operation: str = kwargs.pop("operation", "")
-        client = self.client(model)
-        deployment = self.deployments[model]
+        logger.error(
+            "[bold purple][LLMAX][/bold purple] Deprecated function `speech_to_text`, use the async one instead.",
+        )
+        client, model_used = self.client(model if isinstance(model, list) else [model])
+        deployment = self.deployments[model_used]
 
         response = client.audio.transcriptions.create(
             file=file,
@@ -925,25 +1134,14 @@ class MultiAIClient:
             response_format="verbose_json",
             **kwargs,
         )
-        duration = time.time() - start
-
-        usage = ModelUsage(deployment, self._increment_usage)
-        usage.add_audio_duration(response.duration)
-
-        cost = usage.apply(
-            operation=operation,
-            duration=duration,
-            ttft=None,
-        )
-        self.total_usage += cost
-        self.usages.append(usage)
 
         return response
 
-    async def aspeech_to_text(
+    async def aspeech_to_text(  # noqa: D417
         self,
         file: BytesIO,
-        model: Model,
+        model: Model | list[Model],
+        operation: str,
         response_format: Literal["json", "verbose_json"] = "verbose_json",
         duration: float | None = None,
         **kwargs: Any,
@@ -961,9 +1159,15 @@ class MultiAIClient:
             Any: The response from the API.
         """
         start = time.time()
-        operation: str = kwargs.pop("operation", "")
-        aclient = self.aclient(model)
-        deployment = self.deployments[model]
+        aclient, model_used = self.aclient(
+            model if isinstance(model, list) else [model],
+        )
+        deployment = self.deployments[model_used]
+        if (
+            response_format == "verbose_json"
+            and model_used not in SpeechModelAllowVerboseJson
+        ):
+            response_format = "json"
 
         response = await aclient.audio.transcriptions.create(
             file=file,
@@ -978,7 +1182,7 @@ class MultiAIClient:
         if isinstance(response, TranscriptionVerbose):
             response_duration = response.duration
         if isinstance(response, Transcription) and duration:
-            response_duration = duration
+            response_duration = 360
 
         if not response_duration:
             message = "You need to specify the duration in json mode."
@@ -986,7 +1190,7 @@ class MultiAIClient:
 
         usage.add_audio_duration(response_duration)
 
-        cost = usage.apply(
+        cost = await usage.apply(
             operation=operation,
             duration=duration,
             ttft=None,
@@ -996,28 +1200,127 @@ class MultiAIClient:
 
         return response
 
-    async def text_to_image(
+    async def text_to_image(  # noqa: PLR0913, C901
         self,
-        model: Model,
+        model: Model | list[Model],
         prompt: str,
-        size: Literal["1024x1024", "1024x1536", "1536x1024"] = "1024x1024",
+        operation: str,
         quality: Literal["low", "medium", "high", "auto"] = "medium",
         n: int = 1,
-        **kwargs: Any,
+        aspect_ratio: Literal[
+            "1:1",
+            "2:3",
+            "3:2",
+            "3:4",
+            "4:3",
+            "4:5",
+            "5:4",
+            "9:16",
+            "16:9",
+            "21:9",
+        ] = "1:1",
+        background: Literal["transparent", "opaque", "auto"] | None = None,
+        output_format: Literal["png", "jpeg", "webp"] | None = None,
+        output_compression: int | None = None,
     ) -> bytes:
         """Generate images from a text prompt using the specified model."""
         start = time.time()
-        operation: str = kwargs.pop("operation", "")
-        client = self.aclient(model)
-        deployment = self.deployments[model]
+        client, model_used = self.aclient(model if isinstance(model, list) else [model])
+        deployment = self.deployments[model_used]
 
-        response = await client.images.generate(
-            model=deployment.deployment_name,
-            prompt=prompt,
-            size=size,
-            quality=quality,
-            n=n,
-        )
+        image_bytes: bytes | None = None
+        quality_to_resolution = {
+            "low": "1K",
+            "medium": "2K",
+            "high": "4K",
+            "auto": "1K",
+        }
+
+        aspect_ratio_to_size: dict[
+            str,
+            Literal["1024x1024", "1024x1536", "1536x1024"],
+        ] = {
+            "1:1": "1024x1024",
+            "2:3": "1024x1536",
+            "3:2": "1536x1024",
+            "3:4": "1024x1536",
+            "4:3": "1536x1024",
+            "4:5": "1024x1536",
+            "5:4": "1536x1024",
+            "9:16": "1024x1536",
+            "16:9": "1536x1024",
+            "21:9": "1536x1024",
+        }
+        size: Literal["1024x1024", "1024x1536", "1536x1024"] = aspect_ratio_to_size[
+            aspect_ratio
+        ]
+
+        if model_used in GEMINI_MODELS:
+            if background is not None:
+                logger.warning(
+                    f"'background' is not supported by {model_used} and will be ignored.",
+                )
+            if output_format is not None:
+                logger.warning(
+                    f"'output_format' is not supported by {model_used} and will be ignored.",
+                )
+            if output_compression is not None:
+                logger.warning(
+                    f"'output_compression' is not supported by {model_used} and will be ignored.",
+                )
+            if n > 1:
+                logger.warning(
+                    f"'n > 1' is not supported by {model_used}. Only one image will be returned.",
+                )
+
+            client = genai.Client(api_key=deployment.api_key)
+            aclient = client.aio
+            response = await aclient.models.generate_content(
+                model=model_used,
+                contents=[prompt],
+                config=genai_types.GenerateContentConfig(
+                    response_modalities=["IMAGE"],
+                    image_config=genai_types.ImageConfig(
+                        aspect_ratio=aspect_ratio,
+                        image_size=quality_to_resolution[quality],
+                    ),
+                ),
+            )
+            image_bytes = _extract_image_from_gemini_response(response)
+        else:
+            if model_used != "gpt-image-1":
+                if background is not None:
+                    logger.warning(
+                        f"'background' is only supported by gpt-image-1, not {model_used}.",
+                    )
+                if output_format is not None:
+                    logger.warning(
+                        f"'output_format' is only supported by gpt-image-1, not {model_used}.",
+                    )
+                if output_compression is not None:
+                    logger.warning(
+                        f"'output_compression' is only supported by gpt-image-1, not {model_used}.",
+                    )
+            if aspect_ratio == "21:9":
+                logger.warning(
+                    "Aspect ratio '21:9' has no exact OpenAI equivalent. Using '1536x1024' (16:9) as the closest match.",
+                )
+
+            response = await client.images.generate(
+                model=model_used,
+                prompt=prompt,
+                size=size,
+                quality=quality,
+                n=n,
+                background=background if background is not None else NOT_GIVEN,
+                output_format=output_format if output_format is not None else NOT_GIVEN,
+                output_compression=output_compression
+                if output_compression is not None
+                else NOT_GIVEN,
+            )
+            image_base64 = response.data[0].b64_json
+            image_bytes = base64.b64decode(image_base64)
+
         duration = time.time() - start
 
         usage = ModelUsage(deployment, self._increment_usage)
@@ -1027,7 +1330,7 @@ class MultiAIClient:
             n=n,
         )
 
-        cost = usage.apply(
+        cost = await usage.apply(
             operation=operation,
             duration=duration,
             ttft=None,
@@ -1035,33 +1338,249 @@ class MultiAIClient:
         self.total_usage += cost
         self.usages.append(usage)
 
-        image_base64 = response.data[0].b64_json
-        return base64.b64decode(image_base64)
+        if image_bytes is None:
+            message = "Couldn't generate an image"
+            raise ValueError(message)
 
-    async def edit_image(  # noqa: PLR0913
+        return image_bytes
+
+    async def stream_text_to_image(  # noqa: C901, PLR0912, PLR0913
         self,
-        model: Model,
+        model: Model | list[Model],
         prompt: str,
-        image: tuple[str, bytes, str],
-        size: Literal["1024x1024", "1024x1536", "1536x1024"] = "1024x1024",
+        operation: str,
         quality: Literal["low", "medium", "high", "auto"] = "medium",
         n: int = 1,
-        **kwargs: Any,
+        aspect_ratio: Literal[
+            "1:1",
+            "2:3",
+            "3:2",
+            "3:4",
+            "4:3",
+            "4:5",
+            "5:4",
+            "9:16",
+            "16:9",
+            "21:9",
+        ] = "1:1",
+        background: Literal["transparent", "opaque", "auto"] | None = None,
+        output_format: Literal["png", "jpeg", "webp"] | None = None,
+        output_compression: int | None = None,
+        partial_images: int = 3,
+    ) -> AsyncGenerator[bytes, None]:
+        """Stream image generation, yielding partial then final image bytes.
+
+        Each yielded value is a complete renderable image — intermediate yields are
+        progressive previews and the last one is the final result. For models that
+        don't support streaming (e.g. Gemini), falls back to single-shot generation
+        and yields only the final image (equivalent to partial_images=0).
+        """
+        start = time.time()
+        client, model_used = self.aclient(model if isinstance(model, list) else [model])
+        deployment = self.deployments[model_used]
+
+        quality_to_resolution = {
+            "low": "1K",
+            "medium": "2K",
+            "high": "4K",
+            "auto": "1K",
+        }
+
+        aspect_ratio_to_size: dict[
+            str,
+            Literal["1024x1024", "1024x1536", "1536x1024"],
+        ] = {
+            "1:1": "1024x1024",
+            "2:3": "1024x1536",
+            "3:2": "1536x1024",
+            "3:4": "1024x1536",
+            "4:3": "1536x1024",
+            "4:5": "1024x1536",
+            "5:4": "1536x1024",
+            "9:16": "1024x1536",
+            "16:9": "1536x1024",
+            "21:9": "1536x1024",
+        }
+        size: Literal["1024x1024", "1024x1536", "1536x1024"] = aspect_ratio_to_size[
+            aspect_ratio
+        ]
+
+        if model_used in GEMINI_MODELS:
+            if background is not None:
+                logger.warning(
+                    f"'background' is not supported by {model_used} and will be ignored.",
+                )
+            if output_format is not None:
+                logger.warning(
+                    f"'output_format' is not supported by {model_used} and will be ignored.",
+                )
+            if output_compression is not None:
+                logger.warning(
+                    f"'output_compression' is not supported by {model_used} and will be ignored.",
+                )
+            if n > 1:
+                logger.warning(
+                    f"'n > 1' is not supported by {model_used}. Only one image will be returned.",
+                )
+
+            gemini_client = genai.Client(api_key=deployment.api_key)
+            aclient = gemini_client.aio
+            response = await aclient.models.generate_content(
+                model=model_used,
+                contents=[prompt],
+                config=genai_types.GenerateContentConfig(
+                    response_modalities=["IMAGE"],
+                    image_config=genai_types.ImageConfig(
+                        aspect_ratio=aspect_ratio,
+                        image_size=quality_to_resolution[quality],
+                    ),
+                ),
+            )
+            image_bytes = _extract_image_from_gemini_response(response)
+            if image_bytes is None:
+                message = "Couldn't generate an image"
+                raise ValueError(message)
+            yield image_bytes
+        else:
+            if aspect_ratio == "21:9":
+                logger.warning(
+                    "Aspect ratio '21:9' has no exact OpenAI equivalent. Using '1536x1024' (16:9) as the closest match.",
+                )
+            if model_used != "gpt-image-1":
+                if background is not None:
+                    logger.warning(
+                        f"'background' is only supported by gpt-image-1, not {model_used}.",
+                    )
+                if output_format is not None:
+                    logger.warning(
+                        f"'output_format' is only supported by gpt-image-1, not {model_used}.",
+                    )
+                if output_compression is not None:
+                    logger.warning(
+                        f"'output_compression' is only supported by gpt-image-1, not {model_used}.",
+                    )
+
+            stream = await client.images.generate(
+                model=deployment.deployment_name,
+                prompt=prompt,
+                size=size,
+                quality=quality,
+                n=n,
+                background=background if background is not None else NOT_GIVEN,
+                output_format=output_format if output_format is not None else NOT_GIVEN,
+                output_compression=output_compression
+                if output_compression is not None
+                else NOT_GIVEN,
+                partial_images=partial_images,
+                stream=True,
+            )
+
+            event: ImageGenStreamEvent
+            async for event in stream:
+                yield base64.b64decode(event.b64_json)
+
+        duration = time.time() - start
+        usage = ModelUsage(deployment, self._increment_usage)
+        usage.add_image(quality=quality, size=size, n=n)
+        cost = await usage.apply(operation=operation, duration=duration, ttft=None)
+        self.total_usage += cost
+        self.usages.append(usage)
+
+    async def edit_image(  # noqa: PLR0912, PLR0913, C901
+        self,
+        model: Model | list[Model],
+        prompt: str,
+        image: tuple[str, bytes, str] | list[tuple[str, bytes, str]],
+        operation: str,
+        size: Literal["1024x1024", "1024x1536", "1536x1024", "auto"] = "1024x1024",
+        quality: Literal["low", "medium", "high", "auto"] = "medium",
+        n: int = 1,
+        background: Literal["transparent", "opaque", "auto"] | None = None,
+        output_format: Literal["png", "jpeg", "webp"] | None = None,
+        output_compression: int | None = None,
+        mask: tuple[str, bytes, str] | None = None,
     ) -> bytes:
         """Edit an image using the specified model and a text prompt."""
         start = time.time()
-        operation: str = kwargs.pop("operation", "")
-        client = self.aclient(model)
-        deployment = self.deployments[model]
+        client, model_used = self.aclient(model if isinstance(model, list) else [model])
+        deployment = self.deployments[model_used]
+        image_bytes: bytes | None = None
 
-        response = await client.images.edit(
-            model=deployment.deployment_name,
-            prompt=prompt,
-            image=image,
-            size=size,
-            quality=quality,
-            n=n,
-        )
+        images = image if isinstance(image, list) else [image]
+
+        if model_used in GEMINI_MODELS:
+            if background is not None:
+                logger.warning(
+                    f"'background' is not supported by {model_used} and will be ignored.",
+                )
+            if output_format is not None:
+                logger.warning(
+                    f"'output_format' is not supported by {model_used} and will be ignored.",
+                )
+            if output_compression is not None:
+                logger.warning(
+                    f"'output_compression' is not supported by {model_used} and will be ignored.",
+                )
+            if mask is not None:
+                logger.warning(
+                    f"'mask' is not supported by {model_used} and will be ignored.",
+                )
+            if n > 1:
+                logger.warning(
+                    f"'n > 1' is not supported by {model_used}. Only one image will be returned.",
+                )
+
+            client = genai.Client(api_key=deployment.api_key)
+            aclient = client.aio
+
+            text_part = genai_types.Part.from_text(text=prompt)
+            image_parts = [
+                genai_types.Part.from_bytes(data=file_bytes, mime_type=mime_type)
+                for _filename, file_bytes, mime_type in images
+            ]
+
+            content = genai_types.Content(parts=[text_part, *image_parts])
+            response = await aclient.models.generate_content(
+                model=model_used,
+                contents=[content],
+            )
+            image_bytes = _extract_image_from_gemini_response(response)
+        else:
+            if model_used != "gpt-image-1":
+                if background is not None:
+                    logger.warning(
+                        f"'background' is only supported by gpt-image-1, not {model_used}.",
+                    )
+                if output_format is not None:
+                    logger.warning(
+                        f"'output_format' is only supported by gpt-image-1, not {model_used}.",
+                    )
+                if output_compression is not None:
+                    logger.warning(
+                        f"'output_compression' is only supported by gpt-image-1, not {model_used}.",
+                    )
+                if len(images) > 1:
+                    logger.warning(
+                        f"Multiple input images are only supported by gpt-image-1, not {model_used}. Only the first image will be used.",
+                    )
+
+            response = await client.images.edit(
+                model=deployment.deployment_name,
+                prompt=prompt,
+                image=images[0] if len(images) == 1 else images,
+                size=size,
+                quality=quality,
+                n=n,
+                background=background if background is not None else NOT_GIVEN,
+                output_format=output_format if output_format is not None else NOT_GIVEN,
+                output_compression=output_compression
+                if output_compression is not None
+                else NOT_GIVEN,
+                mask=mask if mask is not None else NOT_GIVEN,
+            )
+            image_base64 = response.data[0].b64_json
+            image_bytes = base64.b64decode(image_base64)
+
         duration = time.time() - start
 
         usage = ModelUsage(deployment, self._increment_usage)
@@ -1070,7 +1589,7 @@ class MultiAIClient:
             size=size,
             n=n,
         )
-        cost = usage.apply(
+        cost = await usage.apply(
             operation=operation,
             duration=duration,
             ttft=None,
@@ -1078,14 +1597,94 @@ class MultiAIClient:
         self.total_usage += cost
         self.usages.append(usage)
 
-        # --- Récupération de l'image ---
-        image_base64 = response.data[0].b64_json
-        return base64.b64decode(image_base64)
+        if image_bytes is None:
+            message = "Couldn't generate an edited image"
+            raise ValueError(message)
+
+        return image_bytes
+
+    async def stream_edit_image(  # noqa: PLR0913
+        self,
+        model: Model | list[Model],
+        prompt: str,
+        image: tuple[str, bytes, str] | list[tuple[str, bytes, str]],
+        operation: str,
+        size: Literal["1024x1024", "1024x1536", "1536x1024", "auto"] = "1024x1024",
+        quality: Literal["low", "medium", "high", "auto"] = "medium",
+        n: int = 1,
+        background: Literal["transparent", "opaque", "auto"] | None = None,
+        output_format: Literal["png", "jpeg", "webp"] | None = None,
+        output_compression: int | None = None,
+        mask: tuple[str, bytes, str] | None = None,
+        partial_images: int = 3,
+    ) -> AsyncGenerator[bytes, None]:
+        """Stream image editing, yielding partial then final image bytes.
+
+        Each yielded value is a complete renderable image — intermediate yields are
+        progressive previews and the last one is the final result. Only supported for
+        OpenAI models (e.g. gpt-image-1). Set `partial_images` to control how many
+        intermediate frames are emitted before the final image.
+        """
+        start = time.time()
+        client, model_used = self.aclient(model if isinstance(model, list) else [model])
+        deployment = self.deployments[model_used]
+
+        if model_used in GEMINI_MODELS:
+            message = f"Streaming image editing is not supported for {model_used}. Use edit_image instead."
+            raise ValueError(message)
+
+        images = image if isinstance(image, list) else [image]
+
+        if model_used != "gpt-image-1":
+            if background is not None:
+                logger.warning(
+                    f"'background' is only supported by gpt-image-1, not {model_used}.",
+                )
+            if output_format is not None:
+                logger.warning(
+                    f"'output_format' is only supported by gpt-image-1, not {model_used}.",
+                )
+            if output_compression is not None:
+                logger.warning(
+                    f"'output_compression' is only supported by gpt-image-1, not {model_used}.",
+                )
+            if len(images) > 1:
+                logger.warning(
+                    f"Multiple input images are only supported by gpt-image-1, not {model_used}. Only the first image will be used.",
+                )
+
+        stream = await client.images.edit(
+            model=deployment.deployment_name,
+            prompt=prompt,
+            image=images[0] if len(images) == 1 else images,
+            size=size,
+            quality=quality,
+            n=n,
+            background=background if background is not None else NOT_GIVEN,
+            output_format=output_format if output_format is not None else NOT_GIVEN,
+            output_compression=output_compression
+            if output_compression is not None
+            else NOT_GIVEN,
+            mask=mask if mask is not None else NOT_GIVEN,
+            partial_images=partial_images,
+            stream=True,
+        )
+
+        event: ImageEditStreamEvent
+        async for event in stream:
+            yield base64.b64decode(event.b64_json)
+
+        duration = time.time() - start
+        usage = ModelUsage(deployment, self._increment_usage)
+        usage.add_image(quality=quality, size=size, n=n)
+        cost = await usage.apply(operation=operation, duration=duration, ttft=None)
+        self.total_usage += cost
+        self.usages.append(usage)
 
     def text_to_speech(
         self,
         text: str,
-        model: Model,
+        model: Model | list[Model],
         path: str,
         **kwargs: Any,
     ) -> str:
@@ -1102,10 +1701,11 @@ class MultiAIClient:
         Raises:
         - Any relevant exceptions that may occur during the audio generation process.
         """
-        operation: str = kwargs.pop("operation", "")
-        start = time.time()
-        client = self.client(model)
-        deployment = self.deployments[model]
+        logger.error(
+            "[bold purple][LLMAX][/bold purple] Deprecated function `text_to_speech`, create the async one instead.",
+        )
+        client, model_used = self.client(model if isinstance(model, list) else [model])
+        deployment = self.deployments[model_used]
         response = client.audio.speech.create(
             model=deployment.deployment_name,
             input=text,
@@ -1113,18 +1713,28 @@ class MultiAIClient:
             **kwargs,
         )
         response.stream_to_file(path)
-        duration = time.time() - start
-        usage = ModelUsage(deployment, self._increment_usage)
-        usage.add_tts(text)
-        cost = usage.apply(operation=operation, duration=duration, ttft=None)
-        self.total_usage += cost
-        self.usages.append(usage)
+
         return path
+
+
+def _extract_image_from_gemini_response(response: Any) -> bytes | None:
+    """Extract image bytes from Gemini API response."""
+    if not response.candidates:
+        return None
+    for candidate in response.candidates:
+        content = candidate.content
+        if not content or not content.parts:
+            continue
+        for part in content.parts:
+            if part.inline_data:
+                image_bytes = part.inline_data.data
+                if image_bytes:
+                    return image_bytes
+    return None
 
 
 def add_system_message(
     messages: Messages,
-    model: Model,
     system: str,
 ) -> Messages:
     """Adds a system message at the start of the messages.
@@ -1139,25 +1749,7 @@ def add_system_message(
     Returns:
         Messages: The same initial list with the system message inserted at index 0.
     """
-    match model:
-        case model if model in OPENAI_MODELS:
-            messages.insert(0, {"role": "system", "content": system})
-        case model if model in COHERE_MODELS:
-            messages.insert(0, {"role": "system", "content": system})
-        case model if model in META_MODELS:
-            messages.insert(0, {"role": "system", "content": system})
-        case model if model in GEMINI_MODELS:
-            messages.insert(0, {"role": "system", "content": system})
-        case model if model in MISTRAL_MODELS:
-            messages.insert(0, {"role": "system", "content": system})
-        case model if model in SCALEWAY_MODELS:
-            messages.insert(0, {"role": "system", "content": system})
-        case model if model in ANTHROPIC_MODELS:
-            messages.insert(0, {"role": "system", "content": system})
-        case _:
-            logger.debug(
-                f"[bold purple][LLMAX][/bold purple] The model specified, {model}, does not understand system mode.",
-            )
+    messages.insert(0, {"role": "system", "content": system})
     return messages
 
 
@@ -1199,7 +1791,7 @@ def parse_tool_call(
                     "type": "tool_use",
                     "id": call_id,
                     "name": function_name,
-                    "input": json.loads(str(tool_call.function.arguments)),
+                    "input": json.loads(str(tool_call.function.arguments)),  # type: ignore
                 },
             ],
         }
@@ -1214,15 +1806,39 @@ def parse_tool_call(
                     "id": tool_call.id,
                     "type": "function",
                     "function": {
-                        "name": tool_call.function.name,
-                        "arguments": str(tool_call.function.arguments),
+                        "name": tool_call.function.name,  # type: ignore
+                        "arguments": str(tool_call.function.arguments),  # type: ignore
                     },
                 },
             ],
         }
         return formatted_call
 
-    formatted_call = {
+    if model in GEMINI_MODELS:
+        # Preserve Gemini thought signatures for function calling.
+        # See https://ai.google.dev/gemini-api/docs/thought-signatures
+        tool_call_dict: dict[str, Any] = {
+            "id": call_id,
+            "type": "function",
+            "function": {
+                "name": function_name,
+                "arguments": tool_call.function.arguments if tool_call.function else "",
+            },
+        }
+        extra_content = getattr(tool_call, "extra_content", None)
+        if extra_content is not None:
+            tool_call_dict["extra_content"] = (
+                extra_content
+                if isinstance(extra_content, dict)
+                else extra_content.model_dump()
+            )
+        return {
+            "role": "assistant",
+            "content": None,
+            "tool_calls": [tool_call_dict],
+        }
+
+    return {
         "role": "assistant",
         "content": None,
         "tool_calls": [
@@ -1238,8 +1854,6 @@ def parse_tool_call(
             },
         ],
     }
-
-    return formatted_call
 
 
 def update_messages_tools(

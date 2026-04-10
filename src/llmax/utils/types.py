@@ -3,11 +3,19 @@
 from openai.types.chat.chat_completion_chunk import ChoiceDeltaToolCall
 from pydantic import BaseModel
 
+from llmax.models import Model
+
 
 class StreamItemContent(BaseModel):
     """The content of a stream item."""
 
     content: str
+
+
+class ModelItemContent(BaseModel):
+    """The content designing the model used."""
+
+    model_used: Model
 
 
 class StreamItemOutput(BaseModel):
@@ -31,4 +39,4 @@ class ToolStreamItemOutput(BaseModel):
 
 
 ToolItem = ToolItemContent | ToolStreamItemOutput
-StreamedItem = StreamItemContent | StreamItemOutput
+StreamedItem = StreamItemContent | StreamItemOutput | ModelItemContent

@@ -1,8 +1,7 @@
-"""Meta client for interacting with the Meta API.
+"""Grok client for interacting with CometAPI / xAI models.
 
-Note: we use the OpenAI client to interact with the Meta models.
-
-Only azure deployments are supported for now.
+Note: we use the OpenAI client to interact with Grok models
+because these providers expose an OpenAI-compatible API.
 """
 
 from typing import Any
@@ -20,17 +19,17 @@ def get_client(
     deployment: Deployment,
     http_client: httpx.Client | None = None,
 ) -> Client:
-    """Get a Meta client for the given deployment.
+    """Get a Grok client for the given deployment.
 
     Args:
         deployment: The deployment configuration
         http_client: Optional httpx client to prevent OpenAI SDK memory leaks
 
     Returns:
-        The Meta client for the deployment
+        The Grok client for the deployment
     """
     match deployment.provider:
-        case "azure":
+        case "grok":
             if http_client:
                 return OpenAI(
                     api_key=deployment.api_key,
@@ -41,6 +40,7 @@ def get_client(
                 api_key=deployment.api_key,
                 base_url=deployment.endpoint,
             )
+
         case _:
             raise ProviderNotFoundError(deployment)
 
@@ -49,26 +49,28 @@ def get_aclient(
     deployment: Deployment,
     http_client: httpx.AsyncClient | None = None,
 ) -> Client:
-    """Get an async Meta client for the given deployment.
+    """Get an async Grok client for the given deployment.
 
     Args:
         deployment: The deployment configuration
-        http_client: Optional async httpx client to prevent OpenAI SDK memory leaks
+        http_client: Optional async httpx client
 
     Returns:
-        The async Meta client for the deployment
+        The async Grok client
     """
     match deployment.provider:
-        case "azure":
+        case "grok":
             if http_client:
                 return AsyncOpenAI(
                     api_key=deployment.api_key,
                     base_url=deployment.endpoint,
                     http_client=http_client,
                 )
+
             return AsyncOpenAI(
                 api_key=deployment.api_key,
                 base_url=deployment.endpoint,
             )
+
         case _:
             raise ProviderNotFoundError(deployment)

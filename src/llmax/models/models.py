@@ -1,6 +1,6 @@
 """Supported models."""
 
-from typing import Literal, Union, get_args
+from typing import Literal, get_args
 
 CohereModel = Literal[
     "command-r",
@@ -10,18 +10,15 @@ CohereModel = Literal[
 MetaModel = Literal[
     "llama-3-70b-instruct",
     "llama-4-scout-17b-16e-instruct",
-    "llama-4-maverick-17b-128e-instruct-fp8",]
+    "llama-4-maverick-17b-128e-instruct-fp8",
+]
 
-GeminiModel = Literal["google/gemini-1.5-flash-002", "google/gemini-1.5-pro-002"]
+GeminiModel = Literal["gemini-3-pro-preview", "gemini-3-pro-image-preview", "gemini-3.1-flash-lite-preview"]
 
 MistralModel = Literal[
     "mistral-large",
     "mistral-small",
     "mistral-large-2411",
-]
-
-ScalewayModel = Literal[
-    "devstral-2-123b-instruct-2512",
 ]
 
 
@@ -30,14 +27,12 @@ OpenAIModel = Literal[
     "dall-e-3",
     "gpt-image-1",
     "gpt-3.5",
-    "gpt-4",
     "gpt-4-turbo",
     "gpt-4.1",
     "gpt-4.1-nano",
     "gpt-4.1-mini",
     "gpt-4o",
     "gpt-4o-mini",
-    "o1-preview",
     "o3-mini",
     "o3-mini-high",
     "gpt-4o-transcribe",
@@ -46,10 +41,11 @@ OpenAIModel = Literal[
     "tts-1",
     "whisper-1",
     "gpt-5",
+    "gpt-5.1",
+    "gpt-5.4",
     "gpt-5-chat",
     "gpt-5-mini",
     "gpt-5-nano",
-    "gpt-oss-120b",
 ]
 
 AnthropicModel = Literal[
@@ -57,35 +53,64 @@ AnthropicModel = Literal[
     "claude-3-haiku",
     "claude-3.7-sonnet",
     "claude-4-sonnet",
+    "claude-4.5-haiku",
     "claude-4.5-sonnet",
+    "claude-4.5-opus",
+    "claude-4.6-opus",
+    "claude-4.6-sonnet",
+]
+
+GrokModel = Literal["grok-4-1-fast"]
+
+ScalewayModel = Literal[
+    "qwen3-235b-a22b-instruct-2507",
+    "qwen3.5-397b-a17b",
+    "gpt-oss-120b",
+    "gemma-3-27b-it",
+    "whisper-large-v3",
+    "voxtral-small-24b-2507",
+    "mistral-small-3.2-24b-instruct-2506",
+    "llama-3.3-70b-instruct",
+    "deepseek-r1-distill-llama-70b",
+    "llama-3.1-8b-instruct",
+    "bge-multilingual-gemma2",
+    "devstral-2-123b-instruct-2512",
 ]
 
 
-LLModel = Union[
-    CohereModel,
-    MetaModel,
-    MistralModel,
-    ScalewayModel,
-    OpenAIModel,
-    AnthropicModel,
-    GeminiModel,
+LLModel = (
+    CohereModel
+    | MetaModel
+    | MistralModel
+    | OpenAIModel
+    | AnthropicModel
+    | GeminiModel
+    | GrokModel
+    | ScalewayModel
+)
+
+SpeechToTextModel = Literal[
+    "whisper-1",
+    "gpt-4o-transcribe",
+    "whisper-large-v3",
 ]
 
-SpeechToTextModel = Literal["whisper-1", "gpt-4o-transcribe"]
 
-ImageGenerationModel = Literal["dall-e-3", "gpt-image-1"]
+ImageGenerationModel = Literal["dall-e-3", "gpt-image-1", "gemini-3-pro-image-preview"]
 
 TextToSpeechModel = Literal["tts-1",]
 
-Model = Union[LLModel, SpeechToTextModel, ImageGenerationModel]
+Model = LLModel | SpeechToTextModel | ImageGenerationModel
 
 COHERE_MODELS: tuple[CohereModel, ...] = get_args(CohereModel)
 META_MODELS: tuple[MetaModel, ...] = get_args(MetaModel)
 GEMINI_MODELS: tuple[GeminiModel, ...] = get_args(GeminiModel)
 MISTRAL_MODELS: tuple[MistralModel, ...] = get_args(MistralModel)
-SCALEWAY_MODELS: tuple[ScalewayModel, ...] = get_args(ScalewayModel)
 OPENAI_MODELS: tuple[OpenAIModel, ...] = get_args(OpenAIModel)
 ANTHROPIC_MODELS: tuple[AnthropicModel, ...] = get_args(AnthropicModel)
+GROK_MODELS: tuple[GrokModel, ...] = get_args(GrokModel)
+SCALEWAY_MODELS: tuple[ScalewayModel, ...] = get_args(ScalewayModel)
+
 
 LLMS: tuple[LLModel, ...] = get_args(LLModel)
 AUDIO: tuple[SpeechToTextModel, ...] = get_args(SpeechToTextModel)
@@ -93,3 +118,6 @@ IMAGE: tuple[ImageGenerationModel, ...] = get_args(ImageGenerationModel)
 TEXTTOAUDIO: tuple[TextToSpeechModel, ...] = get_args(TextToSpeechModel)
 
 MODELS: tuple[Model, ...] = get_args(Model)
+
+
+SpeechModelAllowVerboseJson: set[SpeechToTextModel] = {"whisper-1"}
