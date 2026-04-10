@@ -11,9 +11,10 @@ from llmax.models.models import (
     META_MODELS,
     MISTRAL_MODELS,
     OPENAI_MODELS,
+    SCALEWAY_MODELS,
 )
 
-from . import anthropic, cohere, gemini, meta, mistral, openai
+from . import anthropic, cohere, gemini, meta, mistral, openai, scaleway
 
 Client = Any
 
@@ -34,6 +35,8 @@ def get_client(deployment: Deployment) -> Client:
             return anthropic.get_client(deployment)
         case model if model in GEMINI_MODELS:
             return gemini.get_client(deployment)
+        case model if model in SCALEWAY_MODELS:
+            return scaleway.get_client(deployment)
         case _:
             raise ClientNotFoundError(deployment)
 
@@ -50,5 +53,7 @@ def get_aclient(deployment: Deployment) -> Client:
             return cohere.get_aclient(deployment)
         case model if model in META_MODELS:
             return meta.get_aclient(deployment)
+        case model if model in SCALEWAY_MODELS:
+            return scaleway.get_aclient(deployment)
         case _:
             raise ClientNotFoundError(deployment)

@@ -20,6 +20,10 @@ MistralModel = Literal[
     "mistral-large-2411",
 ]
 
+ScalewayModel = Literal[
+    "devstral-2-123b-instruct-2512",
+]
+
 
 OpenAIModel = Literal[
     "ada-v2",
@@ -61,6 +65,7 @@ LLModel = Union[
     CohereModel,
     MetaModel,
     MistralModel,
+    ScalewayModel,
     OpenAIModel,
     AnthropicModel,
     GeminiModel,
@@ -78,6 +83,7 @@ COHERE_MODELS: tuple[CohereModel, ...] = get_args(CohereModel)
 META_MODELS: tuple[MetaModel, ...] = get_args(MetaModel)
 GEMINI_MODELS: tuple[GeminiModel, ...] = get_args(GeminiModel)
 MISTRAL_MODELS: tuple[MistralModel, ...] = get_args(MistralModel)
+SCALEWAY_MODELS: tuple[ScalewayModel, ...] = get_args(ScalewayModel)
 OPENAI_MODELS: tuple[OpenAIModel, ...] = get_args(OpenAIModel)
 ANTHROPIC_MODELS: tuple[AnthropicModel, ...] = get_args(AnthropicModel)
 

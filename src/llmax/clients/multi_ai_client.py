@@ -37,6 +37,7 @@ from llmax.models.models import (
     META_MODELS,
     MISTRAL_MODELS,
     OPENAI_MODELS,
+    SCALEWAY_MODELS,
     Model,
 )
 from llmax.usage import ModelUsage, tokens
@@ -132,6 +133,7 @@ class MultiAIClient:
             "gpt-5",
             "gpt-5-mini",
             "gpt-5-turbo",
+            "gpt-oss-120b",
         }:
             logger.warning("Text format is not supported for this model.")
             kwargs.pop("text_format")
@@ -582,7 +584,7 @@ class MultiAIClient:
                     **kwargs,
                     stream=True,
                     stream_options=NOT_GIVEN
-                    if model in MISTRAL_MODELS
+                    if model in MISTRAL_MODELS or model in SCALEWAY_MODELS
                     else {"include_usage": True},
                 )
         except BadRequestError:
@@ -1147,6 +1149,8 @@ def add_system_message(
         case model if model in GEMINI_MODELS:
             messages.insert(0, {"role": "system", "content": system})
         case model if model in MISTRAL_MODELS:
+            messages.insert(0, {"role": "system", "content": system})
+        case model if model in SCALEWAY_MODELS:
             messages.insert(0, {"role": "system", "content": system})
         case model if model in ANTHROPIC_MODELS:
             messages.insert(0, {"role": "system", "content": system})

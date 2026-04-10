@@ -8,6 +8,7 @@ from .models import (
     MISTRAL_MODELS,
     MODELS,
     OPENAI_MODELS,
+    SCALEWAY_MODELS,
     Model,
 )
 from .providers import PROVIDERS, Provider
@@ -19,6 +20,7 @@ __all__ = [
     "MODELS",
     "OPENAI_MODELS",
     "PROVIDERS",
+    "SCALEWAY_MODELS",
     "Deployment",
     "Deployment",
     "Model",
