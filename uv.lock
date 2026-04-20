@@ -457,7 +457,7 @@ wheels = [
 
 [[package]]
 name = "delos-llmax"
-version = "1.27.0"
+version = "1.30.0"
 source = { editable = "." }
 dependencies = [
     { name = "anthropic" },
@@ -488,7 +488,7 @@ requires-dist = [
     { name = "anthropic", specifier = ">=0.85.0" },
     { name = "boto3", specifier = ">=1.35.65" },
     { name = "google-auth", specifier = ">=2.36.0" },
-    { name = "google-genai", specifier = ">=1.64.0" },
+    { name = "google-genai", specifier = ">=1.69.0" },
     { name = "loguru", specifier = ">=0.7.2" },
     { name = "openai", specifier = ">=1.42.0" },
     { name = "pydantic", specifier = ">=2.9.2" },

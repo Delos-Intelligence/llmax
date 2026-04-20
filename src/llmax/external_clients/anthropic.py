@@ -84,13 +84,21 @@ def _add_message_cache_control(messages: Messages) -> Messages:
 
         if isinstance(content, str) and content:
             target["content"] = [
-                {"type": "text", "text": content, "cache_control": {"type": "ephemeral"}},
+                {
+                    "type": "text",
+                    "text": content,
+                    "cache_control": {"type": "ephemeral"},
+                },
             ]
         elif isinstance(content, list) and content:
             content = list(content)
             last_block = content[-1]
             if isinstance(last_block, str):
-                content[-1] = {"type": "text", "text": last_block, "cache_control": {"type": "ephemeral"}}
+                content[-1] = {
+                    "type": "text",
+                    "text": last_block,
+                    "cache_control": {"type": "ephemeral"},
+                }
             elif isinstance(last_block, dict):
                 content[-1] = {**last_block, "cache_control": {"type": "ephemeral"}}
             target["content"] = content
@@ -188,7 +196,9 @@ def _to_chat_completion(response: anthropic.types.Message) -> ChatCompletion:
 
     cache_read = getattr(response.usage, "cache_read_input_tokens", 0) or 0
     cache_creation = getattr(response.usage, "cache_creation_input_tokens", 0) or 0
-    prompt_tokens = response.usage.input_tokens + cache_read + int(cache_creation * 1.25)
+    prompt_tokens = (
+        response.usage.input_tokens + cache_read + int(cache_creation * 1.25)
+    )
     usage_dict: dict[str, Any] = {
         "completion_tokens": response.usage.output_tokens,
         "prompt_tokens": prompt_tokens,
@@ -566,7 +576,7 @@ def anthropic_create(
             system=system,
             stream=True,
             **kwargs,
-        )
+        )  # ty:ignore[no-matching-overload]
         return _stream_to_chunks(raw_stream)
 
     response = client.messages.create(  # type: ignore[call-overload]
@@ -574,7 +584,7 @@ def anthropic_create(
         messages=remaining,
         system=system,
         **kwargs,
-    )
+    )  # ty:ignore[no-matching-overload]
     return _to_chat_completion(response)
 
 
@@ -600,7 +610,7 @@ async def anthropic_acreate(
             system=system,
             stream=True,
             **kwargs,
-        )
+        )  # ty:ignore[no-matching-overload]
         return _astream_to_chunks(raw_stream)
 
     response = await client.messages.create(  # type: ignore[call-overload]
@@ -608,5 +618,5 @@ async def anthropic_acreate(
         messages=remaining,
         system=system,
         **kwargs,
-    )
+    )  # ty:ignore[no-matching-overload]
     return _to_chat_completion(response)

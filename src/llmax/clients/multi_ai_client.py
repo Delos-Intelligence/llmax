@@ -733,7 +733,7 @@ class MultiAIClient:
                 except Exception as e:
                     logger.debug(f"Error in llmax streaming : {e}")
                     continue
-                yield chunk
+                yield chunk  # ty:ignore[invalid-yield]
         except Exception as e:
             logger.error(
                 f"[bold purple][LLMAX][/bold purple] Error iterating stream chunks for model {model}: {e}",
