@@ -1745,16 +1745,19 @@ class MultiAIClient:
 
         genai_client = genai.Client(api_key=deployment.api_key)
 
+        video_config_kwargs: dict[str, Any] = {
+            "aspect_ratio": aspect_ratio,
+            "duration_seconds": duration_seconds,
+            "resolution": resolution,
+            "number_of_videos": 1,
+        }
+        if with_audio:
+            video_config_kwargs["generate_audio"] = True
+        video_config = genai_types.GenerateVideosConfig(**video_config_kwargs)
         operation_obj = await genai_client.aio.models.generate_videos(
             model=model_used,
             prompt=prompt,
-            config=genai_types.GenerateVideosConfig(
-                aspect_ratio=aspect_ratio,
-                duration_seconds=duration_seconds,
-                resolution=resolution,
-                number_of_videos=1,
-                generate_audio=with_audio,
-            ),
+            config=video_config,
         )
 
         while not operation_obj.done:

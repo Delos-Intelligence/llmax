@@ -17,6 +17,9 @@ GeminiModel = Literal[
     "gemini-3-pro-preview",
     "gemini-3-pro-image-preview",
     "gemini-3.1-flash-lite-preview",
+    "veo-3.1-generate-preview",
+    "veo-3.1-fast-generate-preview",
+    "veo-3.1-lite-generate-preview",
 ]
 
 MistralModel = Literal[
