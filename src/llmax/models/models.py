@@ -110,9 +110,16 @@ ImageGenerationModel = Literal[
     "gemini-3-pro-image-preview",
 ]
 
+
+VideoGenerationModel = Literal[
+    "veo-3.1-generate-preview",
+    "veo-3.1-fast-generate-preview",
+    "veo-3.1-lite-generate-preview",
+]
+
 TextToSpeechModel = Literal["tts-1",]
 
-Model = LLModel | SpeechToTextModel | ImageGenerationModel
+Model = LLModel | SpeechToTextModel | ImageGenerationModel | VideoGenerationModel
 
 COHERE_MODELS: tuple[CohereModel, ...] = get_args(CohereModel)
 META_MODELS: tuple[MetaModel, ...] = get_args(MetaModel)
@@ -127,6 +134,7 @@ SCALEWAY_MODELS: tuple[ScalewayModel, ...] = get_args(ScalewayModel)
 LLMS: tuple[LLModel, ...] = get_args(LLModel)
 AUDIO: tuple[SpeechToTextModel, ...] = get_args(SpeechToTextModel)
 IMAGE: tuple[ImageGenerationModel, ...] = get_args(ImageGenerationModel)
+VIDEO: tuple[VideoGenerationModel, ...] = get_args(VideoGenerationModel)
 TEXTTOAUDIO: tuple[TextToSpeechModel, ...] = get_args(TextToSpeechModel)
 
 MODELS: tuple[Model, ...] = get_args(Model)

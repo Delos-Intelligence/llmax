@@ -1725,6 +1725,56 @@ class MultiAIClient:
         return path
 
 
+    async def text_to_video(  # noqa: PLR0913
+        self,
+        model: Model | list[Model],
+        prompt: str,
+        operation: str,
+        aspect_ratio: Literal["16:9", "9:16"] = "16:9",
+        duration_seconds: Literal[4, 6, 8] = 6,
+        resolution: Literal["720p", "1080p", "4k"] = "720p",
+        with_audio: bool = False,
+    ) -> bytes:
+        """Generate a video from a text prompt using Veo via Google GenAI SDK.
+
+        Returns mp4 bytes. Generation takes ~60-120s (async polling).
+        """
+        start = time.time()
+        _client, model_used = self.aclient(model if isinstance(model, list) else [model])
+        deployment = self.deployments[model_used]
+
+        genai_client = genai.Client(api_key=deployment.api_key)
+
+        operation_obj = await genai_client.aio.models.generate_videos(
+            model=model_used,
+            prompt=prompt,
+            config=genai_types.GenerateVideosConfig(
+                aspect_ratio=aspect_ratio,
+                duration_seconds=duration_seconds,
+                resolution=resolution,
+                number_of_videos=1,
+                generate_audio=with_audio,
+            ),
+        )
+
+        while not operation_obj.done:
+            await asyncio.sleep(5)
+            operation_obj = await genai_client.aio.operations.get(operation_obj)
+
+        video_file = operation_obj.response.generated_videos[0].video
+        video_bytes: bytes = await genai_client.aio.files.download(file=video_file)
+
+        duration = time.time() - start
+        usage = ModelUsage(deployment, self._increment_usage)
+        usage.add_video(duration_seconds, resolution=resolution, with_audio=with_audio)
+        cost = await usage.apply(operation=operation, duration=duration, ttft=None)
+        logger.debug(f"[LLMAX] text_to_video cost={cost!r} type={type(cost)}, total_usage={self.total_usage!r}")
+        self.total_usage += cost
+        self.usages.append(usage)
+
+        return video_bytes
+
+
 def _extract_image_from_gemini_response(response: Any) -> bytes | None:
     """Extract image bytes from Gemini API response."""
     if not response.candidates:
