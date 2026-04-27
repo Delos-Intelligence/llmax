@@ -1734,10 +1734,12 @@ class MultiAIClient:
         duration_seconds: Literal[4, 6, 8] = 6,
         resolution: Literal["720p", "1080p", "4k"] = "720p",
         with_audio: bool = False,
+        reference_images: list[tuple[bytes, str]] | None = None,
     ) -> bytes:
         """Generate a video from a text prompt using Veo via Google GenAI SDK.
 
         Returns mp4 bytes. Generation takes ~60-120s (async polling).
+        reference_images: image bytes to use as starting frame. Only the first is used (API limit).
         """
         start = time.time()
         _client, model_used = self.aclient(model if isinstance(model, list) else [model])
@@ -1753,7 +1755,16 @@ class MultiAIClient:
         }
         if with_audio:
             video_config_kwargs["generate_audio"] = True
+        if reference_images:
+            video_config_kwargs["reference_images"] = [
+                genai_types.VideoGenerationReferenceImage(
+                    image=genai_types.Image(image_bytes=img_bytes, mime_type=mime),
+                    reference_type=genai_types.VideoGenerationReferenceType.ASSET,
+                )
+                for img_bytes, mime in reference_images[:3]
+            ]
         video_config = genai_types.GenerateVideosConfig(**video_config_kwargs)
+
         operation_obj = await genai_client.aio.models.generate_videos(
             model=model_used,
             prompt=prompt,
