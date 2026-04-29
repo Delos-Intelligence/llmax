@@ -1758,8 +1758,6 @@ class MultiAIClient:
             "resolution": resolution,
             "number_of_videos": 1,
         }
-        if with_audio:
-            video_config_kwargs["generate_audio"] = True
         # Google API asymmetry: start_image must be the top-level `image` param of
         # reference_images (ASSET style) are mutually exclusive with start/end frames.
         if end_image:
@@ -1774,7 +1772,8 @@ class MultiAIClient:
                 )
                 for img_bytes, mime in reference_images[:3]
             ]
-        video_config = genai_types.GenerateVideosConfig(**video_config_kwargs)
+        video_config_kwargs["include_audio"] = with_audio
+        video_config = genai_types.GenerateVideosConfig.model_construct(**video_config_kwargs)
 
         operation_obj = await genai_client.aio.models.generate_videos(
             model=model_used,
@@ -1786,16 +1785,21 @@ class MultiAIClient:
         while not operation_obj.done:
             await asyncio.sleep(5)
             operation_obj = await genai_client.aio.operations.get(operation_obj)
-
         response = operation_obj.response
         if response is None or not response.generated_videos:
             msg = "Video generation returned no response"
             raise RuntimeError(msg)
         video_obj = response.generated_videos[0].video
-        if video_obj is None or video_obj.video_bytes is None:
-            msg = "Video generation returned no video bytes"
+        if video_obj is None:
+            msg = "Video generation returned no video object"
             raise RuntimeError(msg)
-        video_bytes: bytes = video_obj.video_bytes
+        if video_obj.video_bytes is not None:
+            video_bytes: bytes = video_obj.video_bytes
+        else:
+            if video_obj.uri is None:
+                msg = "Video object has neither video_bytes nor uri"
+                raise RuntimeError(msg)
+            video_bytes = await genai_client.aio.files.download(file=video_obj.uri)
 
         duration = time.time() - start
         usage = ModelUsage(deployment, self._increment_usage)
