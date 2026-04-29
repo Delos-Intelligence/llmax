@@ -457,7 +457,7 @@ wheels = [
 
 [[package]]
 name = "delos-llmax"
-version = "1.32.0"
+version = "1.33.0"
 source = { editable = "." }
 dependencies = [
     { name = "anthropic" },
