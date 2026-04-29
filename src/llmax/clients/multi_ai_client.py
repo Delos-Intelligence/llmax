@@ -1764,7 +1764,7 @@ class MultiAIClient:
         # reference_images (ASSET style) are mutually exclusive with start/end frames.
         if end_image:
             video_config_kwargs["last_frame"] = genai_types.Image(
-                image_bytes=end_image, mime_type=_detect_mime(end_image)
+                image_bytes=end_image, mime_type=_detect_mime(end_image),
             )
         if reference_images and not start_image and not end_image:
             video_config_kwargs["reference_images"] = [
@@ -1787,8 +1787,15 @@ class MultiAIClient:
             await asyncio.sleep(5)
             operation_obj = await genai_client.aio.operations.get(operation_obj)
 
-        video_file = operation_obj.response.generated_videos[0].video
-        video_bytes: bytes = await genai_client.aio.files.download(file=video_file)
+        response = operation_obj.response
+        if response is None or not response.generated_videos:
+            msg = "Video generation returned no response"
+            raise RuntimeError(msg)
+        video_obj = response.generated_videos[0].video
+        if video_obj is None or video_obj.video_bytes is None:
+            msg = "Video generation returned no video bytes"
+            raise RuntimeError(msg)
+        video_bytes: bytes = video_obj.video_bytes
 
         duration = time.time() - start
         usage = ModelUsage(deployment, self._increment_usage)
@@ -1802,11 +1809,11 @@ class MultiAIClient:
 
 
 def _detect_mime(data: bytes) -> str:
-    if data[:4] == b'\x89PNG':
+    if data[:4] == b"\x89PNG":
         return "image/png"
-    if data[:3] in (b'\xff\xd8\xff',):
+    if data[:3] == b"\xff\xd8\xff":
         return "image/jpeg"
-    if data[:4] == b'RIFF' and data[8:12] == b'WEBP':
+    if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
         return "image/webp"
     return "image/jpeg"
 
