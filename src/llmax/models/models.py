@@ -30,6 +30,7 @@ OpenAIModel = Literal[
     "ada-v2",
     "dall-e-3",
     "gpt-image-1",
+    "gpt-image-2",
     "gpt-3.5",
     "gpt-4-turbo",
     "gpt-4.1",
@@ -47,6 +48,7 @@ OpenAIModel = Literal[
     "gpt-5",
     "gpt-5.1",
     "gpt-5.4",
+    "gpt-5.5",
     "gpt-5-chat",
     "gpt-5-mini",
     "gpt-5-nano",
@@ -101,7 +103,12 @@ SpeechToTextModel = Literal[
 ]
 
 
-ImageGenerationModel = Literal["dall-e-3", "gpt-image-1", "gemini-3-pro-image-preview"]
+ImageGenerationModel = Literal[
+    "dall-e-3",
+    "gpt-image-1",
+    "gpt-image-2",
+    "gemini-3-pro-image-preview",
+]
 
 TextToSpeechModel = Literal["tts-1",]
 

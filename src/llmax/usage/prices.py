@@ -39,6 +39,7 @@ PROMPT_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "gpt-5": 1.25,
     "gpt-5.1": 1.25,
     "gpt-5.4": 2.5,
+    "gpt-5.5": 5.0,
     "gpt-5-chat": 1.25,
     "gpt-5-mini": 0.25,
     "gpt-5-nano": 0.05,
@@ -68,6 +69,7 @@ CACHED_PROMPT_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "gpt-5": 0.125,
     "gpt-5.1": 0.125,
     "gpt-5.4": 0.25,
+    "gpt-5.5": 0.5,
     "gpt-5-chat": 0.125,
     "gpt-5-mini": 0.025,
     "gpt-5-nano": 0.005,
@@ -115,6 +117,7 @@ COMPLETION_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "gpt-5": 10.00,
     "gpt-5.1": 10.00,
     "gpt-5.4": 15.00,
+    "gpt-5.5": 30.00,
     "gpt-5-chat": 10.00,
     "gpt-5-mini": 2.00,
     "gpt-5-nano": 0.40,
@@ -142,6 +145,7 @@ TRANSCRIPTION_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
 GENERATION_PRICE_BASE: dict[Model, float | dict[Provider, float]] = {
     "dall-e-3": 0.04,
     "gpt-image-1": 0.08,
+    "gpt-image-2": 0.08,
     "gemini-3-pro-image-preview": 0.08,
 }
 
