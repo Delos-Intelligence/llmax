@@ -1725,6 +1725,103 @@ class MultiAIClient:
         return path
 
 
+    async def text_to_video(  # noqa: PLR0913
+        self,
+        model: Model | list[Model],
+        prompt: str,
+        operation: str,
+        aspect_ratio: Literal["16:9", "9:16"] = "16:9",
+        duration_seconds: Literal[4, 6, 8] = 6,
+        resolution: Literal["720p", "1080p", "4k"] = "720p",
+        with_audio: bool = False,
+        reference_images: list[tuple[bytes, str]] | None = None,
+        start_image: bytes | None = None,
+        end_image: bytes | None = None,
+    ) -> bytes:
+        """Generate a video from a text prompt using Veo via Google GenAI SDK.
+
+        Returns mp4 bytes. Generation takes ~60-120s (async polling).
+        reference_images: ASSET-style reference images (style/content guidance, max 3).
+        start_image: image used as the first frame (image-to-video mode).
+        end_image: image used as the last frame (image-to-video mode).
+        start_image/end_image and reference_images are mutually exclusive per API constraints.
+        """
+        start = time.time()
+        _client, model_used = self.aclient(model if isinstance(model, list) else [model])
+        deployment = self.deployments[model_used]
+
+        genai_client = genai.Client(api_key=deployment.api_key)
+
+        video_config_kwargs: dict[str, Any] = {
+            "aspect_ratio": aspect_ratio,
+            "duration_seconds": duration_seconds,
+            "resolution": resolution,
+            "number_of_videos": 1,
+        }
+        # Google API asymmetry: start_image must be the top-level `image` param of
+        # reference_images (ASSET style) are mutually exclusive with start/end frames.
+        if end_image:
+            video_config_kwargs["last_frame"] = genai_types.Image(
+                image_bytes=end_image, mime_type=_detect_mime(end_image),
+            )
+        if reference_images and not start_image and not end_image:
+            video_config_kwargs["reference_images"] = [
+                genai_types.VideoGenerationReferenceImage(
+                    image=genai_types.Image(image_bytes=img_bytes, mime_type=mime),
+                    reference_type=genai_types.VideoGenerationReferenceType.ASSET,
+                )
+                for img_bytes, mime in reference_images[:3]
+            ]
+        video_config_kwargs["include_audio"] = with_audio
+        video_config = genai_types.GenerateVideosConfig.model_construct(**video_config_kwargs)
+
+        operation_obj = await genai_client.aio.models.generate_videos(
+            model=model_used,
+            prompt=prompt if not start_image else None,
+            image=genai_types.Image(image_bytes=start_image, mime_type=_detect_mime(start_image)) if start_image else None,
+            config=video_config,
+        )
+
+        while not operation_obj.done:
+            await asyncio.sleep(5)
+            operation_obj = await genai_client.aio.operations.get(operation_obj)
+        response = operation_obj.response
+        if response is None or not response.generated_videos:
+            msg = "Video generation returned no response"
+            raise RuntimeError(msg)
+        video_obj = response.generated_videos[0].video
+        if video_obj is None:
+            msg = "Video generation returned no video object"
+            raise RuntimeError(msg)
+        if video_obj.video_bytes is not None:
+            video_bytes: bytes = video_obj.video_bytes
+        else:
+            if video_obj.uri is None:
+                msg = "Video object has neither video_bytes nor uri"
+                raise RuntimeError(msg)
+            video_bytes = await genai_client.aio.files.download(file=video_obj.uri)
+
+        duration = time.time() - start
+        usage = ModelUsage(deployment, self._increment_usage)
+        usage.add_video(duration_seconds, resolution=resolution, with_audio=with_audio)
+        cost = await usage.apply(operation=operation, duration=duration, ttft=None)
+        logger.debug(f"[LLMAX] text_to_video cost={cost!r} type={type(cost)}, total_usage={self.total_usage!r}")
+        self.total_usage += cost
+        self.usages.append(usage)
+
+        return video_bytes
+
+
+def _detect_mime(data: bytes) -> str:
+    if data[:4] == b"\x89PNG":
+        return "image/png"
+    if data[:3] == b"\xff\xd8\xff":
+        return "image/jpeg"
+    if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+        return "image/webp"
+    return "image/jpeg"
+
+
 def _extract_image_from_gemini_response(response: Any) -> bytes | None:
     """Extract image bytes from Gemini API response."""
     if not response.candidates:

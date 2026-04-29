@@ -9,7 +9,7 @@ from openai.types import CompletionUsage
 
 from llmax.messages.messages import Messages
 from llmax.models import Deployment, Model
-from llmax.models.models import AUDIO, IMAGE
+from llmax.models.models import AUDIO, IMAGE, VIDEO
 from llmax.utils import logger
 
 from . import prices, tokens
@@ -41,6 +41,9 @@ class ModelUsage:
     audio_duration: float = 0.0
     image_information: float = 0.0
     tts_information: float = 0.0
+    video_duration: float = 0.0
+    video_resolution: str = "720p"
+    video_with_audio: bool = False
 
     def __repr__(self) -> str:
         """Generates a string representation of model usage statistics.
@@ -56,6 +59,9 @@ class ModelUsage:
 
         if self.deployment.model in IMAGE:
             return f"\tImage generation : ~{self.image_information} images\n {cost_message}"
+
+        if self.deployment.model in VIDEO:
+            return f"\tVideo duration: {self.video_duration}s\n {cost_message}"
 
         return (
             f"\tPrompt Tokens: {self.tokens_usage.prompt_tokens}\n"
@@ -112,6 +118,12 @@ class ModelUsage:
             count += 1
         self.image_information += count * n
 
+    def add_video(self, duration_seconds: float, resolution: str = "720p", with_audio: bool = False) -> None:
+        """Adds video generation duration to usage statistics."""
+        self.video_duration += float(duration_seconds)
+        self.video_resolution = resolution
+        self.video_with_audio = with_audio
+
     def add_tts(self, text: str) -> None:
         """Records the usage of TTS.
 
@@ -156,6 +168,10 @@ class ModelUsage:
             price = prices.get_tts_price(dep.model, dep.provider)
             cost += price * self.tts_information
 
+        if self.video_duration:
+            price = prices.get_ttv_price(dep.model, self.video_resolution, self.video_with_audio)
+            cost += price * self.video_duration
+
         return cost
 
     async def apply(
@@ -174,6 +190,9 @@ class ModelUsage:
         if self.deployment.model in AUDIO:
             input_tokens = int(self.audio_duration)
             message = f"Audio Duration: {self.audio_duration} seconds {cost_message}"
+        elif self.deployment.model in VIDEO:
+            input_tokens = int(self.video_duration)
+            message = f"Video generation: {self.video_duration}s {cost_message}"
         elif self.deployment.model in IMAGE:
             input_tokens += int(self.image_information)
             message = (

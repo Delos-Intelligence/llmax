@@ -153,6 +153,23 @@ GENERATION_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "tts-1": 0.000015,
 }
 
+VIDEO_GENERATION_PRICES_PER_SECOND: dict[Model, dict[str, tuple[float, float]]] = {
+    "veo-3.1-generate-preview": {
+        "720p": (0.20, 0.40),
+        "1080p": (0.20, 0.40),
+        "4k": (0.40, 0.60),
+    },
+    "veo-3.1-fast-generate-preview": {
+        "720p": (0.08, 0.10),
+        "1080p": (0.10, 0.12),
+        "4k": (0.25, 0.30),
+    },
+    "veo-3.1-lite-generate-preview": {
+        "720p": (0.05, 0.05),
+        "1080p": (0.08, 0.08),
+    },
+}
+
 
 def _fetch_price(
     prices: dict[Model, float | dict[Provider, float]],
@@ -203,3 +220,14 @@ def get_tti_price(model: Model, provider: Provider) -> float:
 def get_tts_price(model: Model, provider: Provider) -> float:
     """Get the generation price for a model and provider."""
     return _fetch_price(GENERATION_PRICES_PER_1M, model, provider)
+
+
+def get_ttv_price(model: Model, resolution: str, with_audio: bool) -> float:
+    """Get the text-to-video price per second for a model, resolution, and audio flag."""
+    if model not in VIDEO_GENERATION_PRICES_PER_SECOND:
+        raise PriceNotFoundError(model)
+    resolutions = VIDEO_GENERATION_PRICES_PER_SECOND[model]
+    if resolution not in resolutions:
+        raise PriceNotFoundError(model)
+    video_price, audio_price = resolutions[resolution]
+    return audio_price if with_audio else video_price
