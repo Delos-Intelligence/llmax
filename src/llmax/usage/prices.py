@@ -56,6 +56,8 @@ PROMPT_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "grok-4-1-fast": 0.2,
     "gemini-3-pro-preview": 2,
     "gemini-3.1-flash-lite-preview": 0.25,
+    "deepseek-v4-pro": {"openrouter": 0.435},
+    "deepseek-v4-flash": {"openrouter": 0.14},
 }
 
 CACHED_PROMPT_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
@@ -134,6 +136,8 @@ COMPLETION_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "grok-4-1-fast": 0.5,
     "gemini-3-pro-preview": 12,
     "gemini-3.1-flash-lite-preview": 1.5,
+    "deepseek-v4-pro": {"openrouter": 0.87},
+    "deepseek-v4-flash": {"openrouter": 0.28},
 }
 
 TRANSCRIPTION_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {

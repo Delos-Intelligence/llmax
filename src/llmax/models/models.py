@@ -72,6 +72,11 @@ AnthropicModel = Literal[
 
 GrokModel = Literal["grok-4-1-fast"]
 
+OpenRouterModel = Literal[
+    "deepseek-v4-pro",
+    "deepseek-v4-flash",
+]
+
 ScalewayModel = Literal[
     "qwen3-235b-a22b-instruct-2507",
     "qwen3.5-397b-a17b",
@@ -97,6 +102,7 @@ LLModel = (
     | GeminiModel
     | GrokModel
     | ScalewayModel
+    | OpenRouterModel
 )
 
 SpeechToTextModel = Literal[
@@ -132,6 +138,7 @@ OPENAI_MODELS: tuple[OpenAIModel, ...] = get_args(OpenAIModel)
 ANTHROPIC_MODELS: tuple[AnthropicModel, ...] = get_args(AnthropicModel)
 GROK_MODELS: tuple[GrokModel, ...] = get_args(GrokModel)
 SCALEWAY_MODELS: tuple[ScalewayModel, ...] = get_args(ScalewayModel)
+OPENROUTER_MODELS: tuple[OpenRouterModel, ...] = get_args(OpenRouterModel)
 
 
 LLMS: tuple[LLModel, ...] = get_args(LLModel)

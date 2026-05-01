@@ -11,6 +11,7 @@ from .models import (
     MISTRAL_MODELS,
     MODELS,
     OPENAI_MODELS,
+    OPENROUTER_MODELS,
     SCALEWAY_MODELS,
     Model,
 )
@@ -25,6 +26,7 @@ __all__ = [
     "MISTRAL_MODELS",
     "MODELS",
     "OPENAI_MODELS",
+    "OPENROUTER_MODELS",
     "PROVIDERS",
     "SCALEWAY_MODELS",
     "Deployment",
