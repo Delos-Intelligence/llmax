@@ -75,6 +75,10 @@ GrokModel = Literal["grok-4-1-fast"]
 OpenRouterModel = Literal[
     "deepseek-v4-pro",
     "deepseek-v4-flash",
+    "glm-4.7",
+    "glm-4.6",
+    "llama-4-maverick",
+    "qwen3.6-plus",
 ]
 
 ScalewayModel = Literal[

@@ -58,6 +58,10 @@ PROMPT_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "gemini-3.1-flash-lite-preview": 0.25,
     "deepseek-v4-pro": {"openrouter": 0.435},
     "deepseek-v4-flash": {"openrouter": 0.14},
+    "glm-4.6": {"openrouter": 0.39},
+    "glm-4.7": {"openrouter": 0.38},
+    "llama-4-maverick": {"openrouter": 0.15},
+    "qwen3.6-plus": {"openrouter": 0.325},
 }
 
 CACHED_PROMPT_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
@@ -140,6 +144,10 @@ COMPLETION_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "gemini-3.1-flash-lite-preview": 1.5,
     "deepseek-v4-pro": {"openrouter": 0.87},
     "deepseek-v4-flash": {"openrouter": 0.28},
+    "glm-4.6": {"openrouter": 1.90},
+    "glm-4.7": {"openrouter": 1.74},
+    "llama-4-maverick": {"openrouter": 0.60},
+    "qwen3.6-plus": {"openrouter": 1.95},
 }
 
 TRANSCRIPTION_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
