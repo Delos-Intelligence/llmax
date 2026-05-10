@@ -48,6 +48,7 @@ PROMPT_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "qwen3.5-397b-a17b": {"scaleway": 0.66},
     "gpt-oss-120b": {"scaleway": 0.1725},  # €0.15 → $0.1725
     "gemma-3-27b-it": {"scaleway": 0.2875},  # €0.25 → $0.2875
+    "gemma-4-26b-a4b-it": {"scaleway": 0.2875},  # €0.25 → $0.2875
     "voxtral-small-24b-2507": {"scaleway": 0.1725},  # €0.15 → $0.1725
     "mistral-small-3.2-24b-instruct-2506": {"scaleway": 0.1725},  # €0.15 → $0.1725
     "llama-3.3-70b-instruct": {"scaleway": 1.035},  # €0.90 → $1.035
@@ -60,8 +61,11 @@ PROMPT_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "deepseek-v4-flash": {"openrouter": 0.14},
     "glm-4.6": {"openrouter": 0.39},
     "glm-4.7": {"openrouter": 0.38},
+    "glm-5.1": {"openrouter": 1.05},
     "llama-4-maverick": {"openrouter": 0.15},
     "qwen3.6-plus": {"openrouter": 0.325},
+    "kimi-k2.5": {"openrouter": 0.44},
+    "kimi-k2.6": {"openrouter": 0.75},
 }
 
 CACHED_PROMPT_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
@@ -134,6 +138,7 @@ COMPLETION_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "qwen3-235b-a22b-instruct-2507": {"scaleway": 2.5875},  # €2.25 → $2.5875
     "gpt-oss-120b": {"scaleway": 0.69},  # €0.60 → $0.69
     "gemma-3-27b-it": {"scaleway": 0.575},  # €0.50 → $0.575
+    "gemma-4-26b-a4b-it": {"scaleway": 0.575},  # €0.50 → $0.575
     "voxtral-small-24b-2507": {"scaleway": 0.4025},  # €0.35 → $0.4025
     "mistral-small-3.2-24b-instruct-2506": {"scaleway": 0.4025},  # €0.35 → $0.4025
     "llama-3.3-70b-instruct": {"scaleway": 1.035},  # €0.90 → $1.035
@@ -146,8 +151,11 @@ COMPLETION_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "deepseek-v4-flash": {"openrouter": 0.28},
     "glm-4.6": {"openrouter": 1.90},
     "glm-4.7": {"openrouter": 1.74},
+    "glm-5.1": {"openrouter": 3.50},
     "llama-4-maverick": {"openrouter": 0.60},
     "qwen3.6-plus": {"openrouter": 1.95},
+    "kimi-k2.5": {"openrouter": 2.00},
+    "kimi-k2.6": {"openrouter": 3.50},
 }
 
 TRANSCRIPTION_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
