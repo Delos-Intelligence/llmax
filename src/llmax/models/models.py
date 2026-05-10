@@ -77,8 +77,11 @@ OpenRouterModel = Literal[
     "deepseek-v4-flash",
     "glm-4.7",
     "glm-4.6",
+    "glm-5.1",
     "llama-4-maverick",
     "qwen3.6-plus",
+    "kimi-k2.5",
+    "kimi-k2.6",
 ]
 
 ScalewayModel = Literal[
@@ -86,6 +89,7 @@ ScalewayModel = Literal[
     "qwen3.5-397b-a17b",
     "gpt-oss-120b",
     "gemma-3-27b-it",
+    "gemma-4-26b-a4b-it",
     "whisper-large-v3",
     "voxtral-small-24b-2507",
     "mistral-small-3.2-24b-instruct-2506",
