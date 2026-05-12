@@ -138,14 +138,16 @@ GENERATION_PRICE_BASE: dict[Model, float | dict[Provider, float]] = {
 
 IMAGE_GENERATION_PRICES_BY_QUALITY: dict[Model, dict[str, float]] = {
     "gpt-image-2": {
-        "low": 0.002,
-        "medium": 0.0177,
-        "high": 0.0703,
+        "low": 0.006,
+        "medium": 0.053,
+        "high": 0.211,
+        "auto": 0.053,
     },
     "gemini-3-pro-image-preview": {
         "low": 0.134,
         "medium": 0.134,
         "high": 0.240,
+        "auto": 0.134,
     },
 }
 

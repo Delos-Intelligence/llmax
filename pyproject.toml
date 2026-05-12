@@ -145,4 +145,3 @@ disable_error_code = [
   "no-untyped-call",
   "attr-defined",
 ]
-
