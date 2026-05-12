@@ -40,6 +40,7 @@ class ModelUsage:
     )
     audio_duration: float = 0.0
     image_information: float = 0.0
+    image_quality: str = "medium"
     tts_information: float = 0.0
     video_duration: float = 0.0
     video_resolution: str = "720p"
@@ -111,12 +112,16 @@ class ModelUsage:
             size: The size of the generated images.
             n: The number of generated images.
         """
-        count = 1
-        if quality == "high":
-            count += 1
-        if size != "1024x1024":
-            count += 1
-        self.image_information += count * n
+        self.image_quality = quality
+        if prices.get_tti_price_by_quality(self.deployment.model, quality) is not None:
+            self.image_information += n
+        else:
+            count = 1
+            if quality == "high":
+                count += 1
+            if size != "1024x1024":
+                count += 1
+            self.image_information += count * n
 
     def add_video(self, duration_seconds: float, resolution: str = "720p", with_audio: bool = False) -> None:
         """Adds video generation duration to usage statistics."""
@@ -161,8 +166,12 @@ class ModelUsage:
             cost += price * completion_tokens / 1e6
 
         if self.image_information:
-            price = prices.get_tti_price(dep.model, dep.provider)
-            cost += price * self.image_information
+            quality_price = prices.get_tti_price_by_quality(dep.model, self.image_quality)
+            if quality_price is not None:
+                cost += quality_price * self.image_information
+            else:
+                price = prices.get_tti_price(dep.model, dep.provider)
+                cost += price * self.image_information
 
         if self.tts_information:
             price = prices.get_tts_price(dep.model, dep.provider)
