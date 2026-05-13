@@ -264,7 +264,7 @@ class MultiAIClient:
             if "max_completion_tokens" in kwargs:
                 kwargs["max_tokens"] = kwargs.pop("max_completion_tokens")
 
-        if deployment.provider not in {"openai", "azure"}:
+        if deployment.provider not in {"openai", "azure"} or deployment.model in MISTRAL_MODELS:
             kwargs.pop("prompt_cache_key", None)
 
         if (
@@ -301,6 +301,8 @@ class MultiAIClient:
         share a backend.
         """
         if deployment.provider not in {"openai", "azure"}:
+            return kwargs
+        if deployment.model in MISTRAL_MODELS:
             return kwargs
         if deployment.api_version < "2024-10-01":
             return kwargs
