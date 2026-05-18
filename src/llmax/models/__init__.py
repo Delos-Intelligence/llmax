@@ -4,9 +4,7 @@ from .deployment import Deployment
 from .fake import fake_llm
 from .models import (
     ANTHROPIC_MODELS,
-    COHERE_MODELS,
     GEMINI_MODELS,
-    GROK_MODELS,
     META_MODELS,
     MISTRAL_MODELS,
     MODELS,
@@ -19,9 +17,7 @@ from .providers import PROVIDERS, Provider
 
 __all__ = [
     "ANTHROPIC_MODELS",
-    "COHERE_MODELS",
     "GEMINI_MODELS",
-    "GROK_MODELS",
     "META_MODELS",
     "MISTRAL_MODELS",
     "MODELS",

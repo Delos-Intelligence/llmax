@@ -231,9 +231,6 @@ class MultiAIClient:
         deployment: Deployment,
     ) -> dict[str, Any]:
         """Clean kwargs to avoid errors."""
-        if "temperature" in kwargs and deployment.model in {"o3-mini", "o3-mini-high"}:
-            logger.warning("Temperature is not supported for this model.")
-            kwargs.pop("temperature")
         if "text_format" in kwargs and deployment.model not in {
             "gpt'4o",
             "gpt-4o-mini",
@@ -248,9 +245,6 @@ class MultiAIClient:
         if "text_format" in kwargs and deployment.api_version < "2025-03-01-preview":
             logger.warning("Text format is not supported for this API version.")
             kwargs.pop("text_format")
-        if "reasoning_effort" in kwargs and deployment.model == "o3-mini-high":
-            logger.warning("Reasoning effort is not supported for this model.")
-            kwargs.pop("reasoning_effort")
 
         if "stream_options" in kwargs and deployment.model in MISTRAL_MODELS:
             kwargs["stream_options"] = NOT_GIVEN
@@ -758,23 +752,13 @@ class MultiAIClient:
                 system=system,
             )
         try:
-            if model == "o3-mini-high":
-                response, model_used = self._create_chat(
-                    messages,
-                    ["o3-mini"],
-                    **kwargs,
-                    stream=True,
-                    reasoning_effort="high",
-                    stream_options={"include_usage": True},
-                )
-            else:
-                response, model_used = self._create_chat(
-                    messages,
-                    model if isinstance(model, list) else [model],
-                    **kwargs,
-                    stream=True,
-                    stream_options={"include_usage": True},
-                )
+            response, model_used = self._create_chat(
+                messages,
+                model if isinstance(model, list) else [model],
+                **kwargs,
+                stream=True,
+                stream_options={"include_usage": True},
+            )
         except BadRequestError as e:
             logger.error(
                 f"[bold purple][LLMAX][/bold purple] BadRequestError in stream for model {model}: {e}",

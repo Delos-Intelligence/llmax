@@ -10,23 +10,13 @@ PROMPT_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "gpt-4.1-nano": 0.1,
     "gpt-4o": {"openai": 2.5, "azure": 2.75},
     "gpt-4o-mini": {"openai": 0.15, "azure": 0.165},
-    "o3-mini": {"openai": 1.10, "azure": 1.21},
-    "o3-mini-high": {"openai": 1.10, "azure": 1.21},
     "ada-v2": 0.1,
-    "gpt-3.5": 0.5,
-    "gpt-4-turbo": 10.0,
-    "claude-3-haiku": 0.25,
     "claude-4.5-haiku": 1.0,
-    "claude-3.5-sonnet": 3.0,
-    "claude-3.7-sonnet": 3.0,
-    "claude-4-sonnet": 3.0,
     "claude-4.5-sonnet": 3.0,
     "claude-4.6-sonnet": 3.0,
     "claude-4.5-opus": 5.0,
     "claude-4.6-opus": 5.0,
     "claude-4.7-opus": 5.0,
-    "command-r": 0.5,
-    "command-r-plus": 3.0,
     "llama-3-70b-instruct": 3.78,  # To be checked
     "llama-4-scout-17b-16e-instruct": 0.275,  # To be checked
     "llama-4-maverick-17b-128e-instruct-fp8": 0.275,  # To be checked
@@ -54,12 +44,9 @@ PROMPT_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "llama-3.3-70b-instruct": {"scaleway": 1.035},  # €0.90 → $1.035
     "deepseek-r1-distill-llama-70b": {"scaleway": 1.035},  # €0.90 → $1.035
     "devstral-2-123b-instruct-2512": {"scaleway": 0.46},  # €0.40 → $0.46
-    "grok-4-1-fast": 0.2,
     "gemini-3-pro-preview": 2,
-    "gemini-3.1-flash-lite-preview": 0.25,
     "deepseek-v4-pro": {"openrouter": 0.435},
     "deepseek-v4-flash": {"openrouter": 0.14},
-    "glm-4.6": {"openrouter": 0.39},
     "glm-4.7": {"openrouter": 0.38},
     "glm-5.1": {"openrouter": 1.05},
     "llama-4-maverick": {"openrouter": 0.15},
@@ -74,8 +61,6 @@ CACHED_PROMPT_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "gpt-4.1-nano": 0.03,
     "gpt-4o": {"openai": 1.25, "azure": 1.375},
     "gpt-4o-mini": {"openai": 0.075, "azure": 0.083},
-    "o3-mini": {"openai": 0.55, "azure": 0.605},
-    "o3-mini-high": {"openai": 0.55, "azure": 0.605},
     "gpt-5": 0.125,
     "gpt-5.1": 0.125,
     "gpt-5.4": 0.25,
@@ -84,11 +69,7 @@ CACHED_PROMPT_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "gpt-5-mini": 0.025,
     "gpt-5-nano": 0.005,
     "gpt-oss-120b": 0.85,
-    "claude-3-haiku": 0.03,
     "claude-4.5-haiku": 0.1,
-    "claude-3.5-sonnet": 0.30,
-    "claude-3.7-sonnet": 0.30,
-    "claude-4-sonnet": 0.30,
     "claude-4.5-sonnet": 0.30,
     "claude-4.6-sonnet": 0.30,
     "claude-4.5-opus": 0.50,
@@ -104,22 +85,12 @@ COMPLETION_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "gpt-4.1-nano": 0.4,
     "gpt-4o": {"openai": 10.0, "azure": 11.0},
     "gpt-4o-mini": {"openai": 0.60, "azure": 0.66},
-    "o3-mini": {"openai": 4.40, "azure": 4.84},
-    "o3-mini-high": {"openai": 4.40, "azure": 4.84},
-    "gpt-3.5": 1.5,
-    "gpt-4-turbo": 30.0,
-    "claude-3-haiku": 1.25,
     "claude-4.5-haiku": 5.0,
-    "claude-3.5-sonnet": 15.0,
-    "claude-3.7-sonnet": 15.0,
-    "claude-4-sonnet": 15.0,
     "claude-4.5-sonnet": 15.0,
     "claude-4.6-sonnet": 15.0,
     "claude-4.5-opus": 25.0,
     "claude-4.6-opus": 25.0,
     "claude-4.7-opus": 25.0,
-    "command-r": 1.5,
-    "command-r-plus": 15.0,
     "llama-3-70b-instruct": 11.34,
     "llama-4-scout-17b-16e-instruct": 1.1,  # To be checked
     "llama-4-maverick-17b-128e-instruct-fp8": 1.1,  # To be checked
@@ -144,12 +115,9 @@ COMPLETION_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "llama-3.3-70b-instruct": {"scaleway": 1.035},  # €0.90 → $1.035
     "deepseek-r1-distill-llama-70b": {"scaleway": 1.035},  # €0.90 → $1.035
     "devstral-2-123b-instruct-2512": {"scaleway": 2.30},  # €2.00 → $2.30
-    "grok-4-1-fast": 0.5,
     "gemini-3-pro-preview": 12,
-    "gemini-3.1-flash-lite-preview": 1.5,
     "deepseek-v4-pro": {"openrouter": 0.87},
     "deepseek-v4-flash": {"openrouter": 0.28},
-    "glm-4.6": {"openrouter": 1.90},
     "glm-4.7": {"openrouter": 1.74},
     "glm-5.1": {"openrouter": 3.50},
     "llama-4-maverick": {"openrouter": 0.60},
@@ -165,7 +133,6 @@ TRANSCRIPTION_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
 }
 
 GENERATION_PRICE_BASE: dict[Model, float | dict[Provider, float]] = {
-    "dall-e-3": 0.04,
     "gpt-image-1": 0.08,
 }
 
