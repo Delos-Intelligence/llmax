@@ -11,7 +11,6 @@ Provider = Literal[
     "aws-bedrock",
     "gcp-vertexai",
     "scaleway",
-    "grok",
     "gemini",
     "openrouter",
 ]
