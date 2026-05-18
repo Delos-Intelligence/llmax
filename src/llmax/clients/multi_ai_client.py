@@ -6,6 +6,7 @@ synchronous and asynchronous operations.
 
 import asyncio
 import base64
+import hashlib
 import json
 import threading
 import time
@@ -257,6 +258,68 @@ class MultiAIClient:
             if "max_completion_tokens" in kwargs:
                 kwargs["max_tokens"] = kwargs.pop("max_completion_tokens")
 
+        if deployment.provider not in {"openai", "azure"} or deployment.model in MISTRAL_MODELS:
+            kwargs.pop("prompt_cache_key", None)
+
+        if (
+            deployment.provider in {"openai", "azure"}
+            and isinstance(kwargs.get("tools"), list)
+            and len(kwargs["tools"]) > 1
+        ):
+            kwargs["tools"] = sorted(
+                kwargs["tools"],
+                key=lambda t: (
+                    t.get("function", {}).get("name", "")
+                    if isinstance(t, dict)
+                    else ""
+                ),
+            )
+
+        return kwargs
+
+    @staticmethod
+    def _inject_prompt_cache_key(
+        messages: Messages,
+        deployment: Deployment,
+        kwargs: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Ensure a stable ``prompt_cache_key`` is set for OpenAI/Azure calls.
+
+        OpenAI's prefix cache routes by ``prompt_cache_key``: without it, requests
+        round-robin across backends and the cache rarely hits. With a stable key,
+        identical prefixes consistently land on the same backend and the cache hits.
+
+        The caller may pass its own ``prompt_cache_key`` (e.g. a session id) — it
+        is respected. Otherwise we derive one from the static prefix (model name,
+        system prompt content, tool schemas) so that runs sharing the same shape
+        share a backend.
+        """
+        if deployment.provider not in {"openai", "azure"}:
+            return kwargs
+        if deployment.model in MISTRAL_MODELS:
+            return kwargs
+        if deployment.api_version < "2024-10-01":
+            return kwargs
+        if kwargs.get("prompt_cache_key"):
+            return kwargs
+
+        system_chunks: list[str] = []
+        for msg in messages:
+            if msg.get("role") != "system":
+                continue
+            content = msg.get("content", "")
+            if isinstance(content, str):
+                system_chunks.append(content)
+            else:
+                system_chunks.append(json.dumps(content, sort_keys=True))
+
+        tools_canonical = json.dumps(kwargs.get("tools") or [], sort_keys=True)
+        fingerprint = "|".join(
+            [deployment.model, "\n".join(system_chunks), tools_canonical],
+        )
+        kwargs["prompt_cache_key"] = hashlib.sha256(
+            fingerprint.encode("utf-8"),
+        ).hexdigest()[:32]
         return kwargs
 
     def _create_chat(
@@ -279,6 +342,7 @@ class MultiAIClient:
         deployment = self.deployments[model]
 
         kwargs = MultiAIClient.clean_kwargs(kwargs, deployment)
+        kwargs = MultiAIClient._inject_prompt_cache_key(messages, deployment, kwargs)
 
         if "text_format" in kwargs:
             return client.responses.parse(
@@ -321,6 +385,7 @@ class MultiAIClient:
         deployment = self.deployments[model]
 
         kwargs = MultiAIClient.clean_kwargs(kwargs, deployment)
+        kwargs = MultiAIClient._inject_prompt_cache_key(messages, deployment, kwargs)
 
         if "text_format" in kwargs:
             return await aclient.responses.parse(
