@@ -7,6 +7,13 @@ from llmax.models import Deployment, Model
 from llmax.usage import ModelUsage
 
 deployments: dict[Model, Deployment] = {
+    "gpt-4-turbo": Deployment(
+        model="gpt-4-turbo",
+        provider="azure",
+        deployment_name="gpt-4-1106-preview",
+        api_key="LLMAX_AZURE_OPENAI_FRANCE_KEY",
+        endpoint="LLMAX_AZURE_OPENAI_FRANCE_ENDPOINT",
+    ),
     "gpt-4o": Deployment(
         model="gpt-4o",
         provider="azure",
@@ -20,6 +27,13 @@ deployments: dict[Model, Deployment] = {
         deployment_name="mistral-large",
         api_key="LLMAX_AZURE_MISTRAL_LARGE_KEY",
         endpoint="LLMAX_AZURE_MISTRAL_LARGE_ENDPOINT",
+    ),
+    "command-r-plus": Deployment(
+        model="command-r-plus",
+        provider="azure",
+        deployment_name="command-r-plus",
+        api_key="LLMAX_AZURE_COMMAND_R_PLUS_KEY",
+        endpoint="LLMAX_AZURE_COMMAND_R_PLUS_ENDPOINT",
     ),
     "llama-3-70b-instruct": Deployment(
         model="llama-3-70b-instruct",
