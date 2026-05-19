@@ -134,8 +134,19 @@ TRANSCRIPTION_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
 
 GENERATION_PRICE_BASE: dict[Model, float | dict[Provider, float]] = {
     "gpt-image-1": 0.08,
-    "gpt-image-2": 0.08,
-    "gemini-3-pro-image-preview": 0.08,
+}
+
+IMAGE_GENERATION_PRICES_BY_QUALITY: dict[Model, dict[str, float]] = {
+    "gpt-image-2": {
+        "low": 0.002,
+        "medium": 0.0177,
+        "high": 0.0703,
+    },
+    "gemini-3-pro-image-preview": {
+        "low": 0.134,
+        "medium": 0.134,
+        "high": 0.240,
+    },
 }
 
 GENERATION_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
@@ -204,6 +215,13 @@ def get_stt_price(model: Model, provider: Provider) -> float:
 def get_tti_price(model: Model, provider: Provider) -> float:
     """Get the generation price for a model and provider."""
     return _fetch_price(GENERATION_PRICE_BASE, model, provider)
+
+
+def get_tti_price_by_quality(model: Model, quality: str) -> float | None:
+    """Get per-image price for models with quality-based pricing. Returns None if not applicable."""
+    if model not in IMAGE_GENERATION_PRICES_BY_QUALITY:
+        return None
+    return IMAGE_GENERATION_PRICES_BY_QUALITY[model].get(quality, IMAGE_GENERATION_PRICES_BY_QUALITY[model]["medium"])
 
 
 def get_tts_price(model: Model, provider: Provider) -> float:
