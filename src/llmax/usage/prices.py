@@ -153,6 +153,9 @@ IMAGE_GENERATION_PRICES_BY_QUALITY: dict[Model, dict[str, float]] = {
 
 GENERATION_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "tts-1": 0.000015,
+    "eleven_turbo_v2_5": {"elevenlabs": 0.00006},
+    "eleven_multilingual_v2": {"elevenlabs": 0.00012},
+    "eleven_v3": {"elevenlabs": 0.00012},
 }
 
 VIDEO_GENERATION_PRICES_PER_SECOND: dict[Model, dict[str, tuple[float, float]]] = {

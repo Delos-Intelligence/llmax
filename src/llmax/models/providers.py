@@ -13,6 +13,7 @@ Provider = Literal[
     "scaleway",
     "gemini",
     "openrouter",
+    "elevenlabs",
 ]
 
 

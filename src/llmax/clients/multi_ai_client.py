@@ -42,6 +42,7 @@ from llmax.models.deployment import Deployment
 from llmax.models.fake import fake_llm
 from llmax.models.models import (
     ANTHROPIC_MODELS,
+    ELEVENLABS_MODELS,
     GEMINI_MODELS,
     MISTRAL_MODELS,
     Model,
@@ -1773,6 +1774,246 @@ class MultiAIClient:
 
         return path
 
+
+    async def async_text_to_speech(
+        self,
+        text: str,
+        model: Model | list[Model],
+        voice_id: str,
+        output_format: str,
+        operation: str,
+        speed: float = 1.0,
+    ) -> bytes:
+        """Generate audio bytes from text using ElevenLabs TTS.
+
+        Parameters:
+        - text: The text to synthesize.
+        - model: ElevenLabs model (e.g. 'eleven_turbo_v2_5').
+        - voice_id: ElevenLabs voice ID.
+        - output_format: Audio format (e.g. 'mp3_44100_128').
+        - operation: Operation identifier for cost tracking.
+        - speed: Playback speed multiplier (0.75 = slow, 1.0 = normal, 1.25 = fast).
+
+        Returns:
+        - MP3 bytes of the synthesized audio.
+        """
+        start = time.time()
+        models = model if isinstance(model, list) else [model]
+        model_used = next((m for m in models if m in self.deployments), None)
+        if model_used is None:
+            msg = f"No deployment available for ElevenLabs models: {models}"
+            raise ValueError(msg)
+        deployment = self.deployments[model_used]
+
+        if model_used not in ELEVENLABS_MODELS:
+            msg = f"Model {model_used} is not an ElevenLabs model"
+            raise ValueError(msg)
+
+        from elevenlabs.client import AsyncElevenLabs  # noqa: PLC0415
+        from elevenlabs.types import VoiceSettings  # noqa: PLC0415
+
+        el_client = AsyncElevenLabs(api_key=deployment.api_key)
+        chunks: list[bytes] = []
+        async for chunk in el_client.text_to_speech.convert(
+            voice_id=voice_id,
+            text=text,
+            model_id=deployment.deployment_name or model_used,
+            output_format=output_format,
+            voice_settings=VoiceSettings(speed=speed),
+        ):
+            if chunk:
+                chunks.append(chunk)
+
+        audio_bytes = b"".join(chunks)
+        duration = time.time() - start
+
+        usage = ModelUsage(deployment, self._increment_usage)
+        usage.add_tts(text)
+        cost = await usage.apply(operation=operation, duration=duration, ttft=None)
+        logger.debug(f"[LLMAX] async_text_to_speech cost={cost!r}, chars={len(text)}")
+        self.total_usage += cost
+        self.usages.append(usage)
+
+        return audio_bytes
+
+    async def async_text_to_sound_effects(
+        self,
+        text: str,
+        model: Model | list[Model],
+        operation: str,
+        duration_seconds: float | None = None,
+        prompt_influence: float | None = None,
+    ) -> bytes:
+        """Generate a sound effect from a text description using ElevenLabs.
+
+        Parameters:
+        - text: Description of the sound to generate (e.g. "thunder crash", "forest ambience").
+        - model: Any deployed eleven_* model — used only to resolve the API key.
+        - operation: Operation identifier for cost tracking.
+        - duration_seconds: Optional target duration in seconds (0.5–22). None = auto-detect.
+        - prompt_influence: 0.0–1.0, how strictly to follow the description. None = ElevenLabs default (~0.3).
+
+        Returns:
+        - MP3 bytes of the generated sound effect.
+        """
+        start = time.time()
+        models = model if isinstance(model, list) else [model]
+        model_used = next((m for m in models if m in self.deployments), None)
+        if model_used is None:
+            msg = f"No deployment available for ElevenLabs models: {models}"
+            raise ValueError(msg)
+        deployment = self.deployments[model_used]
+
+        if model_used not in ELEVENLABS_MODELS:
+            msg = f"Model {model_used} is not an ElevenLabs model"
+            raise ValueError(msg)
+
+        from elevenlabs.client import AsyncElevenLabs  # noqa: PLC0415
+
+        el_client = AsyncElevenLabs(api_key=deployment.api_key)
+        chunks: list[bytes] = []
+        async for chunk in el_client.text_to_sound_effects.convert(
+            text=text,
+            duration_seconds=duration_seconds,
+            prompt_influence=prompt_influence,
+        ):
+            if chunk:
+                chunks.append(chunk)
+
+        audio_bytes = b"".join(chunks)
+        duration = time.time() - start
+
+        usage = ModelUsage(deployment, self._increment_usage)
+        usage.add_tts(text)
+        cost = await usage.apply(operation=operation, duration=duration, ttft=None)
+        logger.debug(f"[LLMAX] async_text_to_sound_effects cost={cost!r}, chars={len(text)}")
+        self.total_usage += cost
+        self.usages.append(usage)
+
+        return audio_bytes
+
+    async def async_text_to_music(
+        self,
+        prompt: str,
+        model: Model | list[Model],
+        operation: str,
+        music_length_ms: int = 30000,
+        force_instrumental: bool = False,
+    ) -> bytes:
+        """Generate music from a text prompt using ElevenLabs.
+
+        Parameters:
+        - prompt: Text description of the music to generate.
+        - model: Any deployed eleven_* model — used only to resolve the API key.
+        - operation: Operation identifier for cost tracking.
+        - music_length_ms: Total duration in milliseconds (default: 30000 = 30s).
+        - force_instrumental: If True, suppress vocals even if the prompt implies them.
+
+        Returns:
+        - MP3 bytes of the generated music.
+        """
+        start = time.time()
+        models = model if isinstance(model, list) else [model]
+        model_used = next((m for m in models if m in self.deployments), None)
+        if model_used is None:
+            msg = f"No deployment available for ElevenLabs models: {models}"
+            raise ValueError(msg)
+        deployment = self.deployments[model_used]
+
+        if model_used not in ELEVENLABS_MODELS:
+            msg = f"Model {model_used} is not an ElevenLabs model"
+            raise ValueError(msg)
+
+        from elevenlabs.client import AsyncElevenLabs  # noqa: PLC0415
+
+        el_client = AsyncElevenLabs(api_key=deployment.api_key)
+        chunks: list[bytes] = []
+        compose_kwargs: dict[str, object] = {
+            "prompt": prompt,
+            "music_length_ms": music_length_ms,
+        }
+        if force_instrumental:
+            compose_kwargs["force_instrumental"] = True
+
+        async for chunk in el_client.music.compose(**compose_kwargs):
+            if chunk:
+                chunks.append(chunk)
+
+        audio_bytes = b"".join(chunks)
+        duration = time.time() - start
+
+        usage = ModelUsage(deployment, self._increment_usage)
+        usage.add_tts(prompt)
+        cost = await usage.apply(operation=operation, duration=duration, ttft=None)
+        logger.debug(f"[LLMAX] async_text_to_music cost={cost!r}, prompt_chars={len(prompt)}")
+        self.total_usage += cost
+        self.usages.append(usage)
+
+        return audio_bytes
+
+    async def async_text_to_dialogue(
+        self,
+        inputs: list[dict[str, str]],
+        model: Model | list[Model],
+        operation: str,
+        language_code: str | None = None,
+    ) -> bytes:
+        """Generate a multi-speaker dialogue audio from a list of {voice_id, text} inputs.
+
+        Parameters:
+        - inputs: List of dicts with 'voice_id' and 'text' keys, one per speaker turn.
+        - model: Any deployed eleven_* model — used only to resolve the API key.
+        - operation: Operation identifier for cost tracking.
+        - language_code: Optional BCP-47 language code (e.g. 'en', 'fr').
+
+        Returns:
+        - MP3 bytes of the generated dialogue.
+        """
+        start = time.time()
+        models = model if isinstance(model, list) else [model]
+        model_used = next((m for m in models if m in self.deployments), None)
+        if model_used is None:
+            msg = f"No deployment available for ElevenLabs models: {models}"
+            raise ValueError(msg)
+        deployment = self.deployments[model_used]
+
+        if model_used not in ELEVENLABS_MODELS:
+            msg = f"Model {model_used} is not an ElevenLabs model"
+            raise ValueError(msg)
+
+        from elevenlabs.client import AsyncElevenLabs  # noqa: PLC0415
+        from elevenlabs.types import DialogueInput  # noqa: PLC0415
+
+        el_client = AsyncElevenLabs(api_key=deployment.api_key)
+        dialogue_inputs = [
+            DialogueInput(voice_id=item["voice_id"], text=item["text"])
+            for item in inputs
+        ]
+
+        stream_kwargs: dict[str, object] = {
+            "inputs": dialogue_inputs,
+            "output_format": "mp3_44100_128",
+        }
+        if language_code:
+            stream_kwargs["language_code"] = language_code
+
+        chunks: list[bytes] = []
+        async for chunk in el_client.text_to_dialogue.stream(**stream_kwargs):
+            if chunk:
+                chunks.append(chunk)
+
+        audio_bytes = b"".join(chunks)
+        duration = time.time() - start
+
+        total_chars = sum(len(item["text"]) for item in inputs)
+        usage = ModelUsage(deployment, self._increment_usage)
+        usage.add_tts("x" * total_chars)
+        cost = await usage.apply(operation=operation, duration=duration, ttft=None)
+        logger.debug(f"[LLMAX] async_text_to_dialogue cost={cost!r}, turns={len(inputs)}, chars={total_chars}")
+        self.total_usage += cost
+        self.usages.append(usage)
+
+        return audio_bytes
 
     async def text_to_video(  # noqa: PLR0913
         self,

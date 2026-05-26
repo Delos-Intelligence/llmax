@@ -113,9 +113,14 @@ VideoGenerationModel = Literal[
     "veo-3.1-lite-generate-preview",
 ]
 
-TextToSpeechModel = Literal["tts-1",]
+TextToSpeechModel = Literal[
+    "tts-1",
+    "eleven_turbo_v2_5",
+    "eleven_multilingual_v2",
+    "eleven_v3",
+]
 
-Model = LLModel | SpeechToTextModel | ImageGenerationModel | VideoGenerationModel
+Model = LLModel | SpeechToTextModel | ImageGenerationModel | VideoGenerationModel | TextToSpeechModel
 
 META_MODELS: tuple[MetaModel, ...] = get_args(MetaModel)
 GEMINI_MODELS: tuple[GeminiModel, ...] = get_args(GeminiModel)
@@ -131,6 +136,7 @@ AUDIO: tuple[SpeechToTextModel, ...] = get_args(SpeechToTextModel)
 IMAGE: tuple[ImageGenerationModel, ...] = get_args(ImageGenerationModel)
 VIDEO: tuple[VideoGenerationModel, ...] = get_args(VideoGenerationModel)
 TEXTTOAUDIO: tuple[TextToSpeechModel, ...] = get_args(TextToSpeechModel)
+ELEVENLABS_MODELS: tuple[str, ...] = ("eleven_turbo_v2_5", "eleven_multilingual_v2", "eleven_v3")
 
 MODELS: tuple[Model, ...] = get_args(Model)
 
