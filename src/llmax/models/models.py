@@ -129,14 +129,13 @@ OPENAI_MODELS: tuple[OpenAIModel, ...] = get_args(OpenAIModel)
 ANTHROPIC_MODELS: tuple[AnthropicModel, ...] = get_args(AnthropicModel)
 SCALEWAY_MODELS: tuple[ScalewayModel, ...] = get_args(ScalewayModel)
 OPENROUTER_MODELS: tuple[OpenRouterModel, ...] = get_args(OpenRouterModel)
-
+ELEVEN_LABS_MODELS: tuple[TextToSpeechModel, ...] = get_args(TextToSpeechModel)
 
 LLMS: tuple[LLModel, ...] = get_args(LLModel)
 AUDIO: tuple[SpeechToTextModel, ...] = get_args(SpeechToTextModel)
 IMAGE: tuple[ImageGenerationModel, ...] = get_args(ImageGenerationModel)
 VIDEO: tuple[VideoGenerationModel, ...] = get_args(VideoGenerationModel)
 TEXTTOAUDIO: tuple[TextToSpeechModel, ...] = get_args(TextToSpeechModel)
-ELEVENLABS_MODELS: tuple[str, ...] = ("eleven_turbo_v2_5", "eleven_multilingual_v2", "eleven_v3")
 
 MODELS: tuple[Model, ...] = get_args(Model)
 

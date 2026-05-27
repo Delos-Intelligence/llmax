@@ -9,7 +9,7 @@ from openai.types import CompletionUsage
 
 from llmax.messages.messages import Messages
 from llmax.models import Deployment, Model
-from llmax.models.models import AUDIO, IMAGE, VIDEO
+from llmax.models.models import AUDIO, IMAGE, TEXTTOAUDIO, VIDEO
 from llmax.utils import logger
 
 from . import prices, tokens
@@ -63,6 +63,9 @@ class ModelUsage:
 
         if self.deployment.model in VIDEO:
             return f"\tVideo duration: {self.video_duration}s\n {cost_message}"
+
+        if self.deployment.model in TEXTTOAUDIO:
+            return f"\tText-to-audio: {self.tts_information} chars\n {cost_message}"
 
         return (
             f"\tPrompt Tokens: {self.tokens_usage.prompt_tokens}\n"
@@ -207,7 +210,9 @@ class ModelUsage:
             message = (
                 f"Image generation : ~{self.image_information} images {cost_message}"
             )
-
+        elif self.deployment.model in TEXTTOAUDIO:
+            input_tokens = int(self.tts_information)
+            message = f"Text-to-audio: {self.tts_information} chars {cost_message}"
         else:
             if token_details := self.tokens_usage.prompt_tokens_details:
                 cached_tokens = token_details.cached_tokens or 0

@@ -42,7 +42,6 @@ from llmax.models.deployment import Deployment
 from llmax.models.fake import fake_llm
 from llmax.models.models import (
     ANTHROPIC_MODELS,
-    ELEVENLABS_MODELS,
     GEMINI_MODELS,
     MISTRAL_MODELS,
     Model,
@@ -1798,23 +1797,13 @@ class MultiAIClient:
         - MP3 bytes of the synthesized audio.
         """
         start = time.time()
-        models = model if isinstance(model, list) else [model]
-        model_used = next((m for m in models if m in self.deployments), None)
-        if model_used is None:
-            msg = f"No deployment available for ElevenLabs models: {models}"
-            raise ValueError(msg)
+        client, model_used = self.aclient(model if isinstance(model, list) else [model])
         deployment = self.deployments[model_used]
 
-        if model_used not in ELEVENLABS_MODELS:
-            msg = f"Model {model_used} is not an ElevenLabs model"
-            raise ValueError(msg)
-
-        from elevenlabs.client import AsyncElevenLabs  # noqa: PLC0415
         from elevenlabs.types import VoiceSettings  # noqa: PLC0415
 
-        el_client = AsyncElevenLabs(api_key=deployment.api_key)
         chunks: list[bytes] = []
-        async for chunk in el_client.text_to_speech.convert(
+        async for chunk in client.text_to_speech.convert(
             voice_id=voice_id,
             text=text,
             model_id=deployment.deployment_name or model_used,
@@ -1857,22 +1846,11 @@ class MultiAIClient:
         - MP3 bytes of the generated sound effect.
         """
         start = time.time()
-        models = model if isinstance(model, list) else [model]
-        model_used = next((m for m in models if m in self.deployments), None)
-        if model_used is None:
-            msg = f"No deployment available for ElevenLabs models: {models}"
-            raise ValueError(msg)
+        client, model_used = self.aclient(model if isinstance(model, list) else [model])
         deployment = self.deployments[model_used]
 
-        if model_used not in ELEVENLABS_MODELS:
-            msg = f"Model {model_used} is not an ElevenLabs model"
-            raise ValueError(msg)
-
-        from elevenlabs.client import AsyncElevenLabs  # noqa: PLC0415
-
-        el_client = AsyncElevenLabs(api_key=deployment.api_key)
         chunks: list[bytes] = []
-        async for chunk in el_client.text_to_sound_effects.convert(
+        async for chunk in client.text_to_sound_effects.convert(
             text=text,
             duration_seconds=duration_seconds,
             prompt_influence=prompt_influence,
@@ -1913,20 +1891,9 @@ class MultiAIClient:
         - MP3 bytes of the generated music.
         """
         start = time.time()
-        models = model if isinstance(model, list) else [model]
-        model_used = next((m for m in models if m in self.deployments), None)
-        if model_used is None:
-            msg = f"No deployment available for ElevenLabs models: {models}"
-            raise ValueError(msg)
+        client, model_used = self.aclient(model if isinstance(model, list) else [model])
         deployment = self.deployments[model_used]
 
-        if model_used not in ELEVENLABS_MODELS:
-            msg = f"Model {model_used} is not an ElevenLabs model"
-            raise ValueError(msg)
-
-        from elevenlabs.client import AsyncElevenLabs  # noqa: PLC0415
-
-        el_client = AsyncElevenLabs(api_key=deployment.api_key)
         chunks: list[bytes] = []
         compose_kwargs: dict[str, object] = {
             "prompt": prompt,
@@ -1935,7 +1902,7 @@ class MultiAIClient:
         if force_instrumental:
             compose_kwargs["force_instrumental"] = True
 
-        async for chunk in el_client.music.compose(**compose_kwargs):
+        async for chunk in client.music.compose(**compose_kwargs):
             if chunk:
                 chunks.append(chunk)
 
@@ -1970,21 +1937,11 @@ class MultiAIClient:
         - MP3 bytes of the generated dialogue.
         """
         start = time.time()
-        models = model if isinstance(model, list) else [model]
-        model_used = next((m for m in models if m in self.deployments), None)
-        if model_used is None:
-            msg = f"No deployment available for ElevenLabs models: {models}"
-            raise ValueError(msg)
+        client, model_used = self.aclient(model if isinstance(model, list) else [model])
         deployment = self.deployments[model_used]
 
-        if model_used not in ELEVENLABS_MODELS:
-            msg = f"Model {model_used} is not an ElevenLabs model"
-            raise ValueError(msg)
-
-        from elevenlabs.client import AsyncElevenLabs  # noqa: PLC0415
         from elevenlabs.types import DialogueInput  # noqa: PLC0415
 
-        el_client = AsyncElevenLabs(api_key=deployment.api_key)
         dialogue_inputs = [
             DialogueInput(voice_id=item["voice_id"], text=item["text"])
             for item in inputs
@@ -1998,7 +1955,7 @@ class MultiAIClient:
             stream_kwargs["language_code"] = language_code
 
         chunks: list[bytes] = []
-        async for chunk in el_client.text_to_dialogue.stream(**stream_kwargs):
+        async for chunk in client.text_to_dialogue.stream(**stream_kwargs):
             if chunk:
                 chunks.append(chunk)
 
@@ -2007,7 +1964,7 @@ class MultiAIClient:
 
         total_chars = sum(len(item["text"]) for item in inputs)
         usage = ModelUsage(deployment, self._increment_usage)
-        usage.add_tts("x" * total_chars)
+        usage.tts_information += total_chars
         cost = await usage.apply(operation=operation, duration=duration, ttft=None)
         logger.debug(f"[LLMAX] async_text_to_dialogue cost={cost!r}, turns={len(inputs)}, chars={total_chars}")
         self.total_usage += cost

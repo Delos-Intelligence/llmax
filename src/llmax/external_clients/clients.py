@@ -8,6 +8,7 @@ from llmax.external_clients.exceptions import ClientNotFoundError
 from llmax.models import Deployment
 from llmax.models.models import (
     ANTHROPIC_MODELS,
+    ELEVEN_LABS_MODELS,
     GEMINI_MODELS,
     META_MODELS,
     MISTRAL_MODELS,
@@ -24,6 +25,7 @@ from . import (
     openai,
     openrouter,
     scaleway,
+    eleven_labs,
 )
 
 Client = Any
@@ -91,5 +93,7 @@ def get_aclient(  # noqa: PLR0911
             return scaleway.get_aclient(deployment, http_client=http_client)
         case model if model in OPENROUTER_MODELS:
             return openrouter.get_aclient(deployment, http_client=http_client)
+        case model if model in ELEVEN_LABS_MODELS:
+            return eleven_labs.get_aclient(deployment, http_client=http_client)
         case _:
             raise ClientNotFoundError(deployment)
