@@ -1883,7 +1883,7 @@ class MultiAIClient:
 
         return result
 
-    async def audio_dubbing(
+    async def audio_dubbing(  # noqa: PLR0913
         self,
         source_url: str,
         source_lang: str,
