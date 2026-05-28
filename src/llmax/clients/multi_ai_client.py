@@ -16,6 +16,7 @@ from queue import Queue
 from typing import Any, Literal
 
 import httpx
+from elevenlabs.types import DialogueInput, VoiceSettings
 from google import genai
 from google.genai import types as genai_types
 from openai import NOT_GIVEN, BadRequestError, RateLimitError
@@ -1738,239 +1739,149 @@ class MultiAIClient:
         self.total_usage += cost
         self.usages.append(usage)
 
-    def text_to_speech(
+    async def text_to_audio(
         self,
-        text: str,
+        mode: Literal["speech", "music", "dialogue", "sound_effects"],
         model: Model | list[Model],
-        path: str,
+        operation: str,
         **kwargs: Any,
-    ) -> str:
-        """Generate audio from text using the specified model.
-
-        Parameters:
-        - text (str): The text to be converted to speech.
-        - model (Model): The model to be used for generating audio.
-        - **kwargs (Any): Additional keyword arguments for further customization.
-
-        Returns:
-        - str: The URL of the generated audio file.
-
-        Raises:
-        - Any relevant exceptions that may occur during the audio generation process.
-        """
-        logger.error(
-            "[bold purple][LLMAX][/bold purple] Deprecated function `text_to_speech`, create the async one instead.",
-        )
-        client, model_used = self.client(model if isinstance(model, list) else [model])
-        deployment = self.deployments[model_used]
-        response = client.audio.speech.create(
-            model=deployment.deployment_name,
-            input=text,
-            voice="alloy",
-            **kwargs,
-        )
-        response.stream_to_file(path)
-
-        return path
-
-
-    async def async_text_to_speech(
-        self,
-        text: str,
-        model: Model | list[Model],
-        voice_id: str,
-        output_format: str,
-        operation: str,
-        speed: float = 1.0,
     ) -> bytes:
-        """Generate audio bytes from text using ElevenLabs TTS.
+        """Generate audio bytes from text using ElevenLabs.
 
-        Parameters:
-        - text: The text to synthesize.
-        - model: ElevenLabs model (e.g. 'eleven_turbo_v2_5').
-        - voice_id: ElevenLabs voice ID.
-        - output_format: Audio format (e.g. 'mp3_44100_128').
-        - operation: Operation identifier for cost tracking.
-        - speed: Playback speed multiplier (0.75 = slow, 1.0 = normal, 1.25 = fast).
-
-        Returns:
-        - MP3 bytes of the synthesized audio.
-        """
-        start = time.time()
-        client, model_used = self.aclient(model if isinstance(model, list) else [model])
-        deployment = self.deployments[model_used]
-
-        from elevenlabs.types import VoiceSettings  # noqa: PLC0415
-
-        chunks: list[bytes] = []
-        async for chunk in client.text_to_speech.convert(
-            voice_id=voice_id,
-            text=text,
-            model_id=deployment.deployment_name or model_used,
-            output_format=output_format,
-            voice_settings=VoiceSettings(speed=speed),
-        ):
-            if chunk:
-                chunks.append(chunk)
-
-        audio_bytes = b"".join(chunks)
-        duration = time.time() - start
-
-        usage = ModelUsage(deployment, self._increment_usage)
-        usage.add_tts(text)
-        cost = await usage.apply(operation=operation, duration=duration, ttft=None)
-        logger.debug(f"[LLMAX] async_text_to_speech cost={cost!r}, chars={len(text)}")
-        self.total_usage += cost
-        self.usages.append(usage)
-
-        return audio_bytes
-
-    async def async_text_to_sound_effects(
-        self,
-        text: str,
-        model: Model | list[Model],
-        operation: str,
-        duration_seconds: float | None = None,
-        prompt_influence: float | None = None,
-    ) -> bytes:
-        """Generate a sound effect from a text description using ElevenLabs.
-
-        Parameters:
-        - text: Description of the sound to generate (e.g. "thunder crash", "forest ambience").
-        - model: Any deployed eleven_* model — used only to resolve the API key.
-        - operation: Operation identifier for cost tracking.
-        - duration_seconds: Optional target duration in seconds (0.5–22). None = auto-detect.
-        - prompt_influence: 0.0–1.0, how strictly to follow the description. None = ElevenLabs default (~0.3).
+        Args:
+            mode: Generation mode — one of 'speech', 'music', 'dialogue', 'sound_effects'.
+            model: Any deployed ElevenLabs model.
+            operation: Operation identifier for cost tracking.
+            **kwargs: Mode-specific parameters:
+                speech: text, voice_id, output_format, speed (default 1.0), speaker_boost (default False)
+                music: prompt, music_length_ms (default 30000), force_instrumental (default False)
+                dialogue: inputs (list of {voice_id, text}), language_code (optional)
+                sound_effects: text, duration_seconds (optional), prompt_influence (optional)
 
         Returns:
-        - MP3 bytes of the generated sound effect.
+            Audio bytes (MP3).
         """
         start = time.time()
         client, model_used = self.aclient(model if isinstance(model, list) else [model])
         deployment = self.deployments[model_used]
 
         chunks: list[bytes] = []
-        async for chunk in client.text_to_sound_effects.convert(
-            text=text,
-            duration_seconds=duration_seconds,
-            prompt_influence=prompt_influence,
-        ):
-            if chunk:
-                chunks.append(chunk)
+        tts_chars = 0
+
+        match mode:
+            case "speech":
+                text: str = kwargs["text"]
+                tts_chars = len(text)
+                chunks = [
+                    chunk
+                    async for chunk in client.text_to_speech.convert(
+                        voice_id=kwargs["voice_id"],
+                        text=text,
+                        model_id=deployment.deployment_name or model_used,
+                        output_format=kwargs["output_format"],
+                        voice_settings=VoiceSettings(
+                            speed=kwargs.get("speed", 1.0),
+                            use_speaker_boost=kwargs.get("speaker_boost", False),
+                        ),
+                    )
+                    if chunk
+                ]
+
+            case "music":
+                prompt: str = kwargs["prompt"]
+                tts_chars = len(prompt)
+                compose_kwargs: dict[str, Any] = {
+                    "prompt": prompt,
+                    "music_length_ms": kwargs.get("music_length_ms", 30000),
+                }
+                if kwargs.get("force_instrumental"):
+                    compose_kwargs["force_instrumental"] = True
+                chunks = [
+                    chunk
+                    async for chunk in client.music.compose(**compose_kwargs)
+                    if chunk
+                ]
+
+            case "dialogue":
+                inputs: list[dict[str, str]] = kwargs["inputs"]
+                tts_chars = sum(len(item["text"]) for item in inputs)
+                dialogue_inputs = [
+                    DialogueInput(voice_id=item["voice_id"], text=item["text"])
+                    for item in inputs
+                ]
+                dialogue_kwargs: dict[str, Any] = {
+                    "inputs": dialogue_inputs,
+                    "output_format": "mp3_44100_128",
+                }
+                if language_code := kwargs.get("language_code"):
+                    dialogue_kwargs["language_code"] = language_code
+                chunks = [
+                    chunk
+                    async for chunk in client.text_to_dialogue.stream(**dialogue_kwargs)
+                    if chunk
+                ]
+
+            case "sound_effects":
+                text = kwargs["text"]
+                tts_chars = len(text)
+                chunks = [
+                    chunk
+                    async for chunk in client.text_to_sound_effects.convert(
+                        text=text,
+                        duration_seconds=kwargs.get("duration_seconds"),
+                        prompt_influence=kwargs.get("prompt_influence"),
+                    )
+                    if chunk
+                ]
 
         audio_bytes = b"".join(chunks)
         duration = time.time() - start
 
         usage = ModelUsage(deployment, self._increment_usage)
-        usage.add_tts(text)
+        usage.tts_information += tts_chars
         cost = await usage.apply(operation=operation, duration=duration, ttft=None)
-        logger.debug(f"[LLMAX] async_text_to_sound_effects cost={cost!r}, chars={len(text)}")
+        logger.debug(f"[LLMAX] text_to_audio mode={mode!r} model={model_used!r} cost={cost!r} chars={tts_chars}")
         self.total_usage += cost
         self.usages.append(usage)
 
         return audio_bytes
 
-    async def async_text_to_music(
+    async def audio_isolation(
         self,
-        prompt: str,
+        audio: bytes,
         model: Model | list[Model],
         operation: str,
-        music_length_ms: int = 30000,
-        force_instrumental: bool = False,
+        duration_seconds: float,
     ) -> bytes:
-        """Generate music from a text prompt using ElevenLabs.
+        """Isolate vocals from an audio file using ElevenLabs audio isolation.
 
         Parameters:
-        - prompt: Text description of the music to generate.
-        - model: Any deployed eleven_* model — used only to resolve the API key.
+        - audio: Raw audio bytes to process.
+        - model: Any deployed eleven_audio_isolation model.
         - operation: Operation identifier for cost tracking.
-        - music_length_ms: Total duration in milliseconds (default: 30000 = 30s).
-        - force_instrumental: If True, suppress vocals even if the prompt implies them.
+        - duration_seconds: Duration of the input audio in seconds (used for billing).
 
         Returns:
-        - MP3 bytes of the generated music.
+        - MP3 bytes of the isolated audio.
         """
         start = time.time()
         client, model_used = self.aclient(model if isinstance(model, list) else [model])
         deployment = self.deployments[model_used]
 
         chunks: list[bytes] = []
-        compose_kwargs: dict[str, object] = {
-            "prompt": prompt,
-            "music_length_ms": music_length_ms,
-        }
-        if force_instrumental:
-            compose_kwargs["force_instrumental"] = True
+        chunks = [chunk async for chunk in client.audio_isolation.convert(audio=audio) if chunk]
 
-        async for chunk in client.music.compose(**compose_kwargs):
-            if chunk:
-                chunks.append(chunk)
-
-        audio_bytes = b"".join(chunks)
+        result = b"".join(chunks)
         duration = time.time() - start
 
         usage = ModelUsage(deployment, self._increment_usage)
-        usage.add_tts(prompt)
+        usage.add_audio_duration(duration_seconds)
         cost = await usage.apply(operation=operation, duration=duration, ttft=None)
-        logger.debug(f"[LLMAX] async_text_to_music cost={cost!r}, prompt_chars={len(prompt)}")
+        logger.debug(f"[LLMAX] audio_isolation model={model_used!r} cost={cost!r} audio_duration={duration_seconds}s")
         self.total_usage += cost
         self.usages.append(usage)
 
-        return audio_bytes
-
-    async def async_text_to_dialogue(
-        self,
-        inputs: list[dict[str, str]],
-        model: Model | list[Model],
-        operation: str,
-        language_code: str | None = None,
-    ) -> bytes:
-        """Generate a multi-speaker dialogue audio from a list of {voice_id, text} inputs.
-
-        Parameters:
-        - inputs: List of dicts with 'voice_id' and 'text' keys, one per speaker turn.
-        - model: Any deployed eleven_* model — used only to resolve the API key.
-        - operation: Operation identifier for cost tracking.
-        - language_code: Optional BCP-47 language code (e.g. 'en', 'fr').
-
-        Returns:
-        - MP3 bytes of the generated dialogue.
-        """
-        start = time.time()
-        client, model_used = self.aclient(model if isinstance(model, list) else [model])
-        deployment = self.deployments[model_used]
-
-        from elevenlabs.types import DialogueInput  # noqa: PLC0415
-
-        dialogue_inputs = [
-            DialogueInput(voice_id=item["voice_id"], text=item["text"])
-            for item in inputs
-        ]
-
-        stream_kwargs: dict[str, object] = {
-            "inputs": dialogue_inputs,
-            "output_format": "mp3_44100_128",
-        }
-        if language_code:
-            stream_kwargs["language_code"] = language_code
-
-        chunks: list[bytes] = []
-        async for chunk in client.text_to_dialogue.stream(**stream_kwargs):
-            if chunk:
-                chunks.append(chunk)
-
-        audio_bytes = b"".join(chunks)
-        duration = time.time() - start
-
-        total_chars = sum(len(item["text"]) for item in inputs)
-        usage = ModelUsage(deployment, self._increment_usage)
-        usage.tts_information += total_chars
-        cost = await usage.apply(operation=operation, duration=duration, ttft=None)
-        logger.debug(f"[LLMAX] async_text_to_dialogue cost={cost!r}, turns={len(inputs)}, chars={total_chars}")
-        self.total_usage += cost
-        self.usages.append(usage)
-
-        return audio_bytes
+        return result
 
     async def text_to_video(  # noqa: PLR0913
         self,

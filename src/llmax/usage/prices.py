@@ -130,6 +130,7 @@ TRANSCRIPTION_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "whisper-1": 0.006,
     "gpt-4o-transcribe": 0.006,
     "whisper-large-v3": {"scaleway": 0.00345},  # €0.003/minute → $0.00345/minute
+    "eleven_audio_isolation": {"elevenlabs": 0.10},  # $0.10/minute
 }
 
 GENERATION_PRICE_BASE: dict[Model, float | dict[Provider, float]] = {

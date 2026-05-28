@@ -22,7 +22,6 @@ MistralModel = Literal[
     "mistral-large-2411",
 ]
 
-
 OpenAIModel = Literal[
     "ada-v2",
     "gpt-image-1",
@@ -82,7 +81,6 @@ ScalewayModel = Literal[
     "devstral-2-123b-instruct-2512",
 ]
 
-
 LLModel = (
     MetaModel
     | MistralModel
@@ -99,13 +97,11 @@ SpeechToTextModel = Literal[
     "whisper-large-v3",
 ]
 
-
 ImageGenerationModel = Literal[
     "gpt-image-1",
     "gpt-image-2",
     "gemini-3-pro-image-preview",
 ]
-
 
 VideoGenerationModel = Literal[
     "veo-3.1-generate-preview",
@@ -113,14 +109,23 @@ VideoGenerationModel = Literal[
     "veo-3.1-lite-generate-preview",
 ]
 
-TextToSpeechModel = Literal[
+TextToAudioModel = Literal[
     "tts-1",
     "eleven_turbo_v2_5",
     "eleven_multilingual_v2",
     "eleven_v3",
 ]
 
-Model = LLModel | SpeechToTextModel | ImageGenerationModel | VideoGenerationModel | TextToSpeechModel
+AudioIsolationModel = Literal["eleven_audio_isolation"]
+
+Model = (
+    LLModel
+    | SpeechToTextModel
+    | ImageGenerationModel
+    | VideoGenerationModel
+    | TextToAudioModel
+    | AudioIsolationModel
+)
 
 META_MODELS: tuple[MetaModel, ...] = get_args(MetaModel)
 GEMINI_MODELS: tuple[GeminiModel, ...] = get_args(GeminiModel)
@@ -129,15 +134,18 @@ OPENAI_MODELS: tuple[OpenAIModel, ...] = get_args(OpenAIModel)
 ANTHROPIC_MODELS: tuple[AnthropicModel, ...] = get_args(AnthropicModel)
 SCALEWAY_MODELS: tuple[ScalewayModel, ...] = get_args(ScalewayModel)
 OPENROUTER_MODELS: tuple[OpenRouterModel, ...] = get_args(OpenRouterModel)
-ELEVEN_LABS_MODELS: tuple[TextToSpeechModel, ...] = get_args(TextToSpeechModel)
+ELEVEN_LABS_MODELS: tuple[TextToAudioModel | AudioIsolationModel, ...] = (
+    *get_args(TextToAudioModel),
+    *get_args(AudioIsolationModel),
+)
 
 LLMS: tuple[LLModel, ...] = get_args(LLModel)
 AUDIO: tuple[SpeechToTextModel, ...] = get_args(SpeechToTextModel)
 IMAGE: tuple[ImageGenerationModel, ...] = get_args(ImageGenerationModel)
 VIDEO: tuple[VideoGenerationModel, ...] = get_args(VideoGenerationModel)
-TEXTTOAUDIO: tuple[TextToSpeechModel, ...] = get_args(TextToSpeechModel)
+TTS: tuple[TextToAudioModel, ...] = get_args(TextToAudioModel)
+AUDIO_ISOLATION: tuple[AudioIsolationModel, ...] = get_args(AudioIsolationModel)
 
 MODELS: tuple[Model, ...] = get_args(Model)
-
 
 SpeechModelAllowVerboseJson: set[SpeechToTextModel] = {"whisper-1"}

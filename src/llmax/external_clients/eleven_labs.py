@@ -3,9 +3,9 @@
 from typing import Any
 
 import httpx
+from elevenlabs.client import AsyncElevenLabs
 
 from llmax.models import Deployment
-from elevenlabs.client import AsyncElevenLabs
 
 Client = Any
 

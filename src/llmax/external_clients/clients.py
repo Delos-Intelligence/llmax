@@ -19,13 +19,13 @@ from llmax.models.models import (
 
 from . import (
     anthropic,
+    eleven_labs,
     gemini,
     meta,
     mistral,
     openai,
     openrouter,
     scaleway,
-    eleven_labs,
 )
 
 Client = Any
