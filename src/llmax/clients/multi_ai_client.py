@@ -1883,6 +1883,69 @@ class MultiAIClient:
 
         return result
 
+    async def audio_dubbing(
+        self,
+        source_url: str,
+        source_lang: str,
+        target_lang: str,
+        model: Model | list[Model],
+        operation: str,
+        duration_seconds: float,
+    ) -> bytes:
+        """Dub a video using ElevenLabs dubbing API.
+
+        Parameters:
+        - source_url: Public URL of the source video.
+        - source_lang: ISO 639-1 language code of the source audio (e.g. 'fr', 'en').
+        - target_lang: ISO 639-1 language code for the dubbed output.
+        - model: Any deployed eleven_dubbing model.
+        - operation: Operation identifier for cost tracking.
+        - duration_seconds: Duration of the source video in seconds (used for billing).
+
+        Returns:
+        - MP4 bytes of the dubbed video.
+        """
+        start = time.time()
+        client, model_used = self.aclient(model if isinstance(model, list) else [model])
+        deployment = self.deployments[model_used]
+
+        response = await client.dubbing.create(
+            source_url=source_url,
+            source_lang=source_lang,
+            target_lang=target_lang,
+            watermark=False,
+        )
+        dubbing_id = response.dubbing_id
+
+        while True:
+            status_response = await client.dubbing.get(dubbing_id=dubbing_id)
+            if status_response.status == "dubbed":
+                break
+            if status_response.status == "failed":
+                msg = f"ElevenLabs dubbing failed for dubbing_id={dubbing_id}"
+                raise RuntimeError(msg)
+            await asyncio.sleep(10)
+
+        chunks: list[bytes] = [
+            chunk
+            async for chunk in client.dubbing.audio.get(
+                dubbing_id=dubbing_id,
+                language_code=target_lang,
+            )
+            if chunk
+        ]
+        result = b"".join(chunks)
+        duration = time.time() - start
+
+        usage = ModelUsage(deployment, self._increment_usage)
+        usage.add_audio_duration(max(duration_seconds, 1.0))
+        cost = await usage.apply(operation=operation, duration=duration, ttft=None)
+        logger.debug(f"[LLMAX] audio_dubbing model={model_used!r} cost={cost!r} video_duration={duration_seconds}s")
+        self.total_usage += cost
+        self.usages.append(usage)
+
+        return result
+
     async def text_to_video(  # noqa: PLR0913
         self,
         model: Model | list[Model],

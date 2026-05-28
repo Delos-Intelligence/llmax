@@ -11,6 +11,8 @@ from .models import (
     OPENAI_MODELS,
     OPENROUTER_MODELS,
     SCALEWAY_MODELS,
+    AudioIsolationModel,
+    DubbingModel,
     Model,
 )
 from .providers import PROVIDERS, Provider
@@ -25,7 +27,9 @@ __all__ = [
     "OPENROUTER_MODELS",
     "PROVIDERS",
     "SCALEWAY_MODELS",
+    "AudioIsolationModel",
     "Deployment",
+    "DubbingModel",
     "Model",
     "Provider",
     "fake_llm",

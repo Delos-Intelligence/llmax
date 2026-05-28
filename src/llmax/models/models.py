@@ -118,6 +118,8 @@ TextToAudioModel = Literal[
 
 AudioIsolationModel = Literal["eleven_audio_isolation"]
 
+DubbingModel = Literal["eleven_dubbing"]
+
 Model = (
     LLModel
     | SpeechToTextModel
@@ -125,6 +127,7 @@ Model = (
     | VideoGenerationModel
     | TextToAudioModel
     | AudioIsolationModel
+    | DubbingModel
 )
 
 META_MODELS: tuple[MetaModel, ...] = get_args(MetaModel)
@@ -134,9 +137,10 @@ OPENAI_MODELS: tuple[OpenAIModel, ...] = get_args(OpenAIModel)
 ANTHROPIC_MODELS: tuple[AnthropicModel, ...] = get_args(AnthropicModel)
 SCALEWAY_MODELS: tuple[ScalewayModel, ...] = get_args(ScalewayModel)
 OPENROUTER_MODELS: tuple[OpenRouterModel, ...] = get_args(OpenRouterModel)
-ELEVEN_LABS_MODELS: tuple[TextToAudioModel | AudioIsolationModel, ...] = (
+ELEVEN_LABS_MODELS: tuple[TextToAudioModel | AudioIsolationModel | DubbingModel, ...] = (
     *get_args(TextToAudioModel),
     *get_args(AudioIsolationModel),
+    *get_args(DubbingModel),
 )
 
 LLMS: tuple[LLModel, ...] = get_args(LLModel)
@@ -145,6 +149,7 @@ IMAGE: tuple[ImageGenerationModel, ...] = get_args(ImageGenerationModel)
 VIDEO: tuple[VideoGenerationModel, ...] = get_args(VideoGenerationModel)
 TTS: tuple[TextToAudioModel, ...] = get_args(TextToAudioModel)
 AUDIO_ISOLATION: tuple[AudioIsolationModel, ...] = get_args(AudioIsolationModel)
+DUBBING: tuple[DubbingModel, ...] = get_args(DubbingModel)
 
 MODELS: tuple[Model, ...] = get_args(Model)
 
