@@ -14,6 +14,7 @@ from .models import (
     AudioIsolationModel,
     DubbingModel,
     Model,
+    TextToAudioModel,
 )
 from .providers import PROVIDERS, Provider
 
@@ -32,5 +33,6 @@ __all__ = [
     "DubbingModel",
     "Model",
     "Provider",
+    "TextToAudioModel",
     "fake_llm",
 ]
