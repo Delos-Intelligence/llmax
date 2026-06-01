@@ -122,6 +122,8 @@ TextToAudioModel = Literal[
     "eleven_turbo_v2_5",
     "eleven_multilingual_v2",
     "eleven_v3",
+    "eleven_audio_isolation",
+    "eleven_dubbing",
 ]
 
 AudioIsolationModel = Literal["eleven_audio_isolation"]
@@ -134,8 +136,6 @@ Model = (
     | ImageGenerationModel
     | VideoGenerationModel
     | TextToAudioModel
-    | AudioIsolationModel
-    | DubbingModel
 )
 
 META_MODELS: tuple[MetaModel, ...] = get_args(MetaModel)
