@@ -81,6 +81,14 @@ ScalewayModel = Literal[
     "devstral-2-123b-instruct-2512",
 ]
 
+ElevenLabsModel = Literal[
+    "eleven_turbo_v2_5",
+    "eleven_multilingual_v2",
+    "eleven_v3",
+    "eleven_audio_isolation",
+    "eleven_dubbing",
+]
+
 LLModel = (
     MetaModel
     | MistralModel
@@ -137,11 +145,7 @@ OPENAI_MODELS: tuple[OpenAIModel, ...] = get_args(OpenAIModel)
 ANTHROPIC_MODELS: tuple[AnthropicModel, ...] = get_args(AnthropicModel)
 SCALEWAY_MODELS: tuple[ScalewayModel, ...] = get_args(ScalewayModel)
 OPENROUTER_MODELS: tuple[OpenRouterModel, ...] = get_args(OpenRouterModel)
-ELEVEN_LABS_MODELS: tuple[TextToAudioModel | AudioIsolationModel | DubbingModel, ...] = (
-    *get_args(TextToAudioModel),
-    *get_args(AudioIsolationModel),
-    *get_args(DubbingModel),
-)
+ELEVEN_LABS_MODELS: tuple[ElevenLabsModel, ...] = get_args(ElevenLabsModel)
 
 LLMS: tuple[LLModel, ...] = get_args(LLModel)
 AUDIO: tuple[SpeechToTextModel, ...] = get_args(SpeechToTextModel)

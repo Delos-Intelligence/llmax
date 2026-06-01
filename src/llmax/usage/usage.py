@@ -9,7 +9,7 @@ from openai.types import CompletionUsage
 
 from llmax.messages.messages import Messages
 from llmax.models import Deployment, Model
-from llmax.models.models import AUDIO, AUDIO_ISOLATION, IMAGE, TTS, VIDEO
+from llmax.models.models import AUDIO, AUDIO_ISOLATION, DUBBING, IMAGE, TTS, VIDEO
 from llmax.utils import logger
 
 from . import prices, tokens
@@ -55,7 +55,7 @@ class ModelUsage:
         cost = self.compute_cost()
         cost_message = f"Total Cost (USD): ${cost:.6f}"
 
-        if self.deployment.model in AUDIO or self.deployment.model in AUDIO_ISOLATION:
+        if self.deployment.model in AUDIO or self.deployment.model in AUDIO_ISOLATION or self.deployment.model in DUBBING:
             return f"\tAudio Duration: {self.audio_duration} seconds\n {cost_message}"
 
         if self.deployment.model in IMAGE:
@@ -199,7 +199,7 @@ class ModelUsage:
         output_tokens = 0
         cached_tokens = 0
 
-        if self.deployment.model in AUDIO or self.deployment.model in AUDIO_ISOLATION:
+        if self.deployment.model in AUDIO or self.deployment.model in AUDIO_ISOLATION or self.deployment.model in DUBBING:
             input_tokens = int(self.audio_duration)
             message = f"Audio Duration: {self.audio_duration} seconds {cost_message}"
         elif self.deployment.model in VIDEO:
