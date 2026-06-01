@@ -133,6 +133,8 @@ TRANSCRIPTION_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "whisper-1": 0.006,
     "gpt-4o-transcribe": 0.006,
     "whisper-large-v3": {"scaleway": 0.00345},  # €0.003/minute → $0.00345/minute
+    "eleven_audio_isolation": {"elevenlabs": 0.10},  # $0.10/minute
+    "eleven_dubbing": {"elevenlabs": 0.10},  # $0.10/minute of source video
 }
 
 GENERATION_PRICE_BASE: dict[Model, float | dict[Provider, float]] = {
@@ -141,19 +143,24 @@ GENERATION_PRICE_BASE: dict[Model, float | dict[Provider, float]] = {
 
 IMAGE_GENERATION_PRICES_BY_QUALITY: dict[Model, dict[str, float]] = {
     "gpt-image-2": {
-        "low": 0.002,
-        "medium": 0.0177,
-        "high": 0.0703,
+        "low": 0.006,
+        "medium": 0.053,
+        "high": 0.211,
+        "auto": 0.053,
     },
     "gemini-3-pro-image-preview": {
         "low": 0.134,
         "medium": 0.134,
         "high": 0.240,
+        "auto": 0.134,
     },
 }
 
 GENERATION_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "tts-1": 0.000015,
+    "eleven_turbo_v2_5": {"elevenlabs": 0.00006},
+    "eleven_multilingual_v2": {"elevenlabs": 0.00012},
+    "eleven_v3": {"elevenlabs": 0.00012},
 }
 
 VIDEO_GENERATION_PRICES_PER_SECOND: dict[Model, dict[str, tuple[float, float]]] = {

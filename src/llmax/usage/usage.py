@@ -3,13 +3,13 @@
 import math
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from typing import Literal
+from typing import Literal, cast
 
 from openai.types import CompletionUsage
 
 from llmax.messages.messages import Messages
 from llmax.models import Deployment, Model
-from llmax.models.models import AUDIO, IMAGE, VIDEO
+from llmax.models.models import AUDIO, AUDIO_ISOLATION, DUBBING, IMAGE, TTS, VIDEO
 from llmax.utils import logger
 
 from . import prices, tokens
@@ -54,15 +54,19 @@ class ModelUsage:
         """
         cost = self.compute_cost()
         cost_message = f"Total Cost (USD): ${cost:.6f}"
+        model = cast("str", self.deployment.model)
 
-        if self.deployment.model in AUDIO:
+        if model in AUDIO or model in AUDIO_ISOLATION or model in DUBBING:
             return f"\tAudio Duration: {self.audio_duration} seconds\n {cost_message}"
 
-        if self.deployment.model in IMAGE:
+        if model in IMAGE:
             return f"\tImage generation : ~{self.image_information} images\n {cost_message}"
 
-        if self.deployment.model in VIDEO:
+        if model in VIDEO:
             return f"\tVideo duration: {self.video_duration}s\n {cost_message}"
+
+        if model in TTS:
+            return f"\tText-to-audio: {self.tts_information} chars\n {cost_message}"
 
         return (
             f"\tPrompt Tokens: {self.tokens_usage.prompt_tokens}\n"
@@ -192,22 +196,25 @@ class ModelUsage:
         """Applies the token usage, updating the usage statistics and logging the action."""
         cost = self.compute_cost()
         cost_message = f"Total Cost (USD): ${cost:.6f}"
+        model = cast("str", self.deployment.model)
         input_tokens = 0
         output_tokens = 0
         cached_tokens = 0
 
-        if self.deployment.model in AUDIO:
+        if model in AUDIO or model in AUDIO_ISOLATION or model in DUBBING:
             input_tokens = int(self.audio_duration)
             message = f"Audio Duration: {self.audio_duration} seconds {cost_message}"
-        elif self.deployment.model in VIDEO:
+        elif model in VIDEO:
             input_tokens = int(self.video_duration)
             message = f"Video generation: {self.video_duration}s {cost_message}"
-        elif self.deployment.model in IMAGE:
+        elif model in IMAGE:
             input_tokens += int(self.image_information)
             message = (
                 f"Image generation : ~{self.image_information} images {cost_message}"
             )
-
+        elif model in TTS:
+            input_tokens = int(self.tts_information)
+            message = f"Text-to-audio: {self.tts_information} chars {cost_message}"
         else:
             if token_details := self.tokens_usage.prompt_tokens_details:
                 cached_tokens = token_details.cached_tokens or 0
