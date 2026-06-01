@@ -54,7 +54,13 @@ AnthropicModel = Literal[
     "claude-3-haiku",
     "claude-3.7-sonnet",
     "claude-4-sonnet",
+    "claude-4.5-haiku",
     "claude-4.5-sonnet",
+    "claude-4.5-opus",
+    "claude-4.6-sonnet",
+    "claude-4.6-opus",
+    "claude-4.7-opus",
+    "claude-4.8-opus",
 ]
 
 ScalewayModel = Literal[
