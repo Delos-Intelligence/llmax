@@ -17,6 +17,7 @@ PROMPT_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "claude-4.5-opus": 5.0,
     "claude-4.6-opus": 5.0,
     "claude-4.7-opus": 5.0,
+    "claude-4.8-opus": 5.0,
     "llama-3-70b-instruct": 3.78,  # To be checked
     "llama-4-scout-17b-16e-instruct": 0.275,  # To be checked
     "llama-4-maverick-17b-128e-instruct-fp8": 0.275,  # To be checked
@@ -75,6 +76,7 @@ CACHED_PROMPT_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "claude-4.5-opus": 0.50,
     "claude-4.6-opus": 0.50,
     "claude-4.7-opus": 0.50,
+    "claude-4.8-opus": 0.50,
     "deepseek-v4-pro": {"openrouter": 0.10875},  # input * 0.25
     "deepseek-v4-flash": {"openrouter": 0.035},  # input * 0.25
 }
@@ -91,6 +93,7 @@ COMPLETION_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "claude-4.5-opus": 25.0,
     "claude-4.6-opus": 25.0,
     "claude-4.7-opus": 25.0,
+    "claude-4.8-opus": 25.0,
     "llama-3-70b-instruct": 11.34,
     "llama-4-scout-17b-16e-instruct": 1.1,  # To be checked
     "llama-4-maverick-17b-128e-instruct-fp8": 1.1,  # To be checked
