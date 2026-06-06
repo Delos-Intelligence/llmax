@@ -256,6 +256,7 @@ class MultiAIClient:
         if deployment.model in ANTHROPIC_MODELS:
             kwargs.pop("stream_options", None)
             kwargs.pop("response_format", None)
+            kwargs.pop("reasoning_effort", None)
             if "max_completion_tokens" in kwargs:
                 kwargs["max_tokens"] = kwargs.pop("max_completion_tokens")
 
