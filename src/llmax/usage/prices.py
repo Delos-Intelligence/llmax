@@ -33,17 +33,23 @@ PROMPT_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "gpt-5-chat": 1.25,
     "gpt-5-mini": 0.25,
     "gpt-5-nano": 0.05,
-    "llama-3.1-8b-instruct": {"scaleway": 0.23},  # €0.20 → $0.23
-    "qwen3-235b-a22b-instruct-2507": {"scaleway": 0.8625},  # €0.75 → $0.8625
-    "qwen3.5-397b-a17b": {"scaleway": 0.66},
-    "gpt-oss-120b": {"scaleway": 0.1725},  # €0.15 → $0.1725
-    "gemma-3-27b-it": {"scaleway": 0.2875},  # €0.25 → $0.2875
-    "gemma-4-26b-a4b-it": {"scaleway": 0.2875},  # €0.25 → $0.2875
-    "voxtral-small-24b-2507": {"scaleway": 0.1725},  # €0.15 → $0.1725
-    "mistral-small-3.2-24b-instruct-2506": {"scaleway": 0.1725},  # €0.15 → $0.1725
-    "llama-3.3-70b-instruct": {"scaleway": 1.035},  # €0.90 → $1.035
-    "deepseek-r1-distill-llama-70b": {"scaleway": 1.035},  # €0.90 → $1.035
-    "devstral-2-123b-instruct-2512": {"scaleway": 0.46},  # €0.40 → $0.46
+    "llama-3.1-8b-instruct": {"scaleway": 0.23, "openrouter": 0.02},
+    "qwen3-235b-a22b-instruct-2507": {"scaleway": 0.8625, "openrouter": 0.071},
+    "qwen3.5-397b-a17b": {"scaleway": 0.66, "openrouter": 0.39},
+    "gpt-oss-120b": {"scaleway": 0.1725, "openrouter": 0.039},
+    "gemma-3-27b-it": {"scaleway": 0.2875, "openrouter": 0.08},
+    "gemma-4-26b-a4b-it": {"scaleway": 0.2875, "openrouter": 0.06},
+    "voxtral-small-24b-2507": {"scaleway": 0.1725, "openrouter": 0.10},
+    "mistral-small-3.2-24b-instruct-2506": {"scaleway": 0.1725, "openrouter": 0.075},
+    "llama-3.3-70b-instruct": {"scaleway": 1.035, "openrouter": 0.10},
+    "deepseek-r1-distill-llama-70b": {"scaleway": 1.035, "openrouter": 0.70},
+    "devstral-2-123b-instruct-2512": {"scaleway": 0.46, "openrouter": 0.40},
+    "mistral-large-3": {"scaleway": 0.50, "openrouter": 0.50},
+    "mistral-medium-3.5-128b": {"scaleway": 1.725, "openrouter": 1.50},
+    "pixtral-12b-2409": {"scaleway": 0.23},  # €0.20 → $0.23
+    "holo2-30b-a3b": {"scaleway": 0.345},  # €0.30 → $0.345
+    "qwen3-embedding-8b": {"scaleway": 0.115},  # €0.10 → $0.115
+    "qwen3.6-35b-a3b": {"scaleway": 0.2875, "openrouter": 0.14},
     "gemini-3-pro-preview": 2,
     "deepseek-v4-pro": {"openrouter": 0.435},
     "deepseek-v4-flash": {"openrouter": 0.14},
@@ -104,17 +110,22 @@ COMPLETION_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "gpt-5-chat": 10.00,
     "gpt-5-mini": 2.00,
     "gpt-5-nano": 0.40,
-    "llama-3.1-8b-instruct": {"scaleway": 0.23},  # €0.20 → $0.23
-    "qwen3.5-397b-a17b": {"scaleway": 3.96},
-    "qwen3-235b-a22b-instruct-2507": {"scaleway": 2.5875},  # €2.25 → $2.5875
-    "gpt-oss-120b": {"scaleway": 0.69},  # €0.60 → $0.69
-    "gemma-3-27b-it": {"scaleway": 0.575},  # €0.50 → $0.575
-    "gemma-4-26b-a4b-it": {"scaleway": 0.575},  # €0.50 → $0.575
-    "voxtral-small-24b-2507": {"scaleway": 0.4025},  # €0.35 → $0.4025
-    "mistral-small-3.2-24b-instruct-2506": {"scaleway": 0.4025},  # €0.35 → $0.4025
-    "llama-3.3-70b-instruct": {"scaleway": 1.035},  # €0.90 → $1.035
-    "deepseek-r1-distill-llama-70b": {"scaleway": 1.035},  # €0.90 → $1.035
-    "devstral-2-123b-instruct-2512": {"scaleway": 2.30},  # €2.00 → $2.30
+    "llama-3.1-8b-instruct": {"scaleway": 0.23, "openrouter": 0.03},
+    "qwen3.5-397b-a17b": {"scaleway": 3.96, "openrouter": 2.34},
+    "qwen3-235b-a22b-instruct-2507": {"scaleway": 2.5875, "openrouter": 0.10},
+    "gpt-oss-120b": {"scaleway": 0.69, "openrouter": 0.18},
+    "gemma-3-27b-it": {"scaleway": 0.575, "openrouter": 0.16},
+    "gemma-4-26b-a4b-it": {"scaleway": 0.575, "openrouter": 0.33},
+    "voxtral-small-24b-2507": {"scaleway": 0.4025, "openrouter": 0.30},
+    "mistral-small-3.2-24b-instruct-2506": {"scaleway": 0.4025, "openrouter": 0.20},
+    "llama-3.3-70b-instruct": {"scaleway": 1.035, "openrouter": 0.32},
+    "deepseek-r1-distill-llama-70b": {"scaleway": 1.035, "openrouter": 0.80},
+    "devstral-2-123b-instruct-2512": {"scaleway": 2.30, "openrouter": 2.00},
+    "mistral-large-3": {"scaleway": 1.50, "openrouter": 1.50},
+    "mistral-medium-3.5-128b": {"scaleway": 8.625, "openrouter": 7.50},
+    "pixtral-12b-2409": {"scaleway": 0.23},  # €0.20 → $0.23
+    "holo2-30b-a3b": {"scaleway": 0.805},  # €0.70 → $0.805
+    "qwen3.6-35b-a3b": {"scaleway": 1.725, "openrouter": 1.00},
     "gemini-3-pro-preview": 12,
     "deepseek-v4-pro": {"openrouter": 0.87},
     "deepseek-v4-flash": {"openrouter": 0.28},
