@@ -80,6 +80,12 @@ ScalewayModel = Literal[
     "llama-3.1-8b-instruct",
     "bge-multilingual-gemma2",
     "devstral-2-123b-instruct-2512",
+    "mistral-large-3",
+    "mistral-medium-3.5-128b",
+    "pixtral-12b-2409",
+    "holo2-30b-a3b",
+    "qwen3-embedding-8b",
+    "qwen3.6-35b-a3b",
 ]
 
 ElevenLabsModel = Literal[

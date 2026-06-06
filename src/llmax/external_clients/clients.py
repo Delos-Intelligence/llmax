@@ -45,6 +45,11 @@ def get_client(  # noqa: PLR0911
         The client for the deployment
     """
     deployment.validate()
+    # OpenRouter exposes an OpenAI-compatible passthrough, so it can serve many
+    # models that also have a native provider (e.g. Scaleway/Meta/Mistral). Route
+    # by provider first so a model can be deployed on OpenRouter as a fallback.
+    if deployment.provider == "openrouter":
+        return openrouter.get_client(deployment, http_client=http_client)
     match deployment.model:
         case model if model in OPENAI_MODELS:
             return openai.get_client(deployment, http_client=http_client)
@@ -78,6 +83,11 @@ def get_aclient(  # noqa: PLR0911
         The async client for the deployment
     """
     deployment.validate()
+    # OpenRouter exposes an OpenAI-compatible passthrough, so it can serve many
+    # models that also have a native provider (e.g. Scaleway/Meta/Mistral). Route
+    # by provider first so a model can be deployed on OpenRouter as a fallback.
+    if deployment.provider == "openrouter":
+        return openrouter.get_aclient(deployment, http_client=http_client)
     match deployment.model:
         case model if model in OPENAI_MODELS:
             return openai.get_aclient(deployment, http_client=http_client)
