@@ -17,6 +17,7 @@ PROMPT_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "claude-4.5-opus": 5.0,
     "claude-4.6-opus": 5.0,
     "claude-4.7-opus": 5.0,
+    "claude-4.8-opus": 5.0,
     "llama-3-70b-instruct": 3.78,  # To be checked
     "llama-4-scout-17b-16e-instruct": 0.275,  # To be checked
     "llama-4-maverick-17b-128e-instruct-fp8": 0.275,  # To be checked
@@ -81,6 +82,7 @@ CACHED_PROMPT_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "claude-4.5-opus": 0.50,
     "claude-4.6-opus": 0.50,
     "claude-4.7-opus": 0.50,
+    "claude-4.8-opus": 0.50,
     "deepseek-v4-pro": {"openrouter": 0.10875},  # input * 0.25
     "deepseek-v4-flash": {"openrouter": 0.035},  # input * 0.25
 }
@@ -97,6 +99,7 @@ COMPLETION_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "claude-4.5-opus": 25.0,
     "claude-4.6-opus": 25.0,
     "claude-4.7-opus": 25.0,
+    "claude-4.8-opus": 25.0,
     "llama-3-70b-instruct": 11.34,
     "llama-4-scout-17b-16e-instruct": 1.1,  # To be checked
     "llama-4-maverick-17b-128e-instruct-fp8": 1.1,  # To be checked
@@ -141,16 +144,34 @@ TRANSCRIPTION_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "whisper-1": 0.006,
     "gpt-4o-transcribe": 0.006,
     "whisper-large-v3": {"scaleway": 0.00345},  # €0.003/minute → $0.00345/minute
+    "eleven_audio_isolation": {"elevenlabs": 0.10},  # $0.10/minute
+    "eleven_dubbing": {"elevenlabs": 0.10},  # $0.10/minute of source video
 }
 
 GENERATION_PRICE_BASE: dict[Model, float | dict[Provider, float]] = {
     "gpt-image-1": 0.08,
-    "gpt-image-2": 0.08,
-    "gemini-3-pro-image-preview": 0.08,
+}
+
+IMAGE_GENERATION_PRICES_BY_QUALITY: dict[Model, dict[str, float]] = {
+    "gpt-image-2": {
+        "low": 0.006,
+        "medium": 0.053,
+        "high": 0.211,
+        "auto": 0.053,
+    },
+    "gemini-3-pro-image-preview": {
+        "low": 0.134,
+        "medium": 0.134,
+        "high": 0.240,
+        "auto": 0.134,
+    },
 }
 
 GENERATION_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "tts-1": 0.000015,
+    "eleven_turbo_v2_5": {"elevenlabs": 0.00006},
+    "eleven_multilingual_v2": {"elevenlabs": 0.00012},
+    "eleven_v3": {"elevenlabs": 0.00012},
 }
 
 VIDEO_GENERATION_PRICES_PER_SECOND: dict[Model, dict[str, tuple[float, float]]] = {
@@ -215,6 +236,13 @@ def get_stt_price(model: Model, provider: Provider) -> float:
 def get_tti_price(model: Model, provider: Provider) -> float:
     """Get the generation price for a model and provider."""
     return _fetch_price(GENERATION_PRICE_BASE, model, provider)
+
+
+def get_tti_price_by_quality(model: Model, quality: str) -> float | None:
+    """Get per-image price for models with quality-based pricing. Returns None if not applicable."""
+    if model not in IMAGE_GENERATION_PRICES_BY_QUALITY:
+        return None
+    return IMAGE_GENERATION_PRICES_BY_QUALITY[model].get(quality, IMAGE_GENERATION_PRICES_BY_QUALITY[model]["medium"])
 
 
 def get_tts_price(model: Model, provider: Provider) -> float:
