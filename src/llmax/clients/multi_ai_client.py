@@ -1549,6 +1549,7 @@ class MultiAIClient:
         output_format: Literal["png", "jpeg", "webp"] | None = None,
         output_compression: int | None = None,
         mask: tuple[str, bytes, str] | None = None,
+        aspect_ratio: str | None = None,
     ) -> bytes:
         """Edit an image using the specified model and a text prompt."""
         start = time.time()
@@ -1599,6 +1600,7 @@ class MultiAIClient:
                     response_modalities=["IMAGE"],
                     image_config=genai_types.ImageConfig(
                         image_size=quality_to_resolution.get(quality, "1K"),
+                        aspect_ratio=aspect_ratio,
                     ),
                 ),
             )
