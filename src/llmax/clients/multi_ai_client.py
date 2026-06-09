@@ -1559,6 +1559,29 @@ class MultiAIClient:
 
         images = image if isinstance(image, list) else [image]
 
+        if aspect_ratio is not None and model_used not in GEMINI_MODELS:
+            aspect_ratio_to_size: dict[
+                str,
+                Literal["1024x1024", "1024x1536", "1536x1024"],
+            ] = {
+                "1:1": "1024x1024",
+                "2:3": "1024x1536",
+                "3:2": "1536x1024",
+                "3:4": "1024x1536",
+                "4:3": "1536x1024",
+                "4:5": "1024x1536",
+                "5:4": "1536x1024",
+                "9:16": "1024x1536",
+                "16:9": "1536x1024",
+                "21:9": "1536x1024",
+            }
+            if aspect_ratio == "21:9":
+                logger.warning(
+                    "Aspect ratio '21:9' has no exact OpenAI equivalent. Using '1536x1024' (16:9) as the closest match.",
+                )
+            if aspect_ratio in aspect_ratio_to_size:
+                size = aspect_ratio_to_size[aspect_ratio]
+
         if model_used in GEMINI_MODELS:
             if background is not None:
                 logger.warning(
