@@ -108,8 +108,10 @@ def test_manual_list_without_markers_gets_trailing_breakpoint() -> None:
         },
     ])
     assert n == 1
-    assert "cache_control" not in system[0]
-    assert system[1]["cache_control"] == EPHEMERAL
+    assert system == [
+        {"type": "text", "text": "first"},
+        {"type": "text", "text": "last", "cache_control": EPHEMERAL},
+    ]
 
 
 # --- tool breakpoint budget ---
