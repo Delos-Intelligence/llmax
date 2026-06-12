@@ -51,6 +51,7 @@ PROMPT_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "holo2-30b-a3b": {"scaleway": 0.345},  # €0.30 → $0.345
     "qwen3-embedding-8b": {"scaleway": 0.115},  # €0.10 → $0.115
     "qwen3.6-35b-a3b": {"scaleway": 0.2875, "openrouter": 0.14},
+    "qwen3-coder-30b-a3b-instruct": {"scaleway": 0.23},  # €0.20 → $0.23
     "gemini-3-pro-preview": 2,
     "deepseek-v4-pro": {"openrouter": 0.435},
     "deepseek-v4-flash": {"openrouter": 0.14},
@@ -129,6 +130,7 @@ COMPLETION_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "pixtral-12b-2409": {"scaleway": 0.23},  # €0.20 → $0.23
     "holo2-30b-a3b": {"scaleway": 0.805},  # €0.70 → $0.805
     "qwen3.6-35b-a3b": {"scaleway": 1.725, "openrouter": 1.00},
+    "qwen3-coder-30b-a3b-instruct": {"scaleway": 0.92},  # €0.80 → $0.92
     "gemini-3-pro-preview": 12,
     "deepseek-v4-pro": {"openrouter": 0.87},
     "deepseek-v4-flash": {"openrouter": 0.28},
