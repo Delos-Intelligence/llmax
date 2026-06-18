@@ -244,3 +244,33 @@ response = await client.ainvoke_to_str(
 When creating the client, you can also specify two functions, *increment_usage* and *get_usage*.
 The first one is **Callable[[float, Model], bool]** while the second is **Callable[[], float]**.
 *increment_usage* is a function that is called after a call of the llm. The float is the price and Model, the model used. It can therefore be used to update your database. *get_usage* returns whether a condition is met. For instance, it can be a function that calls your database and returns whether the user is still active.
+# Prompt caching Anthropic — breakpoints personnalisés
+
+Pour les modèles Anthropic, `llmax` pose automatiquement des breakpoints de cache
+(`cache_control: ephemeral`) : un sur le bloc system, un sur le dernier tool, et un
+sur chacun des deux derniers messages (le maximum de 4 autorisé par Anthropic).
+
+Par défaut, `system` est une **string** → elle devient un seul bloc avec un breakpoint
+à la fin. Comportement inchangé.
+
+Vous pouvez aussi passer `system` comme **liste de blocs de contenu** et placer vos
+propres breakpoints — utile pour isoler un préfixe stable, partagé entre utilisateurs
+(donc lu en cache cross-requêtes), d'une queue spécifique à l'utilisateur :
+
+```python
+client.stream(
+    messages,
+    model="claude-4.6-sonnet",
+    system=[
+        # Préfixe stable (rôle, outils, capacités) — partagé entre utilisateurs
+        {"type": "text", "text": prefixe_commun, "cache_control": {"type": "ephemeral"}},
+        # Queue spécifique à l'utilisateur (mémoire, contexte) — cache par utilisateur
+        {"type": "text", "text": contexte_utilisateur, "cache_control": {"type": "ephemeral"}},
+    ],
+)
+```
+
+Budget : Anthropic limite à **4 breakpoints**. Deux sont réservés aux deux derniers
+messages. Si le system en utilise 2, le breakpoint du tableau d'outils est
+automatiquement retiré (le premier breakpoint system, situé après les outils, les
+cache déjà). Au-delà de 2 breakpoints system, c'est au caller de rester sous la limite.
