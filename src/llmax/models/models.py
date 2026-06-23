@@ -60,6 +60,7 @@ OpenRouterModel = Literal[
     "deepseek-v4-flash",
     "glm-4.7",
     "glm-5.1",
+    "glm-5.2",
     "llama-4-maverick",
     "qwen3.6-plus",
     "kimi-k2.5",
@@ -86,6 +87,7 @@ ScalewayModel = Literal[
     "holo2-30b-a3b",
     "qwen3-embedding-8b",
     "qwen3.6-35b-a3b",
+    "qwen3-coder-30b-a3b-instruct",
 ]
 
 ElevenLabsModel = Literal[

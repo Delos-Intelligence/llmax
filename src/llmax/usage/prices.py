@@ -51,11 +51,13 @@ PROMPT_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "holo2-30b-a3b": {"scaleway": 0.345},  # €0.30 → $0.345
     "qwen3-embedding-8b": {"scaleway": 0.115},  # €0.10 → $0.115
     "qwen3.6-35b-a3b": {"scaleway": 0.2875, "openrouter": 0.14},
+    "qwen3-coder-30b-a3b-instruct": {"scaleway": 0.23},  # €0.20 → $0.23
     "gemini-3-pro-preview": 2,
     "deepseek-v4-pro": {"openrouter": 0.435},
     "deepseek-v4-flash": {"openrouter": 0.14},
     "glm-4.7": {"openrouter": 0.38},
     "glm-5.1": {"openrouter": 1.05},
+    "glm-5.2": {"openrouter": 1.40},
     "llama-4-maverick": {"openrouter": 0.15},
     "qwen3.6-plus": {"openrouter": 0.325},
     "kimi-k2.5": {"openrouter": 0.44},
@@ -85,6 +87,7 @@ CACHED_PROMPT_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "claude-4.8-opus": 0.50,
     "deepseek-v4-pro": {"openrouter": 0.10875},  # input * 0.25
     "deepseek-v4-flash": {"openrouter": 0.035},  # input * 0.25
+    "glm-5.2": {"openrouter": 0.26},
 }
 
 COMPLETION_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
@@ -129,11 +132,13 @@ COMPLETION_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "pixtral-12b-2409": {"scaleway": 0.23},  # €0.20 → $0.23
     "holo2-30b-a3b": {"scaleway": 0.805},  # €0.70 → $0.805
     "qwen3.6-35b-a3b": {"scaleway": 1.725, "openrouter": 1.00},
+    "qwen3-coder-30b-a3b-instruct": {"scaleway": 0.92},  # €0.80 → $0.92
     "gemini-3-pro-preview": 12,
     "deepseek-v4-pro": {"openrouter": 0.87},
     "deepseek-v4-flash": {"openrouter": 0.28},
     "glm-4.7": {"openrouter": 1.74},
     "glm-5.1": {"openrouter": 3.50},
+    "glm-5.2": {"openrouter": 4.40},
     "llama-4-maverick": {"openrouter": 0.60},
     "qwen3.6-plus": {"openrouter": 1.95},
     "kimi-k2.5": {"openrouter": 2.00},

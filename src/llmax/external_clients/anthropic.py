@@ -34,34 +34,76 @@ MAPPING_FINISH_REASON: dict[str, str] = {
 
 DEFAULT_MAX_TOKENS = 10_000
 
+# Anthropic allows at most 4 cache_control breakpoints per request. Two are always
+# reserved for the last two messages (see ``_add_message_cache_control``); the
+# remaining two are shared between the system and the tools array. Once the system
+# uses both, the tools breakpoint is dropped — the first system breakpoint sits
+# after the tools array and already caches it.
+_MAX_NON_MESSAGE_BREAKPOINTS = 2
+
 
 def _extract_system(
     messages: Messages,
-) -> tuple[list[dict[str, Any]] | anthropic.NotGiven, Messages]:
-    """Separate system messages from the list, return (system_blocks, remaining).
+) -> tuple[list[dict[str, Any]] | anthropic.NotGiven, Messages, int]:
+    """Separate system messages from the list.
 
-    Returns system as a list with cache_control to enable prompt caching.
+    Returns ``(system_blocks, remaining, n_breakpoints)``.
+
+    Two modes:
+
+    - **Default** — every system message has plain-string content: they are
+      concatenated into a single text block with one trailing ``cache_control``
+      breakpoint. Byte-identical to the historical behaviour.
+    - **Manual** — a system message carries *list* content (pre-built Anthropic
+      text blocks): the blocks are preserved verbatim, honouring any
+      ``cache_control`` the caller placed on them. This lets a caller position
+      its own breakpoints — e.g. a stable, cross-user cohort prefix followed by
+      a per-user tail. If the caller supplied blocks but marked none, a trailing
+      ``cache_control`` is added so caching still applies (default-equivalent).
+
+    ``n_breakpoints`` is how many ``cache_control`` markers the system uses, so
+    the caller (``anthropic_create``/``acreate``) can keep the request within
+    Anthropic's 4-breakpoint budget — see ``_convert_tools(enable_cache=...)``.
     """
     system_parts: list[str] = []
+    manual_blocks: list[dict[str, Any]] = []
+    has_list_content = False
     remaining: Messages = []
     for msg in messages:
-        if msg.get("role") == "system":
-            content = msg.get("content", "")
-            if isinstance(content, str):
-                system_parts.append(content)
-            elif isinstance(content, list):
-                system_parts.append(" ".join(str(c) for c in content))
-        else:
+        if msg.get("role") != "system":
             remaining.append(msg)
-    if system_parts:
+            continue
+        content = msg.get("content", "")
+        if isinstance(content, list):
+            has_list_content = True
+            for block in content:
+                if isinstance(block, dict):
+                    manual_blocks.append(dict(block))
+                else:
+                    manual_blocks.append({"type": "text", "text": str(block)})
+        else:
+            system_parts.append(content)
+            manual_blocks.append({"type": "text", "text": content})
+
+    if not manual_blocks:
+        return anthropic.NOT_GIVEN, remaining, 0
+
+    if not has_list_content:
+        # Default mode — single concatenated block, one trailing breakpoint.
         return [
             {
                 "type": "text",
                 "text": " ".join(system_parts),
                 "cache_control": {"type": "ephemeral"},
             },
-        ], remaining
-    return anthropic.NOT_GIVEN, remaining
+        ], remaining, 1
+
+    # Manual mode — preserve caller blocks and the cache_control markers they set.
+    n_breakpoints = sum(1 for b in manual_blocks if b.get("cache_control"))
+    if n_breakpoints == 0:
+        manual_blocks[-1]["cache_control"] = {"type": "ephemeral"}
+        n_breakpoints = 1
+    return manual_blocks, remaining, n_breakpoints
 
 
 def _add_message_cache_control(messages: Messages) -> Messages:
@@ -108,8 +150,14 @@ def _add_message_cache_control(messages: Messages) -> Messages:
     return messages
 
 
-def _convert_tools(kwargs: dict[str, Any]) -> dict[str, Any]:
-    """Convert OpenAI-style tools to Anthropic format, mutating kwargs in place."""
+def _convert_tools(kwargs: dict[str, Any], *, enable_cache: bool = True) -> dict[str, Any]:
+    """Convert OpenAI-style tools to Anthropic format, mutating kwargs in place.
+
+    ``enable_cache`` adds a ``cache_control`` breakpoint on the last tool (default).
+    Set it ``False`` to drop that breakpoint — used when the system already places
+    a breakpoint *after* the tools array (which subsumes it), so the request stays
+    within Anthropic's 4-breakpoint budget.
+    """
     if "tools" in kwargs:
         tools = kwargs.pop("tools")
         if tools:
@@ -123,7 +171,8 @@ def _convert_tools(kwargs: dict[str, Any]) -> dict[str, Any]:
                 if tool.get("type") == "function"
             ]
             if anthropic_tools:
-                anthropic_tools[-1]["cache_control"] = {"type": "ephemeral"}
+                if enable_cache:
+                    anthropic_tools[-1]["cache_control"] = {"type": "ephemeral"}
                 kwargs["tools"] = anthropic_tools
 
     if "tool_choice" in kwargs:
@@ -561,9 +610,12 @@ def anthropic_create(
     **kwargs: Any,
 ) -> ChatCompletion | Generator[ChatCompletionChunk, None, None]:
     """Synchronous Anthropic call, returns ChatCompletion or streaming generator."""
-    system, remaining = _extract_system(messages)
+    system, remaining, n_sys_breakpoints = _extract_system(messages)
     remaining = _add_message_cache_control(remaining)
-    kwargs = _convert_tools(kwargs)
+    kwargs = _convert_tools(
+        kwargs,
+        enable_cache=(n_sys_breakpoints < _MAX_NON_MESSAGE_BREAKPOINTS),
+    )
     stream = kwargs.pop("stream", False)
 
     if "max_tokens" not in kwargs:
@@ -595,9 +647,12 @@ async def anthropic_acreate(
     **kwargs: Any,
 ) -> ChatCompletion | AsyncGenerator[ChatCompletionChunk, None]:
     """Async Anthropic call, returns ChatCompletion or async streaming generator."""
-    system, remaining = _extract_system(messages)
+    system, remaining, n_sys_breakpoints = _extract_system(messages)
     remaining = _add_message_cache_control(remaining)
-    kwargs = _convert_tools(kwargs)
+    kwargs = _convert_tools(
+        kwargs,
+        enable_cache=(n_sys_breakpoints < _MAX_NON_MESSAGE_BREAKPOINTS),
+    )
     stream = kwargs.pop("stream", False)
 
     if "max_tokens" not in kwargs:

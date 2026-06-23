@@ -256,6 +256,7 @@ class MultiAIClient:
         if deployment.model in ANTHROPIC_MODELS:
             kwargs.pop("stream_options", None)
             kwargs.pop("response_format", None)
+            kwargs.pop("reasoning_effort", None)
             if "max_completion_tokens" in kwargs:
                 kwargs["max_tokens"] = kwargs.pop("max_completion_tokens")
 
@@ -414,7 +415,7 @@ class MultiAIClient:
         self,
         messages: Messages,
         models: list[Model],
-        system: str | None = None,
+        system: str | list[dict[str, Any]] | None = None,
         delay: float = 0.0,
         tries: int = 1,
         **kwargs: Any,
@@ -464,7 +465,7 @@ class MultiAIClient:
         self,
         messages: Messages,
         model: Model | list[Model],
-        system: str | None = None,
+        system: str | list[dict[str, Any]] | None = None,
         delay: float = 0.0,
         tries: int = 1,
         **kwargs: Any,
@@ -501,7 +502,7 @@ class MultiAIClient:
         messages: Messages,
         models: list[Model],
         operation: str,
-        system: str | None = None,
+        system: str | list[dict[str, Any]] | None = None,
         delay: float = 0.0,
         tries: int = 1,
         **kwargs: Any,
@@ -576,7 +577,7 @@ class MultiAIClient:
         messages: Messages,
         model: Model | list[Model],
         operation: str,
-        system: str | None = None,
+        system: str | list[dict[str, Any]] | None = None,
         delay: float = 0.0,
         tries: int = 1,
         **kwargs: Any,
@@ -612,7 +613,7 @@ class MultiAIClient:
         messages: Messages,
         model: list[Model] | Model,
         operation: str,
-        system: str | None = None,
+        system: str | list[dict[str, Any]] | None = None,
         delay: float = 0.0,
         tries: int = 1,
         **kwargs: Any,
@@ -651,7 +652,7 @@ class MultiAIClient:
         model: Model | list[Model],
         execute_tools: Callable[[str, str], Awaitable[str]],
         operation: str,
-        system: str | None = None,
+        system: str | list[dict[str, Any]] | None = None,
         delay: float = 0.0,
         max_tool_calls: int = 4,
         tries: int = 1,
@@ -732,7 +733,7 @@ class MultiAIClient:
         self,
         messages: Messages,
         model: Model | list[Model],
-        system: str | None = None,
+        system: str | list[dict[str, Any]] | None = None,
         **kwargs: Any,
     ) -> Generator[ChatCompletionChunk | CompletionUsage | Model, None, None]:
         """Streams chat completions, allowing responses to be received in chunks.
@@ -796,7 +797,7 @@ class MultiAIClient:
         model: list[Model] | Model,
         smooth_duration: int,
         operation: str,
-        system: str | None = None,
+        system: str | list[dict[str, Any]] | None = None,
         **kwargs: Any,
     ) -> AsyncGenerator[StreamedItem, None]:
         """Streams formatted output from the chat completions.
@@ -931,7 +932,7 @@ class MultiAIClient:
         messages: Messages,
         model: list[Model] | Model,
         operation: str,
-        system: str | None = None,
+        system: str | list[dict[str, Any]] | None = None,
         smooth_duration: int | None = None,
         **kwargs: Any,
     ) -> AsyncGenerator[StreamedItem, None]:
@@ -966,7 +967,7 @@ class MultiAIClient:
         model: list[Model] | Model,
         operation: str,
         execute_tools: Callable[[str, str, str], AsyncGenerator[ToolItem, None]],
-        system: str | None = None,
+        system: str | list[dict[str, Any]] | None = None,
         smooth_duration: int | None = None,
         max_tool_calls: int = 4,
         max_tokens_before_tool_use: int | None = None,
@@ -2086,16 +2087,15 @@ def _extract_image_from_gemini_response(response: Any) -> bytes | None:
 
 def add_system_message(
     messages: Messages,
-    system: str,
+    system: str | list[dict[str, Any]],
 ) -> Messages:
     """Adds a system message at the start of the messages.
 
-    It should take into account the model name to correctly name the system.
-
     Args:
         messages: The list of messages for the chat.
-        model: The model to use for generating the chat completions.
-        system: A string that will be passed as a system prompt.
+        system: The system prompt — a plain string, or a list of content blocks
+            (e.g. Anthropic text blocks carrying their own ``cache_control``) when
+            the caller wants to position its own cache breakpoints.
 
     Returns:
         Messages: The same initial list with the system message inserted at index 0.
