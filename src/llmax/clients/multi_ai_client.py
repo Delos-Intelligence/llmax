@@ -1536,7 +1536,7 @@ class MultiAIClient:
         self.total_usage += cost
         self.usages.append(usage)
 
-    async def edit_image(  # noqa: PLR0912, PLR0913, C901
+    async def edit_image(  # noqa: PLR0912, PLR0913, C901, PLR0915
         self,
         model: Model | list[Model],
         prompt: str,
