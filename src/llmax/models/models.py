@@ -53,6 +53,7 @@ AnthropicModel = Literal[
     "claude-4.6-sonnet",
     "claude-4.7-opus",
     "claude-4.8-opus",
+    "claude-5-sonnet",
 ]
 
 OpenRouterModel = Literal[

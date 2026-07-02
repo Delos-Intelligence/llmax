@@ -457,7 +457,7 @@ wheels = [
 
 [[package]]
 name = "delos-llmax"
-version = "1.48.0"
+version = "1.49.0"
 source = { editable = "." }
 dependencies = [
     { name = "anthropic" },
@@ -504,7 +504,7 @@ dev = [
     { name = "isort", specifier = ">=5.13.2" },
     { name = "mypy", specifier = ">=1.11.1" },
     { name = "pydub-stubs", specifier = ">=0.25.1.1" },
-    { name = "pytest", specifier = ">=7,<9" },
+    { name = "pytest", specifier = ">=7,<10" },
     { name = "pytest-cov", specifier = ">=3,<6" },
     { name = "ruff", specifier = ">=0.6.1" },
     { name = "ty", specifier = ">=0.0.18" },
