@@ -58,7 +58,7 @@ PROMPT_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "deepseek-v4-flash": {"openrouter": 0.14},
     "glm-4.7": {"openrouter": 0.38},
     "glm-5.1": {"openrouter": 1.05},
-    "glm-5.2": {"openrouter": 1.40},
+    "glm-5.2": {"scaleway": 2.07, "openrouter": 1.40},  # €1.80 → $2.07
     "llama-4-maverick": {"openrouter": 0.15},
     "qwen3.6-plus": {"openrouter": 0.325},
     "kimi-k2.5": {"openrouter": 0.44},
@@ -141,7 +141,7 @@ COMPLETION_PRICES_PER_1M: dict[Model, float | dict[Provider, float]] = {
     "deepseek-v4-flash": {"openrouter": 0.28},
     "glm-4.7": {"openrouter": 1.74},
     "glm-5.1": {"openrouter": 3.50},
-    "glm-5.2": {"openrouter": 4.40},
+    "glm-5.2": {"scaleway": 6.325, "openrouter": 4.40},  # €5.50 → $6.325
     "llama-4-maverick": {"openrouter": 0.60},
     "qwen3.6-plus": {"openrouter": 1.95},
     "kimi-k2.5": {"openrouter": 2.00},

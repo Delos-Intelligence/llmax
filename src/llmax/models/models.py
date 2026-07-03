@@ -89,6 +89,7 @@ ScalewayModel = Literal[
     "qwen3-embedding-8b",
     "qwen3.6-35b-a3b",
     "qwen3-coder-30b-a3b-instruct",
+    "glm-5.2",
 ]
 
 ElevenLabsModel = Literal[
