@@ -254,11 +254,7 @@ class MultiAIClient:
             kwargs["max_tokens"] = kwargs.pop("max_completion_tokens")
 
         if deployment.model in ANTHROPIC_MODELS:
-            kwargs.pop("stream_options", None)
-            kwargs.pop("response_format", None)
-            kwargs.pop("reasoning_effort", None)
-            if "max_completion_tokens" in kwargs:
-                kwargs["max_tokens"] = kwargs.pop("max_completion_tokens")
+            kwargs = MultiAIClient._clean_anthropic_kwargs(kwargs)
 
         if deployment.provider not in {"openai", "azure"} or deployment.model in MISTRAL_MODELS:
             kwargs.pop("prompt_cache_key", None)
@@ -277,6 +273,22 @@ class MultiAIClient:
                 ),
             )
 
+        return kwargs
+
+    @staticmethod
+    def _clean_anthropic_kwargs(kwargs: dict[str, Any]) -> dict[str, Any]:
+        """Drop or translate kwargs the Anthropic SDK doesn't accept."""
+        kwargs.pop("stream_options", None)
+        kwargs.pop("response_format", None)
+        kwargs.pop("reasoning_effort", None)
+        if "max_completion_tokens" in kwargs:
+            kwargs["max_tokens"] = kwargs.pop("max_completion_tokens")
+        if "stop" in kwargs:
+            stop = kwargs.pop("stop")
+            if stop:
+                kwargs["stop_sequences"] = (
+                    [stop] if isinstance(stop, str) else list(stop)
+                )
         return kwargs
 
     @staticmethod

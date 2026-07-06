@@ -150,6 +150,134 @@ def _add_message_cache_control(messages: Messages) -> Messages:
     return messages
 
 
+def _image_block(image_url: dict[str, Any]) -> dict[str, Any]:
+    """Convert an OpenAI ``image_url`` payload to an Anthropic ``image`` block."""
+    url = image_url.get("url", "")
+    if url.startswith("data:"):
+        header, _, data = url.partition(",")
+        media_type = header.removeprefix("data:").split(";")[0] or "image/png"
+        return {
+            "type": "image",
+            "source": {"type": "base64", "media_type": media_type, "data": data},
+        }
+    return {"type": "image", "source": {"type": "url", "url": url}}
+
+
+def _convert_content_blocks(content: Any) -> Any:
+    """Convert OpenAI content blocks (``image_url``) to Anthropic ones.
+
+    String content and blocks already in Anthropic shape pass through untouched.
+    """
+    if not isinstance(content, list):
+        return content
+    blocks: list[dict[str, Any]] = []
+    for block in content:
+        if not isinstance(block, dict):
+            blocks.append({"type": "text", "text": str(block)})
+        elif block.get("type") == "image_url":
+            blocks.append(_image_block(block.get("image_url") or {}))
+        else:
+            blocks.append(block)
+    return blocks
+
+
+def _tool_result_block(msg: dict[str, Any]) -> dict[str, Any]:
+    """Build an Anthropic ``tool_result`` block from an OpenAI ``tool`` message."""
+    content = msg.get("content")
+    if isinstance(content, list):
+        # OpenAI allows list-of-parts tool content; flatten to plain text.
+        content = "".join(
+            part.get("text", "") if isinstance(part, dict) else str(part)
+            for part in content
+        )
+    return {
+        "type": "tool_result",
+        "tool_use_id": msg.get("tool_call_id", ""),
+        "content": content if isinstance(content, str) else str(content or ""),
+    }
+
+
+def _ends_with_tool_result(msg: dict[str, Any]) -> bool:
+    """True if ``msg`` is a user message whose content ends with a tool_result block."""
+    content = msg.get("content")
+    return (
+        msg.get("role") == "user"
+        and isinstance(content, list)
+        and bool(content)
+        and isinstance(content[-1], dict)
+        and content[-1].get("type") == "tool_result"
+    )
+
+
+def _convert_messages(messages: Messages) -> Messages:
+    """Translate OpenAI-style messages to the Anthropic Messages format.
+
+    - assistant ``tool_calls`` become ``tool_use`` content blocks;
+    - ``role: "tool"`` messages become ``tool_result`` blocks inside a user
+      message — consecutive tool messages (and a user message immediately
+      following them) are merged into ONE user message, as Anthropic requires
+      all results of a turn in the user message that follows the ``tool_use``;
+    - ``image_url`` content blocks become Anthropic ``image`` blocks;
+    - ``null`` content becomes an empty string.
+
+    Messages already in Anthropic shape pass through untouched, so callers that
+    pre-convert keep working.
+    """
+    converted: Messages = []
+    for msg in messages:
+        role = msg.get("role")
+
+        if role == "tool":
+            block = _tool_result_block(msg)
+            if converted and _ends_with_tool_result(converted[-1]):
+                converted[-1]["content"].append(block)
+            else:
+                converted.append({"role": "user", "content": [block]})
+            continue
+
+        if role == "assistant" and msg.get("tool_calls"):
+            blocks: list[dict[str, Any]] = []
+            content = msg.get("content")
+            if isinstance(content, str) and content:
+                blocks.append({"type": "text", "text": content})
+            elif isinstance(content, list):
+                blocks.extend(_convert_content_blocks(content))
+            for call in msg["tool_calls"]:
+                function = call.get("function") or {}
+                try:
+                    arguments = json.loads(function.get("arguments") or "{}")
+                except json.JSONDecodeError:
+                    arguments = {}
+                blocks.append(
+                    {
+                        "type": "tool_use",
+                        "id": call.get("id", ""),
+                        "name": function.get("name", ""),
+                        "input": arguments if isinstance(arguments, dict) else {},
+                    },
+                )
+            converted.append({"role": "assistant", "content": blocks})
+            continue
+
+        new_msg = dict(msg)
+        new_msg["content"] = _convert_content_blocks(new_msg.get("content")) or ""
+
+        # A user turn right after tool results must live in the same Anthropic
+        # user message as those tool_result blocks.
+        if role == "user" and converted and _ends_with_tool_result(converted[-1]):
+            content = new_msg["content"]
+            extra = (
+                [{"type": "text", "text": content}]
+                if isinstance(content, str)
+                else content
+            )
+            converted[-1]["content"].extend(extra)
+            continue
+
+        converted.append(new_msg)
+    return converted
+
+
 def _convert_tools(kwargs: dict[str, Any], *, enable_cache: bool = True) -> dict[str, Any]:
     """Convert OpenAI-style tools to Anthropic format, mutating kwargs in place.
 
@@ -611,6 +739,7 @@ def anthropic_create(
 ) -> ChatCompletion | Generator[ChatCompletionChunk, None, None]:
     """Synchronous Anthropic call, returns ChatCompletion or streaming generator."""
     system, remaining, n_sys_breakpoints = _extract_system(messages)
+    remaining = _convert_messages(remaining)
     remaining = _add_message_cache_control(remaining)
     kwargs = _convert_tools(
         kwargs,
@@ -648,6 +777,7 @@ async def anthropic_acreate(
 ) -> ChatCompletion | AsyncGenerator[ChatCompletionChunk, None]:
     """Async Anthropic call, returns ChatCompletion or async streaming generator."""
     system, remaining, n_sys_breakpoints = _extract_system(messages)
+    remaining = _convert_messages(remaining)
     remaining = _add_message_cache_control(remaining)
     kwargs = _convert_tools(
         kwargs,
